@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PrefixController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -36,6 +37,19 @@ Route::middleware('auth')->group(function (): void {
         'autonomous-systems',
         AutonomousSystemController::class
     );
+
+    Route::get('/prefixes/ipv4', [PrefixController::class, 'ipv4'])
+        ->name('prefixes.ipv4');
+
+    Route::get('/prefixes/ipv6', [PrefixController::class, 'ipv6'])
+        ->name('prefixes.ipv6');
+
+    Route::patch(
+        '/prefixes/{prefix}/toggle-active',
+        [PrefixController::class, 'toggleActive']
+    )->name('prefixes.toggle-active');
+
+    Route::resource('prefixes', PrefixController::class);
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });

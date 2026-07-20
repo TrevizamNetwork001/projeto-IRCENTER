@@ -2,30 +2,28 @@
 
 namespace App\Models;
 
-use Database\Factories\AutonomousSystemFactory;
+use Database\Factories\PrefixFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'client_id',
-    'asn',
-    'name',
+    'autonomous_system_id',
+    'prefix',
+    'ip_version',
     'description',
     'rir',
     'country',
-    'website',
-    'noc_contact',
-    'noc_email',
-    'noc_phone',
+    'allocation_status',
+    'purpose',
     'notes',
     'active',
 ])]
-class AutonomousSystem extends Model
+class Prefix extends Model
 {
-    /** @use HasFactory<AutonomousSystemFactory> */
+    /** @use HasFactory<PrefixFactory> */
     use HasFactory;
 
     public function client(): BelongsTo
@@ -33,20 +31,25 @@ class AutonomousSystem extends Model
         return $this->belongsTo(Client::class);
     }
 
-    public function prefixes(): HasMany
+    public function autonomousSystem(): BelongsTo
     {
-        return $this->hasMany(Prefix::class);
+        return $this->belongsTo(AutonomousSystem::class);
     }
 
-    public function formattedAsn(): string
+    public function isIpv4(): bool
     {
-        return 'AS'.$this->asn;
+        return $this->ip_version === 4;
+    }
+
+    public function isIpv6(): bool
+    {
+        return $this->ip_version === 6;
     }
 
     protected function casts(): array
     {
         return [
-            'asn' => 'integer',
+            'ip_version' => 'integer',
             'active' => 'boolean',
         ];
     }

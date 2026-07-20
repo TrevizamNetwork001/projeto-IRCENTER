@@ -31,6 +31,11 @@ class Client extends Model
         return $this->hasMany(AutonomousSystem::class);
     }
 
+    public function prefixes(): HasMany
+    {
+        return $this->hasMany(Prefix::class);
+    }
+
     public function displayName(): string
     {
         return $this->trade_name ?: $this->legal_name;

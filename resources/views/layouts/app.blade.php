@@ -56,14 +56,20 @@
                     <span>ASNs</span>
                 </a>
 
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('prefixes.ipv4') }}"
+                    class="sidebar-link {{ request()->routeIs('prefixes.ipv4') || (request()->routeIs('prefixes.*') && request('version') == 4) ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
                         <x-icon name="ipv4"/>
                     </span>
                     <span>Prefixos IPv4</span>
                 </a>
 
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('prefixes.ipv6') }}"
+                    class="sidebar-link {{ request()->routeIs('prefixes.ipv6') || (request()->routeIs('prefixes.*') && request('version') == 6) ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
                         <x-icon name="ipv6"/>
                     </span>

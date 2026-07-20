@@ -1171,7 +1171,7 @@ a {
     font-weight: 700;
 }
 
-.field-group > label > span {
+.field-group > label:not(.checkbox-label) > span {
     color: var(--danger);
 }
 
@@ -1306,4 +1306,25 @@ a {
     .page-actions {
         flex-wrap: wrap;
     }
+}
+
+/* Prefixes */
+
+.field-help {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 8px;
+    line-height: 1.5;
+}
+
+.allocation-pill {
+    display: inline-flex;
+    padding: 5px 8px;
+    border: 1px solid rgba(156, 124, 255, 0.18);
+    border-radius: 20px;
+    background: rgba(156, 124, 255, 0.08);
+    color: #b7a3ff;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
 }
