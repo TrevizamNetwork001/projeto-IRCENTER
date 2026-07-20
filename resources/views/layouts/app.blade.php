@@ -7,6 +7,18 @@
 
     <title>@yield('title', 'IRCENTER')</title>
 
+    <script>
+        (() => {
+            try {
+                const savedTheme = localStorage.getItem('ircenter-theme');
+                document.documentElement.dataset.theme =
+                    savedTheme === 'light' ? 'light' : 'dark';
+            } catch (error) {
+                document.documentElement.dataset.theme = 'dark';
+            }
+        })();
+    </script>
+
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}">
 </head>
 <body class="app-body">
@@ -123,6 +135,22 @@
                 </div>
 
                 <div class="topbar-actions">
+                    <button
+                        id="theme-toggle"
+                        class="topbar-icon-button theme-toggle"
+                        type="button"
+                        aria-label="Alternar tema"
+                        title="Alternar tema claro/escuro"
+                    >
+                        <span class="theme-icon theme-icon-sun">
+                            <x-icon name="sun" size="19"/>
+                        </span>
+
+                        <span class="theme-icon theme-icon-moon">
+                            <x-icon name="moon" size="19"/>
+                        </span>
+                    </button>
+
                     <button class="topbar-icon-button" type="button" aria-label="Notificações" disabled>
                         <x-icon name="bell" size="19"/>
                         <span class="notification-indicator"></span>
@@ -155,5 +183,31 @@
             </main>
         </div>
     </div>
+
+    <script>
+        (() => {
+            const button = document.getElementById('theme-toggle');
+
+            if (! button) {
+                return;
+            }
+
+            button.addEventListener('click', () => {
+                const currentTheme =
+                    document.documentElement.dataset.theme || 'dark';
+
+                const nextTheme =
+                    currentTheme === 'light' ? 'dark' : 'light';
+
+                document.documentElement.dataset.theme = nextTheme;
+
+                try {
+                    localStorage.setItem('ircenter-theme', nextTheme);
+                } catch (error) {
+                    // O tema continua funcionando durante a sessão.
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

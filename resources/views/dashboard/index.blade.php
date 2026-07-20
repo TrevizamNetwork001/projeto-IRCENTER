@@ -26,7 +26,7 @@
 
     <section class="metrics-grid">
         @foreach ($metrics as $metric)
-            <article class="metric-card">
+            <a class="metric-card" href="{{ $metric['route'] }}">
                 <div class="metric-card-header">
                     <div class="metric-icon {{ $metric['tone'] }}">
                         <x-icon :name="$metric['icon']"/>
@@ -44,7 +44,7 @@
                     <span>{{ $metric['description'] }}</span>
                     <x-icon name="chevron-right" size="16"/>
                 </div>
-            </article>
+            </a>
         @endforeach
     </section>
 
@@ -56,14 +56,19 @@
                     <h2>Distribuição de recursos</h2>
                 </div>
 
-                <span class="panel-status">Base inicial</span>
+                <span class="panel-status">
+                    {{ $totalResources }} recursos
+                </span>
             </header>
 
             <div class="resource-overview">
                 <div class="resource-chart">
-                    <div class="resource-chart-ring">
+                    <div
+                        class="resource-chart-ring"
+                        style="--resource-chart: {{ $distributionGradient }}"
+                    >
                         <div>
-                            <strong>0</strong>
+                            <strong>{{ $totalResources }}</strong>
                             <span>Recursos</span>
                         </div>
                     </div>
@@ -76,7 +81,7 @@
                             <strong>Clientes</strong>
                             <span>Organizações cadastradas</span>
                         </div>
-                        <b>0</b>
+                        <b>{{ $totals['clients'] }}</b>
                     </div>
 
                     <div class="legend-item">
@@ -85,7 +90,7 @@
                             <strong>ASNs</strong>
                             <span>Sistemas autônomos</span>
                         </div>
-                        <b>0</b>
+                        <b>{{ $totals['asns'] }}</b>
                     </div>
 
                     <div class="legend-item">
@@ -94,7 +99,7 @@
                             <strong>IPv4</strong>
                             <span>Prefixos IPv4</span>
                         </div>
-                        <b>0</b>
+                        <b>{{ $totals['ipv4'] }}</b>
                     </div>
 
                     <div class="legend-item">
@@ -103,7 +108,7 @@
                             <strong>IPv6</strong>
                             <span>Prefixos IPv6</span>
                         </div>
-                        <b>0</b>
+                        <b>{{ $totals['ipv6'] }}</b>
                     </div>
                 </div>
             </div>
