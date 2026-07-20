@@ -6,6 +6,7 @@ use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'legal_name',
@@ -25,15 +26,20 @@ class Client extends Model
     /** @use HasFactory<ClientFactory> */
     use HasFactory;
 
-    protected function casts(): array
+    public function autonomousSystems(): HasMany
     {
-        return [
-            'active' => 'boolean',
-        ];
+        return $this->hasMany(AutonomousSystem::class);
     }
 
     public function displayName(): string
     {
         return $this->trade_name ?: $this->legal_name;
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'active' => 'boolean',
+        ];
     }
 }

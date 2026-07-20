@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,16 @@ Route::middleware('auth')->group(function (): void {
     )->name('clients.toggle-active');
 
     Route::resource('clients', ClientController::class);
+
+    Route::patch(
+        '/autonomous-systems/{autonomous_system}/toggle-active',
+        [AutonomousSystemController::class, 'toggleActive']
+    )->name('autonomous-systems.toggle-active');
+
+    Route::resource(
+        'autonomous-systems',
+        AutonomousSystemController::class
+    );
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });

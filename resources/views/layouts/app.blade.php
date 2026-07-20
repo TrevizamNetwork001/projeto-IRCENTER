@@ -46,12 +46,14 @@
                     <span>Clientes</span>
                 </a>
 
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('autonomous-systems.index') }}"
+                    class="sidebar-link {{ request()->routeIs('autonomous-systems.*') ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
                         <x-icon name="asn"/>
                     </span>
                     <span>ASNs</span>
-                    <span class="nav-badge">Em breve</span>
                 </a>
 
                 <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
