@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,5 +18,13 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::patch(
+        '/clients/{client}/toggle-active',
+        [ClientController::class, 'toggleActive']
+    )->name('clients.toggle-active');
+
+    Route::resource('clients', ClientController::class);
+
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });

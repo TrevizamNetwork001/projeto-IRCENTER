@@ -36,12 +36,14 @@
                     <span>Dashboard</span>
                 </a>
 
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('clients.index') }}"
+                    class="sidebar-link {{ request()->routeIs('clients.*') ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
                         <x-icon name="clients"/>
                     </span>
                     <span>Clientes</span>
-                    <span class="nav-badge">Em breve</span>
                 </a>
 
                 <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
