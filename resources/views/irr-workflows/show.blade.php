@@ -1,0 +1,365 @@
+@extends('layouts.app')
+
+@section('title', $workflow->name.' — IRCENTER')
+
+@section('content')
+    <section class="page-heading">
+        <div>
+            <div class="page-eyebrow">
+                <span class="status-dot"></span>
+                Assistente IRR
+            </div>
+
+            <h1>{{ $workflow->name }}</h1>
+
+            <p>
+                {{ $workflow->client->displayName() }}
+                ·
+                <span class="table-mono">
+                    {{ $workflow->autonomousSystem->formattedAsn() }}
+                </span>
+                · Fonte {{ $workflow->irr_source }}
+            </p>
+        </div>
+
+        <div class="page-heading-status">
+            <span>Progresso</span>
+            <strong>{{ $workflow->current_step }} de 6</strong>
+        </div>
+    </section>
+
+    @if (session('success'))
+        <div class="alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert-error">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
+    <section class="workflow-progress">
+        @foreach ($workflow->steps as $step)
+            <div
+                class="workflow-progress-item is-{{ $step->status }}"
+                title="{{ $step->title }}"
+            >
+                <span>{{ $step->step_number }}</span>
+                <strong>{{ $step->title }}</strong>
+            </div>
+        @endforeach
+    </section>
+
+    <section class="workflow-layout">
+        <aside class="panel workflow-sidebar">
+            <header class="panel-header">
+                <div>
+                    <span class="panel-eyebrow">Etapas</span>
+                    <h2>Roteiro da implantação</h2>
+                </div>
+            </header>
+
+            <div class="workflow-step-list">
+                @foreach ($workflow->steps as $step)
+                    <a
+                        href="#step-{{ $step->step_number }}"
+                        class="workflow-step-link is-{{ $step->status }}"
+                    >
+                        <span class="workflow-step-number">
+                            {{ $step->step_number }}
+                        </span>
+
+                        <div>
+                            <strong>{{ $step->title }}</strong>
+
+                            <span>
+                                {{ match ($step->status) {
+                                    'locked' => 'Bloqueada',
+                                    'ready' => 'Pronta para enviar',
+                                    'sent' => 'Enviada',
+                                    'waiting_confirmation' => 'Aguardando confirmação',
+                                    'completed' => 'Concluída',
+                                    'error' => 'Requer correção',
+                                    default => $step->status,
+                                } }}
+                            </span>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        </aside>
+
+        <div class="workflow-main">
+            @foreach ($workflow->steps as $step)
+                @if ($step->status === 'completed')
+                    <details
+                        id="step-{{ $step->step_number }}"
+                        class="panel workflow-step-card workflow-step-collapsed is-completed"
+                    >
+                        <summary class="workflow-collapsed-summary">
+                            <div>
+                                <span class="panel-eyebrow">
+                                    Etapa {{ $step->step_number }}
+                                </span>
+
+                                <strong>{{ $step->title }}</strong>
+                            </div>
+
+                            <div class="workflow-collapsed-meta">
+                                <span class="workflow-status is-completed">
+                                    Concluída
+                                </span>
+
+                                <span>
+                                    {{ $step->confirmed_at?->format('d/m/Y H:i') }}
+                                </span>
+                            </div>
+                        </summary>
+
+                        <div class="workflow-collapsed-content">
+                @else
+                    <article
+                        id="step-{{ $step->step_number }}"
+                        class="panel workflow-step-card is-{{ $step->status }}"
+                    >
+                @endif
+                    <header class="panel-header">
+                        <div>
+                            <span class="panel-eyebrow">
+                                Etapa {{ $step->step_number }}
+                            </span>
+
+                            <h2>{{ $step->title }}</h2>
+                        </div>
+
+                        <span class="workflow-status is-{{ $step->status }}">
+                            {{ match ($step->status) {
+                                'locked' => 'Bloqueada',
+                                'ready' => 'Pronta',
+                                'sent' => 'Enviada',
+                                'waiting_confirmation' => 'Aguardando confirmação',
+                                'completed' => 'Concluída',
+                                'error' => 'Erro',
+                                default => $step->status,
+                            } }}
+                        </span>
+                    </header>
+
+                    <p class="workflow-instructions">
+                        {{ $step->instructions }}
+                    </p>
+
+                    @if ($step->status === 'locked')
+                        <div class="workflow-locked">
+                            <x-icon name="lock" size="20"/>
+
+                            <span>
+                                Conclua e confirme a etapa anterior para liberar
+                                este conteúdo.
+                            </span>
+                        </div>
+                    @else
+                        <div class="workflow-content-grid">
+                            <section>
+                                <div class="workflow-content-header">
+                                    <strong>E-mail preparado</strong>
+
+                                    <button
+                                        class="button button-ghost copy-button"
+                                        type="button"
+                                        data-copy-target="email-{{ $step->id }}"
+                                    >
+                                        Copiar e-mail
+                                    </button>
+                                </div>
+
+                                <dl class="workflow-email-meta">
+                                    <div>
+                                        <dt>Para</dt>
+                                        <dd>
+                                            {{ $step->email_to ?: 'Definir antes do envio' }}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt>Assunto</dt>
+                                        <dd>{{ $step->email_subject ?: '—' }}</dd>
+                                    </div>
+                                </dl>
+
+                                <pre
+                                    id="email-{{ $step->id }}"
+                                    class="workflow-code"
+                                >{{ $step->email_body ?: 'Nenhum e-mail preparado.' }}</pre>
+                            </section>
+
+                            <section>
+                                <div class="workflow-content-header">
+                                    <strong>Conteúdo RPSL</strong>
+
+                                    <button
+                                        class="button button-ghost copy-button"
+                                        type="button"
+                                        data-copy-target="rpsl-{{ $step->id }}"
+                                    >
+                                        Copiar RPSL
+                                    </button>
+                                </div>
+
+                                <pre
+                                    id="rpsl-{{ $step->id }}"
+                                    class="workflow-code"
+                                >{{ $step->rpsl_content ?: 'Nenhum conteúdo preparado.' }}</pre>
+                            </section>
+                        </div>
+
+                        <div class="workflow-timeline">
+                            <div>
+                                <span>Preparada</span>
+                                <strong>
+                                    {{ $step->prepared_at?->format('d/m/Y H:i') ?: '—' }}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Enviada</span>
+                                <strong>
+                                    {{ $step->sent_at?->format('d/m/Y H:i') ?: '—' }}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>Confirmada</span>
+                                <strong>
+                                    {{ $step->confirmed_at?->format('d/m/Y H:i') ?: '—' }}
+                                </strong>
+                            </div>
+                        </div>
+
+                        @if ($step->status === 'ready')
+                            <form
+                                class="workflow-action-form"
+                                method="POST"
+                                action="{{ route(
+                                    'irr-workflows.steps.sent',
+                                    [$workflow, $step]
+                                ) }}"
+                            >
+                                @csrf
+
+                                <div class="field-group">
+                                    <label for="sent-notes-{{ $step->id }}">
+                                        Observação do envio
+                                    </label>
+
+                                    <textarea
+                                        id="sent-notes-{{ $step->id }}"
+                                        class="form-control"
+                                        name="operator_notes"
+                                        rows="2"
+                                        maxlength="5000"
+                                        placeholder="Ex.: enviado pelo operador às 14h."
+                                    ></textarea>
+                                </div>
+
+                                <button class="button button-primary" type="submit">
+                                    {{ $step->step_key === 'review'
+                                        ? 'Revisão realizada'
+                                        : 'Marcar como enviado' }}
+                                </button>
+                            </form>
+                        @elseif ($step->status === 'waiting_confirmation')
+                            <form
+                                class="workflow-action-form"
+                                method="POST"
+                                action="{{ route(
+                                    'irr-workflows.steps.confirm',
+                                    [$workflow, $step]
+                                ) }}"
+                            >
+                                @csrf
+
+                                <div class="field-group">
+                                    <label for="confirm-notes-{{ $step->id }}">
+                                        Informação da confirmação
+                                    </label>
+
+                                    <textarea
+                                        id="confirm-notes-{{ $step->id }}"
+                                        class="form-control"
+                                        name="operator_notes"
+                                        rows="2"
+                                        maxlength="5000"
+                                        placeholder="Ex.: objeto confirmado pela base IRR."
+                                    ></textarea>
+                                </div>
+
+                                <button class="button button-primary" type="submit">
+                                    {{ $step->step_key === 'review'
+                                        ? 'Concluir implantação'
+                                        : 'Confirmar aprovação' }}
+                                </button>
+                            </form>
+                        @elseif ($step->status === 'completed')
+                            <div class="workflow-completed-message">
+                                <x-icon name="check" size="20"/>
+
+                                <span>
+                                    Etapa concluída. O histórico permanece
+                                    disponível para consulta.
+                                </span>
+                            </div>
+                        @endif
+
+                        @if ($step->operator_notes)
+                            <div class="workflow-operator-note">
+                                <strong>Observação registrada</strong>
+                                <p>{{ $step->operator_notes }}</p>
+                            </div>
+                        @endif
+                    @endif
+                @if ($step->status === 'completed')
+                        </div>
+                    </details>
+                @else
+                    </article>
+                @endif
+            @endforeach
+        </div>
+    </section>
+
+    <script>
+        (() => {
+            document.querySelectorAll('.copy-button').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const target = document.getElementById(
+                        button.dataset.copyTarget
+                    );
+
+                    if (! target) {
+                        return;
+                    }
+
+                    try {
+                        await navigator.clipboard.writeText(
+                            target.textContent.trim()
+                        );
+
+                        const original = button.textContent;
+                        button.textContent = 'Copiado';
+
+                        window.setTimeout(() => {
+                            button.textContent = original;
+                        }, 1500);
+                    } catch (error) {
+                        window.alert(
+                            'Não foi possível copiar automaticamente.'
+                        );
+                    }
+                });
+            });
+        })();
+    </script>
+@endsection

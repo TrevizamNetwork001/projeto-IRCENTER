@@ -36,6 +36,16 @@ class Client extends Model
         return $this->hasMany(Prefix::class);
     }
 
+    public function irrObjects(): HasMany
+    {
+        return $this->hasMany(IrrObject::class);
+    }
+
+    public function rpkiRoas(): HasMany
+    {
+        return $this->hasMany(RpkiRoa::class);
+    }
+
     public function displayName(): string
     {
         return $this->trade_name ?: $this->legal_name;

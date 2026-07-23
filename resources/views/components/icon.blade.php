@@ -96,6 +96,39 @@
             <path d="m9 18 6-6-6-6"/>
             @break
 
+        @case('workflow')
+            <circle cx="6" cy="6" r="2"/>
+            <circle cx="18" cy="6" r="2"/>
+            <circle cx="12" cy="18" r="2"/>
+            <path d="M8 6h8"/>
+            <path d="m7.5 8 3.5 8"/>
+            <path d="m16.5 8-3.5 8"/>
+            @break
+
+        @case('lock')
+            <rect x="5" y="10" width="14" height="10" rx="2"/>
+            <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+            @break
+
+        @case('check')
+            <path d="m5 12 4 4L19 6"/>
+            @break
+
+        @case('registry')
+            <path d="M4 4h16v5H4z"/>
+            <path d="M4 15h16v5H4z"/>
+            <path d="M8 9v6"/>
+            <path d="M16 9v6"/>
+            <circle cx="7" cy="6.5" r=".5"/>
+            <circle cx="7" cy="17.5" r=".5"/>
+            @break
+
+        @case('certificate')
+            <circle cx="12" cy="9" r="5"/>
+            <path d="m9 13-2 8 5-3 5 3-2-8"/>
+            <path d="m10 9 1.3 1.3L14 7.7"/>
+            @break
+
         @case('sun')
             <circle cx="12" cy="12" r="4"/>
             <path d="M12 2v2"/>

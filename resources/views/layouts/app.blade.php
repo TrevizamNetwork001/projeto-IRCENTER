@@ -92,18 +92,34 @@
             <div class="sidebar-section-label">Plataforma</div>
 
             <nav class="sidebar-nav" aria-label="Navegação da plataforma">
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('irr-workflows.index') }}"
+                    class="sidebar-link {{ request()->routeIs('irr-workflows.*') ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
-                        <x-icon name="shield"/>
+                        <x-icon name="workflow"/>
                     </span>
-                    <span>Segurança</span>
+                    <span>Assistente IRR</span>
                 </a>
 
-                <a href="#" class="sidebar-link is-disabled" aria-disabled="true">
+                <a
+                    href="{{ route('irr-objects.index') }}"
+                    class="sidebar-link {{ request()->routeIs('irr-objects.*') ? 'is-active' : '' }}"
+                >
                     <span class="sidebar-link-icon">
-                        <x-icon name="activity"/>
+                        <x-icon name="registry"/>
                     </span>
-                    <span>Monitoramento</span>
+                    <span>Objetos IRR</span>
+                </a>
+
+                <a
+                    href="{{ route('rpki.index') }}"
+                    class="sidebar-link {{ request()->routeIs('rpki.*') ? 'is-active' : '' }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="certificate"/>
+                    </span>
+                    <span>RPKI</span>
                 </a>
             </nav>
 

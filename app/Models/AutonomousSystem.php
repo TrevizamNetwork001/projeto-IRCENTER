@@ -38,6 +38,16 @@ class AutonomousSystem extends Model
         return $this->hasMany(Prefix::class);
     }
 
+    public function irrObjects(): HasMany
+    {
+        return $this->hasMany(IrrObject::class);
+    }
+
+    public function rpkiRoas(): HasMany
+    {
+        return $this->hasMany(RpkiRoa::class);
+    }
+
     public function formattedAsn(): string
     {
         return 'AS'.$this->asn;

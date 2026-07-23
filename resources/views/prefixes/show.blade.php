@@ -144,6 +144,94 @@
             </dl>
         </article>
 
+        @php
+            $rpkiValidation = $prefix->latestRpkiValidation;
+            $rpkiStatus = $rpkiValidation?->status ?? 'unchecked';
+        @endphp
+
+        <article class="panel details-card details-card-wide">
+            <header class="panel-header">
+                <div>
+                    <span class="panel-eyebrow">Segurança de roteamento</span>
+                    <h2>Validação RPKI</h2>
+                </div>
+
+                <span class="rpki-status-pill is-{{ $rpkiStatus }}">
+                    @if ($rpkiValidation)
+                        {{ $rpkiValidation->displayStatus() }}
+                    @else
+                        Não verificado
+                    @endif
+                </span>
+            </header>
+
+            <div class="rpki-prefix-overview">
+                <div>
+                    <span>Última verificação</span>
+                    <strong>
+                        {{ $rpkiValidation?->checked_at?->format('d/m/Y H:i') ?: 'Nunca' }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>ASN validado</span>
+                    <strong class="table-mono">
+                        {{ $rpkiValidation?->validated_asn
+                            ? 'AS'.$rpkiValidation->validated_asn
+                            : '—' }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>ROAs encontrados</span>
+                    <strong>
+                        {{ $rpkiValidation?->matching_roas_count ?? 0 }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Motivo</span>
+                    <strong>
+                        {{ match ($rpkiValidation?->reason) {
+                            'matching_roa' => 'ROA compatível',
+                            'origin_asn_mismatch' => 'ASN divergente',
+                            'max_length_exceeded' => 'Comprimento excedido',
+                            'no_covering_roa' => 'Nenhum ROA cobrindo',
+                            'missing_origin_asn' => 'ASN não vinculado',
+                            'invalid_prefix' => 'Prefixo inválido',
+                            null => 'Ainda não validado',
+                            default => $rpkiValidation->reason,
+                        } }}
+                    </strong>
+                </div>
+            </div>
+
+            <div class="form-actions rpki-actions">
+                <a
+                    class="button button-secondary"
+                    href="{{ route('rpki.history', $prefix) }}"
+                >
+                    Ver histórico
+                </a>
+
+                @if (auth()->user()->isAdministrator())
+                    <form
+                        method="POST"
+                        action="{{ route(
+                            'prefixes.rpki-validation.store',
+                            $prefix
+                        ) }}"
+                    >
+                        @csrf
+
+                        <button class="button button-primary" type="submit">
+                            Executar validação
+                        </button>
+                    </form>
+                @endif
+            </div>
+        </article>
+
         <article class="panel details-card details-card-wide">
             <header class="panel-header">
                 <div>

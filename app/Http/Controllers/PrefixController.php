@@ -135,7 +135,11 @@ class PrefixController extends Controller
 
     public function show(Prefix $prefix): View
     {
-        $prefix->load(['client', 'autonomousSystem']);
+        $prefix->load([
+            'client',
+            'autonomousSystem',
+            'latestRpkiValidation.roa',
+        ]);
 
         return view('prefixes.show', [
             'prefix' => $prefix,
