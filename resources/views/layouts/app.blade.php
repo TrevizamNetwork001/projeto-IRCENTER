@@ -123,6 +123,18 @@
                 </a>
                 @if (auth()->user()->isAdministrator())
                     <a
+                        href="{{ route('users.index') }}"
+                        class="sidebar-link {{ request()->routeIs('users.*') ? 'is-active' : '' }}"
+                    >
+                        <span class="sidebar-link-icon">
+                            <x-icon name="clients"/>
+                        </span>
+                        <span>Usuários</span>
+                    </a>
+                @endif
+
+                @if (auth()->user()->isAdministrator())
+                    <a
                         href="{{ route('audit.index') }}"
                         class="sidebar-link {{ request()->routeIs('audit.*') ? 'is-active' : '' }}"
                     >
@@ -190,7 +202,7 @@
 
                         <div class="user-details">
                             <strong>{{ auth()->user()->name }}</strong>
-                            <span>{{ auth()->user()->role === 'admin' ? 'Administrador' : 'Usuário' }}</span>
+                            <span>{{ auth()->user()->roleLabel() }}</span>
                         </div>
 
                         <form method="POST" action="{{ route('logout') }}">

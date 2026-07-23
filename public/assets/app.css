@@ -2154,3 +2154,24 @@ html[data-theme="light"] .data-table tbody tr:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* Mandatory password change */
+
+.password-change-card {
+    width: min(100%, 480px);
+}
+
+.password-requirements {
+    margin: -2px 0 18px;
+    color: var(--text-muted);
+    font-size: 9px;
+    line-height: 1.55;
+}
+
+.password-change-logout {
+    margin-top: 10px;
+}
+
+.password-change-logout .button {
+    width: 100%;
+}

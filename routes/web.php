@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\PrefixController;
 use App\Http\Controllers\RpkiValidationController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -22,7 +24,20 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware([
+    'auth',
+    'password.changed',
+])->group(function (): void {
+    Route::get(
+        '/change-password',
+        [PasswordChangeController::class, 'edit']
+    )->name('password.change.edit');
+
+    Route::put(
+        '/change-password',
+        [PasswordChangeController::class, 'update']
+    )->name('password.change.update');
+
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::patch(
@@ -111,6 +126,25 @@ Route::middleware('auth')->group(function (): void {
         '/prefixes/{prefix}/rpki-validation',
         [RpkiValidationController::class, 'store']
     )->name('prefixes.rpki-validation.store');
+
+    Route::patch(
+        '/users/{user}/toggle-active',
+        [UserController::class, 'toggleActive']
+    )->name('users.toggle-active');
+
+    Route::patch(
+        '/users/{user}/reset-password',
+        [UserController::class, 'resetPassword']
+    )->name('users.reset-password');
+
+    Route::resource('users', UserController::class)
+        ->only([
+            'index',
+            'create',
+            'store',
+            'edit',
+            'update',
+        ]);
 
     Route::get(
         '/audit',

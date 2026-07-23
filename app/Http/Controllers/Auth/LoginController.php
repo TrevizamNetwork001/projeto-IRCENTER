@@ -26,6 +26,10 @@ class LoginController extends Controller
             'last_login_ip' => $request->ip(),
         ])->save();
 
+        if ($request->user()->must_change_password) {
+            return redirect()->route('password.change.edit');
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 
