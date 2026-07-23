@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateAutonomousSystemRequest;
 use App\Models\AutonomousSystem;
 use App\Models\Client;
 use Illuminate\Http\RedirectResponse;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -114,7 +115,17 @@ class AutonomousSystemController extends Controller
         UpdateAutonomousSystemRequest $request,
         AutonomousSystem $autonomousSystem
     ): RedirectResponse {
+        $oldValues = $autonomousSystem->getOriginal();
+
         $autonomousSystem->update($request->validated());
+
+        app(AuditService::class)->record(
+            'updated',
+            $autonomousSystem,
+            $oldValues,
+            $autonomousSystem->fresh()->getAttributes(),
+            'AS'.$autonomousSystem->asn
+        );
 
         return redirect()
             ->route('autonomous-systems.show', $autonomousSystem)
@@ -126,7 +137,17 @@ class AutonomousSystemController extends Controller
     ): RedirectResponse {
         $this->authorizeAdministrator();
 
+        $oldValues = $autonomousSystem->getAttributes();
+
         $autonomousSystem->delete();
+
+        app(AuditService::class)->record(
+            'deleted',
+            $autonomousSystem,
+            $oldValues,
+            null,
+            'AS'.$autonomousSystem->asn
+        );
 
         return redirect()
             ->route('autonomous-systems.index')
@@ -138,9 +159,19 @@ class AutonomousSystemController extends Controller
     ): RedirectResponse {
         $this->authorizeAdministrator();
 
+        $oldValues = $autonomousSystem->getOriginal();
+
         $autonomousSystem->update([
             'active' => ! $autonomousSystem->active,
         ]);
+
+        app(AuditService::class)->record(
+            $autonomousSystem->active ? 'activated' : 'deactivated',
+            $autonomousSystem,
+            $oldValues,
+            $autonomousSystem->fresh()->getAttributes(),
+            'AS'.$autonomousSystem->asn
+        );
 
         return back()->with(
             'success',

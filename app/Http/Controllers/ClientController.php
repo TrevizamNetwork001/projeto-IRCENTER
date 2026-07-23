@@ -6,6 +6,7 @@ use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
 use Illuminate\Http\RedirectResponse;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -57,6 +58,14 @@ class ClientController extends Controller
     {
         $client = Client::create($request->validated());
 
+        app(AuditService::class)->record(
+            'created',
+            $client,
+            null,
+            $client->getAttributes(),
+            $client->legal_name
+        );
+
         return redirect()
             ->route('clients.show', $client)
             ->with('success', 'Cliente cadastrado com sucesso.');
@@ -82,7 +91,17 @@ class ClientController extends Controller
         UpdateClientRequest $request,
         Client $client
     ): RedirectResponse {
+        $oldValues = $client->getOriginal();
+
         $client->update($request->validated());
+
+        app(AuditService::class)->record(
+            'updated',
+            $client,
+            $oldValues,
+            $client->fresh()->getAttributes(),
+            $client->legal_name
+        );
 
         return redirect()
             ->route('clients.show', $client)
@@ -93,7 +112,17 @@ class ClientController extends Controller
     {
         $this->authorizeAdministrator();
 
+        $oldValues = $client->getAttributes();
+
         $client->delete();
+
+        app(AuditService::class)->record(
+            'deleted',
+            $client,
+            $oldValues,
+            null,
+            $client->legal_name
+        );
 
         return redirect()
             ->route('clients.index')
@@ -104,9 +133,19 @@ class ClientController extends Controller
     {
         $this->authorizeAdministrator();
 
+        $oldValues = $client->getOriginal();
+
         $client->update([
             'active' => ! $client->active,
         ]);
+
+        app(AuditService::class)->record(
+            $client->active ? 'activated' : 'deactivated',
+            $client,
+            $oldValues,
+            $client->fresh()->getAttributes(),
+            $client->legal_name
+        );
 
         return back()->with(
             'success',

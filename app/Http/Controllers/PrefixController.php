@@ -8,6 +8,7 @@ use App\Models\AutonomousSystem;
 use App\Models\Client;
 use App\Models\Prefix;
 use Illuminate\Http\RedirectResponse;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -128,6 +129,14 @@ class PrefixController extends Controller
     {
         $prefix = Prefix::create($request->validated());
 
+        app(AuditService::class)->record(
+            'created',
+            $prefix,
+            null,
+            $prefix->getAttributes(),
+            $prefix->prefix
+        );
+
         return redirect()
             ->route('prefixes.show', $prefix)
             ->with('success', 'Prefixo cadastrado com sucesso.');
@@ -166,7 +175,17 @@ class PrefixController extends Controller
         UpdatePrefixRequest $request,
         Prefix $prefix
     ): RedirectResponse {
+        $oldValues = $prefix->getOriginal();
+
         $prefix->update($request->validated());
+
+        app(AuditService::class)->record(
+            'updated',
+            $prefix,
+            $oldValues,
+            $prefix->fresh()->getAttributes(),
+            $prefix->prefix
+        );
 
         return redirect()
             ->route('prefixes.show', $prefix)
@@ -177,7 +196,17 @@ class PrefixController extends Controller
     {
         $this->authorizeAdministrator();
 
+        $oldValues = $prefix->getAttributes();
+
         $prefix->delete();
+
+        app(AuditService::class)->record(
+            'deleted',
+            $prefix,
+            $oldValues,
+            null,
+            $prefix->prefix
+        );
 
         return redirect()
             ->route(
@@ -190,9 +219,19 @@ class PrefixController extends Controller
     {
         $this->authorizeAdministrator();
 
+        $oldValues = $prefix->getOriginal();
+
         $prefix->update([
             'active' => ! $prefix->active,
         ]);
+
+        app(AuditService::class)->record(
+            $prefix->active ? 'activated' : 'deactivated',
+            $prefix,
+            $oldValues,
+            $prefix->fresh()->getAttributes(),
+            $prefix->prefix
+        );
 
         return back()->with(
             'success',

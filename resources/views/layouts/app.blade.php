@@ -121,6 +121,17 @@
                     </span>
                     <span>RPKI</span>
                 </a>
+                @if (auth()->user()->isAdministrator())
+                    <a
+                        href="{{ route('audit.index') }}"
+                        class="sidebar-link {{ request()->routeIs('audit.*') ? 'is-active' : '' }}"
+                    >
+                        <span class="sidebar-link-icon">
+                            <x-icon name="registry"/>
+                        </span>
+                        <span>Auditoria</span>
+                    </a>
+                @endif
             </nav>
 
             <div class="sidebar-footer">

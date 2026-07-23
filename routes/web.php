@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
@@ -110,6 +111,16 @@ Route::middleware('auth')->group(function (): void {
         '/prefixes/{prefix}/rpki-validation',
         [RpkiValidationController::class, 'store']
     )->name('prefixes.rpki-validation.store');
+
+    Route::get(
+        '/audit',
+        [AuditLogController::class, 'index']
+    )->name('audit.index');
+
+    Route::get(
+        '/audit/{auditLog}',
+        [AuditLogController::class, 'show']
+    )->name('audit.show');
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
