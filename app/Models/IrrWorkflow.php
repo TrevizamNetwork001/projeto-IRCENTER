@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'client_id',
     'autonomous_system_id',
     'name',
+    'profile_key',
     'irr_source',
     'destination_email',
     'maintainer',
@@ -20,7 +21,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'route_set',
     'contact_name',
     'contact_handle',
+    'admin_contact_handle',
+    'tech_contact_handle',
     'contact_email',
+    'noc_email',
+    'abuse_email',
+    'peering_email',
+    'peeringdb_url',
+    'looking_glass_url',
+    'website_url',
+    'custom_remarks',
     'contact_phone',
     'contact_address',
     'status',
@@ -54,6 +64,21 @@ class IrrWorkflow extends Model
     {
         return $this->hasMany(IrrWorkflowStep::class)
             ->orderBy('step_number');
+    }
+
+    public function prefixes(): HasMany
+    {
+        return $this->hasMany(IrrWorkflowPrefix::class);
+    }
+
+    public function asSets(): HasMany
+    {
+        return $this->hasMany(IrrWorkflowAsSet::class);
+    }
+
+    public function relationships(): HasMany
+    {
+        return $this->hasMany(IrrWorkflowRelationship::class);
     }
 
     public function currentStepRecord(): ?IrrWorkflowStep

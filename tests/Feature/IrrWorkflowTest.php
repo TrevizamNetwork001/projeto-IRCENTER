@@ -44,7 +44,8 @@ class IrrWorkflowTest extends TestCase
                 'client_id' => $autonomousSystem->client_id,
                 'autonomous_system_id' => $autonomousSystem->id,
                 'name' => 'Implantação IRR AS65000',
-                'irr_source' => 'local',
+                'profile_key' => 'tc',
+                'irr_source' => 'tc',
                 'destination_email' => 'irr@example.net',
                 'maintainer' => 'maint-as65000',
                 'as_set' => 'as65000:as-all',
@@ -89,6 +90,15 @@ class IrrWorkflowTest extends TestCase
             'mntner: MAINT-AS65000',
             (string) $firstStep->rpsl_content
         );
+
+
+        $this->assertDatabaseHas('irr_workflow_prefixes', [
+            'irr_workflow_id' => $workflow->id,
+            'prefix' => '192.0.2.0/24',
+            'route_set_mode' => 'exact',
+            'maximum_length' => null,
+            'generate_route_object' => true,
+        ]);
     }
 
     public function test_non_administrator_cannot_start_workflow(): void
@@ -105,6 +115,7 @@ class IrrWorkflowTest extends TestCase
                 'client_id' => $autonomousSystem->client_id,
                 'autonomous_system_id' => $autonomousSystem->id,
                 'name' => 'Implantação IRR',
+                'profile_key' => 'manual',
                 'irr_source' => 'LOCAL',
                 'maintainer' => 'MAINT-EXAMPLE',
                 'as_set' => 'AS65000:AS-ALL',
@@ -131,6 +142,7 @@ class IrrWorkflowTest extends TestCase
                 'client_id' => $client->id,
                 'autonomous_system_id' => $otherAsn->id,
                 'name' => 'Implantação IRR',
+                'profile_key' => 'manual',
                 'irr_source' => 'LOCAL',
                 'maintainer' => 'MAINT-EXAMPLE',
                 'as_set' => 'AS65000:AS-ALL',
@@ -266,6 +278,64 @@ class IrrWorkflowTest extends TestCase
         );
     }
 
+    public function test_workflow_suggests_route_set_more_specific_limits(): void
+    {
+        $autonomousSystem = AutonomousSystem::factory()->create([
+            'asn' => 65000,
+        ]);
+
+        Prefix::factory()->create([
+            'client_id' => $autonomousSystem->client_id,
+            'autonomous_system_id' => $autonomousSystem->id,
+            'prefix' => '192.0.0.0/22',
+            'ip_version' => 4,
+        ]);
+
+        Prefix::factory()->create([
+            'client_id' => $autonomousSystem->client_id,
+            'autonomous_system_id' => $autonomousSystem->id,
+            'prefix' => '2001:db8::/32',
+            'ip_version' => 6,
+        ]);
+
+        $workflow = app(\App\Services\IrrWorkflowService::class)
+            ->create([
+                'client_id' => $autonomousSystem->client_id,
+                'autonomous_system_id' => $autonomousSystem->id,
+                'name' => 'Implantação IRR AS65000',
+                'profile_key' => 'tc',
+                'irr_source' => 'TC',
+                'destination_email' => 'auto-dbm@bgp.net.br',
+                'maintainer' => 'MAINT-AS65000',
+                'as_set' => 'AS65000:AS-ALL',
+                'route_set' => 'AS65000:RS-ROUTES',
+                'contact_name' => 'Contato Exemplo',
+                'contact_handle' => 'CONTACT-EXAMPLE',
+                'contact_email' => 'noc@example.net',
+            ]);
+
+        $ipv4 = $workflow->prefixes()
+            ->where('ip_version', 4)
+            ->firstOrFail();
+
+        $ipv6 = $workflow->prefixes()
+            ->where('ip_version', 6)
+            ->firstOrFail();
+
+        $this->assertSame(
+            '192.0.0.0/22^22-24',
+            $ipv4->routeSetMember()
+        );
+
+        $this->assertSame(
+            '2001:db8::/32^32-48',
+            $ipv6->routeSetMember()
+        );
+
+        $this->assertTrue($ipv4->generate_route_object);
+        $this->assertTrue($ipv6->generate_route_object);
+    }
+
     private function createWorkflow(): IrrWorkflow
     {
         $autonomousSystem = AutonomousSystem::factory()->create([
@@ -284,7 +354,8 @@ class IrrWorkflowTest extends TestCase
                 'client_id' => $autonomousSystem->client_id,
                 'autonomous_system_id' => $autonomousSystem->id,
                 'name' => 'Implantação IRR AS65000',
-                'irr_source' => 'LOCAL',
+                'profile_key' => 'tc',
+                'irr_source' => 'TC',
                 'destination_email' => 'irr@example.net',
                 'maintainer' => 'MAINT-AS65000',
                 'as_set' => 'AS65000:AS-ALL',

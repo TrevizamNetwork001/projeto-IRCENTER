@@ -32,6 +32,11 @@ class StoreIrrWorkflowRequest extends FormRequest
                     ),
             ],
             'name' => ['required', 'string', 'max:255'],
+            'profile_key' => [
+                'required',
+                'string',
+                Rule::in(array_keys(config('irr.profiles', []))),
+            ],
             'irr_source' => ['required', 'string', 'max:50'],
             'destination_email' => ['nullable', 'email', 'max:255'],
             'maintainer' => ['required', 'string', 'max:100'],
@@ -48,9 +53,22 @@ class StoreIrrWorkflowRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $profileKey = strtolower(
+            trim((string) $this->input('profile_key', 'manual'))
+        );
+
+        $profile = config(
+            'irr.profiles.'.$profileKey,
+            config('irr.profiles.manual', [])
+        );
+
         $this->merge([
+            'profile_key' => $profileKey,
             'irr_source' => strtoupper(
-                trim((string) $this->input('irr_source', 'LOCAL'))
+                trim((string) (
+                    $this->input('irr_source')
+                    ?: ($profile['source'] ?? 'LOCAL')
+                ))
             ),
             'maintainer' => strtoupper(
                 trim((string) $this->input('maintainer'))

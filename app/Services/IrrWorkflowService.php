@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\IrrWorkflow;
 use App\Models\IrrWorkflowStep;
-use App\Models\Prefix;
+use App\Models\IrrWorkflowPrefix;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -31,6 +31,8 @@ final class IrrWorkflowService
                 ]);
             }
 
+            $this->syncWorkflowPrefixes($workflow);
+
             $this->prepareStep($workflow->fresh('steps'), 1);
 
             return $workflow->fresh([
@@ -49,6 +51,7 @@ final class IrrWorkflowService
             'client',
             'autonomousSystem',
             'autonomousSystem.prefixes',
+            'prefixes',
             'steps',
         ]);
 
@@ -176,6 +179,47 @@ final class IrrWorkflowService
         });
     }
 
+    private function syncWorkflowPrefixes(
+        IrrWorkflow $workflow
+    ): void {
+        $workflow->loadMissing('autonomousSystem.prefixes');
+
+        $profile = config(
+            'irr.profiles.'.$workflow->profile_key,
+            config('irr.profiles.manual', [])
+        );
+
+        foreach ($workflow->autonomousSystem->prefixes as $prefix) {
+            if (! $prefix->active) {
+                continue;
+            }
+
+            $baseLength = (int) str($prefix->prefix)->afterLast('/')->toString();
+
+            $defaultMaximumLength = $prefix->ip_version === 6
+                ? (int) ($profile['ipv6_default_max_length'] ?? 48)
+                : (int) ($profile['ipv4_default_max_length'] ?? 24);
+
+            $allowsMoreSpecifics = $baseLength < $defaultMaximumLength;
+
+            $workflow->prefixes()->updateOrCreate(
+                ['prefix_id' => $prefix->id],
+                [
+                    'ip_version' => $prefix->ip_version,
+                    'prefix' => $prefix->prefix,
+                    'route_set_mode' => $allowsMoreSpecifics
+                        ? IrrWorkflowPrefix::MODE_MORE_SPECIFICS
+                        : IrrWorkflowPrefix::MODE_EXACT,
+                    'maximum_length' => $allowsMoreSpecifics
+                        ? $defaultMaximumLength
+                        : null,
+                    'generate_route_object' => true,
+                    'active' => true,
+                ]
+            );
+        }
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -288,13 +332,15 @@ final class IrrWorkflowService
      */
     private function routeSetContent(IrrWorkflow $workflow): array
     {
-        $members = $workflow->autonomousSystem->prefixes
+        $members = $workflow->prefixes
+            ->where('active', true)
             ->sortBy([
                 ['ip_version', 'asc'],
                 ['prefix', 'asc'],
             ])
-            ->map(fn (Prefix $prefix): string =>
-                "mp-members: {$prefix->prefix}"
+            ->map(
+                fn (IrrWorkflowPrefix $prefix): string =>
+                    'mp-members: '.$prefix->routeSetMember()
             )
             ->implode("\n");
 
@@ -320,12 +366,14 @@ final class IrrWorkflowService
     {
         $asn = $workflow->autonomousSystem->formattedAsn();
 
-        $objects = $workflow->autonomousSystem->prefixes
+        $objects = $workflow->prefixes
+            ->where('active', true)
+            ->where('generate_route_object', true)
             ->sortBy([
                 ['ip_version', 'asc'],
                 ['prefix', 'asc'],
             ])
-            ->map(function (Prefix $prefix) use (
+            ->map(function (IrrWorkflowPrefix $prefix) use (
                 $workflow,
                 $asn
             ): string {
