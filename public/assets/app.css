@@ -2303,3 +2303,39 @@ html[data-theme="light"] .data-table tbody tr:hover {
         white-space: normal;
     }
 }
+
+/* Light theme button contrast */
+
+html[data-theme="light"] .button-primary,
+html[data-theme="light"] .primary-button {
+    border-color: #13b9d6;
+    background: #13b9d6;
+    color: #052a34;
+    box-shadow: 0 6px 16px rgba(7, 134, 163, 0.16);
+}
+
+html[data-theme="light"] .button-primary:hover,
+html[data-theme="light"] .primary-button:hover {
+    border-color: #0da7c2;
+    background: #0da7c2;
+    color: #031f27;
+    filter: none;
+}
+
+html[data-theme="light"] .button-primary:focus-visible,
+html[data-theme="light"] .primary-button:focus-visible {
+    outline: 3px solid rgba(19, 185, 214, 0.22);
+    outline-offset: 2px;
+}
+
+html[data-theme="light"] .button-secondary {
+    border-color: #bfd0df;
+    background: #eef4f8;
+    color: #334a62;
+}
+
+html[data-theme="light"] .button-secondary:hover {
+    border-color: #9eb5c8;
+    background: #e3edf4;
+    color: #172235;
+}
