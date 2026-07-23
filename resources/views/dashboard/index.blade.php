@@ -13,8 +13,8 @@
             <h1>Visão geral do ambiente</h1>
 
             <p>
-                Acompanhe clientes, sistemas autônomos e recursos de numeração
-                gerenciados pelo IRCENTER.
+                Acompanhe clientes, sistemas autônomos, recursos e
+                pendências operacionais do IRCENTER.
             </p>
         </div>
 
@@ -117,52 +117,133 @@
         <article class="panel">
             <header class="panel-header">
                 <div>
-                    <span class="panel-eyebrow">Saúde</span>
-                    <h2>Estado da plataforma</h2>
+                    <span class="panel-eyebrow">Operação</span>
+                    <h2>Pendências operacionais</h2>
                 </div>
+
+                <span
+                    class="panel-status {{ $operationalIssueTotal > 0
+                        ? 'is-warning'
+                        : 'is-ok' }}"
+                >
+                    {{ $operationalIssueTotal }}
+                </span>
             </header>
 
-            <div class="health-list">
-                @foreach ($health as $item)
-                    <div class="health-item">
-                        <div class="health-icon">
-                            <x-icon :name="$item['icon']" size="18"/>
-                        </div>
+            @if ($operationalIssueTotal === 0)
+                <div class="empty-state dashboard-empty-compact">
+                    <div class="empty-state-icon">
+                        <x-icon name="shield" size="22"/>
+                    </div>
 
-                        <div class="health-details">
-                            <strong>{{ $item['label'] }}</strong>
-                            <span>{{ $item['description'] }}</span>
-                        </div>
-
-                        <span class="health-status is-ok">
-                            {{ $item['status'] }}
+                    <div>
+                        <strong>Nenhuma pendência operacional</strong>
+                        <span>
+                            Os recursos cadastrados estão consistentes.
                         </span>
                     </div>
-                @endforeach
-            </div>
+                </div>
+            @else
+                <div class="operation-issue-list">
+                    @foreach ($operationalIssues as $issue)
+                        <a
+                            class="operation-issue-item"
+                            href="{{ $issue['route'] }}"
+                        >
+                            <div
+                                class="metric-icon {{ $issue['tone'] }}"
+                            >
+                                <x-icon
+                                    :name="$issue['icon']"
+                                    size="17"
+                                />
+                            </div>
+
+                            <div class="operation-issue-details">
+                                <strong>{{ $issue['label'] }}</strong>
+                                <span>{{ $issue['description'] }}</span>
+                            </div>
+
+                            <b>{{ $issue['value'] }}</b>
+
+                            <x-icon
+                                name="chevron-right"
+                                size="15"
+                            />
+                        </a>
+                    @endforeach
+                </div>
+            @endif
         </article>
 
-        <article class="panel panel-wide">
-            <header class="panel-header">
-                <div>
-                    <span class="panel-eyebrow">Atividade</span>
-                    <h2>Eventos recentes</h2>
-                </div>
-            </header>
+        @if ($isAdministrator)
+            <article class="panel panel-wide">
+                <header class="panel-header">
+                    <div>
+                        <span class="panel-eyebrow">Auditoria</span>
+                        <h2>Atividade recente</h2>
+                    </div>
 
-            <div class="empty-state">
-                <div class="empty-state-icon">
-                    <x-icon name="activity" size="24"/>
-                </div>
+                    <a
+                        class="panel-link"
+                        href="{{ route('audit.index') }}"
+                    >
+                        Ver auditoria
+                    </a>
+                </header>
 
-                <div>
-                    <strong>Nenhuma atividade registrada</strong>
-                    <span>
-                        Os eventos de cadastro, alterações e monitoramento serão
-                        apresentados aqui.
-                    </span>
-                </div>
-            </div>
-        </article>
+                @if ($recentAuditLogs->isEmpty())
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <x-icon name="activity" size="24"/>
+                        </div>
+
+                        <div>
+                            <strong>Nenhuma atividade registrada</strong>
+                            <span>
+                                As próximas alterações aparecerão aqui.
+                            </span>
+                        </div>
+                    </div>
+                @else
+                    <div class="dashboard-activity-list">
+                        @foreach ($recentAuditLogs as $log)
+                            <a
+                                class="dashboard-activity-item"
+                                href="{{ route('audit.show', $log) }}"
+                            >
+                                <div class="dashboard-activity-marker">
+                                    <x-icon name="activity" size="16"/>
+                                </div>
+
+                                <div class="dashboard-activity-content">
+                                    <strong>
+                                        {{ $log->resource_label
+                                            ?? $log->resource_type }}
+                                    </strong>
+
+                                    <span>
+                                        {{ $log->user?->name ?? 'Sistema' }}
+                                        ·
+                                        {{ $log->action }}
+                                        ·
+                                        {{ $log->resource_type }}
+                                    </span>
+                                </div>
+
+                                <time datetime="{{ $log->created_at }}">
+                                    {{ $log->created_at?->diffForHumans() }}
+                                </time>
+
+                                <x-icon
+                                    name="chevron-right"
+                                    size="15"
+                                />
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </article>
+        @endif
     </section>
 @endsection

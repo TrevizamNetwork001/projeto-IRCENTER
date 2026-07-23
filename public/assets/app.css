@@ -2175,3 +2175,131 @@ html[data-theme="light"] .data-table tbody tr:hover {
 .password-change-logout .button {
     width: 100%;
 }
+
+/* Operational dashboard */
+
+.panel-status.is-warning {
+    border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+    color: var(--amber);
+}
+
+.panel-status.is-ok {
+    border-color: color-mix(in srgb, var(--green) 35%, transparent);
+    color: var(--green);
+}
+
+.panel-link {
+    color: var(--cyan);
+    font-size: 9px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.operation-issue-list,
+.dashboard-activity-list {
+    display: grid;
+}
+
+.operation-issue-item,
+.dashboard-activity-item {
+    display: grid;
+    align-items: center;
+    gap: 11px;
+    border-bottom: 1px solid var(--border-soft);
+    color: inherit;
+    text-decoration: none;
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease;
+}
+
+.operation-issue-item {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    padding: 11px 0;
+}
+
+.operation-issue-item:last-child,
+.dashboard-activity-item:last-child {
+    border-bottom: 0;
+}
+
+.operation-issue-item:hover,
+.dashboard-activity-item:hover {
+    background: var(--surface-soft);
+}
+
+.operation-issue-item .metric-icon {
+    width: 34px;
+    height: 34px;
+}
+
+.operation-issue-details,
+.dashboard-activity-content {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.operation-issue-details strong,
+.dashboard-activity-content strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.operation-issue-details span,
+.dashboard-activity-content span {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.operation-issue-item > b {
+    color: var(--text);
+    font-size: 15px;
+}
+
+.dashboard-activity-item {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    padding: 12px 4px;
+}
+
+.dashboard-activity-marker {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    background: var(--surface-soft);
+    color: var(--cyan);
+}
+
+.dashboard-activity-item time {
+    color: var(--text-muted);
+    font-size: 8px;
+    white-space: nowrap;
+}
+
+.dashboard-empty-compact {
+    min-height: 150px;
+}
+
+@media (max-width: 700px) {
+    .dashboard-activity-item {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .dashboard-activity-item time {
+        display: none;
+    }
+
+    .operation-issue-details span,
+    .dashboard-activity-content span {
+        white-space: normal;
+    }
+}
