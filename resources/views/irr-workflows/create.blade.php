@@ -110,6 +110,42 @@
                 </div>
 
                 <div class="field-group">
+                    <label for="profile_key">
+                        Perfil da base IRR <span>*</span>
+                    </label>
+
+                    <select
+                        id="profile_key"
+                        class="form-control"
+                        name="profile_key"
+                        required
+                    >
+                        @foreach ($irrProfiles as $key => $profile)
+                            <option
+                                value="{{ $key }}"
+                                data-source="{{ $profile['source'] }}"
+                                data-email="{{ $profile['destination_email'] }}"
+                                data-subject="{{ $profile['subject'] }}"
+                                @selected(
+                                    old('profile_key', 'tc') === $key
+                                )
+                            >
+                                {{ $profile['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <div class="field-help">
+                        O perfil define fonte, destinatário e sugestões
+                        de tamanho para IPv4 e IPv6.
+                    </div>
+
+                    @error('profile_key')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="field-group">
                     <label for="irr_source">
                         Fonte IRR <span>*</span>
                     </label>
@@ -119,14 +155,10 @@
                         class="form-control"
                         name="irr_source"
                         type="text"
-                        value="{{ old('irr_source', 'LOCAL') }}"
+                        value="{{ old('irr_source', 'TC') }}"
                         maxlength="50"
                         required
                     >
-
-                    <div class="field-help">
-                        Confirme a fonte real antes de enviar os objetos.
-                    </div>
 
                     @error('irr_source')
                         <div class="field-error">{{ $message }}</div>
@@ -346,6 +378,11 @@
         (() => {
             const clientField = document.getElementById('client_id');
             const asnField = document.getElementById('autonomous_system_id');
+            const profileField = document.getElementById('profile_key');
+            const sourceField = document.getElementById('irr_source');
+            const destinationField = document.getElementById(
+                'destination_email'
+            );
             const nameField = document.getElementById('name');
             const maintainerField = document.getElementById('maintainer');
             const routeSetField = document.getElementById('route_set');
@@ -356,6 +393,23 @@
             }
 
             const options = Array.from(asnField.options);
+
+            const applyProfile = () => {
+                const option = profileField?.selectedOptions[0];
+
+                if (! option) {
+                    return;
+                }
+
+                sourceField.value = option.dataset.source || 'LOCAL';
+
+                if (
+                    option.dataset.email
+                    && ! destinationField.dataset.manuallyChanged
+                ) {
+                    destinationField.value = option.dataset.email;
+                }
+            };
 
             const filterAsns = () => {
                 const clientId = clientField.value;
@@ -408,9 +462,15 @@
 
             clientField.addEventListener('change', filterAsns);
             asnField.addEventListener('change', suggestNames);
+            profileField?.addEventListener('change', applyProfile);
+
+            destinationField?.addEventListener('input', () => {
+                destinationField.dataset.manuallyChanged = '1';
+            });
 
             filterAsns();
             suggestNames();
+            applyProfile();
         })();
     </script>
 @endsection

@@ -81,6 +81,11 @@ Route::middleware('auth')->group(function (): void {
         [IrrWorkflowController::class, 'show']
     )->name('irr-workflows.show');
 
+    Route::patch(
+        '/irr-assistant/{irrWorkflow}/prefixes/{workflowPrefix}',
+        [IrrWorkflowController::class, 'updatePrefixPolicy']
+    )->name('irr-workflows.prefixes.update');
+
     Route::post(
         '/irr-assistant/{irrWorkflow}/steps/{step}/sent',
         [IrrWorkflowController::class, 'markSent']

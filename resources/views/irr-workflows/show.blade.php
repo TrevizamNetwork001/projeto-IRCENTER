@@ -40,6 +40,159 @@
         </div>
     @endif
 
+    <section class="panel workflow-prefix-policy">
+        <header class="panel-header">
+            <div>
+                <span class="panel-eyebrow">
+                    Política de anúncios
+                </span>
+
+                <h2>Prefixos do workflow</h2>
+
+                <p>
+                    Defina como cada bloco aparecerá no route-set e se
+                    deverá gerar um objeto route ou route6.
+                </p>
+            </div>
+
+            <span class="workflow-status is-ready">
+                {{ strtoupper($workflow->profile_key) }}
+            </span>
+        </header>
+
+        @if ($workflow->prefixes->isEmpty())
+            <div class="empty-state">
+                <strong>Nenhum prefixo vinculado ao ASN</strong>
+
+                <span>
+                    Cadastre os prefixos antes de preparar o route-set.
+                </span>
+            </div>
+        @else
+            <div class="workflow-prefix-list">
+                @foreach (
+                    $workflow->prefixes
+                        ->sortBy([
+                            ['ip_version', 'asc'],
+                            ['prefix', 'asc'],
+                        ])
+                    as $workflowPrefix
+                )
+                    <form
+                        class="workflow-prefix-row"
+                        method="POST"
+                        action="{{ route(
+                            'irr-workflows.prefixes.update',
+                            [$workflow, $workflowPrefix]
+                        ) }}"
+                    >
+                        @csrf
+                        @method('PATCH')
+
+                        <div class="workflow-prefix-identity">
+                            <span class="workflow-prefix-family">
+                                IPv{{ $workflowPrefix->ip_version }}
+                            </span>
+
+                            <strong class="table-mono">
+                                {{ $workflowPrefix->prefix }}
+                            </strong>
+
+                            <span class="table-mono workflow-prefix-preview">
+                                {{ $workflowPrefix->routeSetMember() }}
+                            </span>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="mode-{{ $workflowPrefix->id }}">
+                                Route-set
+                            </label>
+
+                            <select
+                                id="mode-{{ $workflowPrefix->id }}"
+                                class="form-control prefix-mode-field"
+                                name="route_set_mode"
+                                data-prefix-id="{{ $workflowPrefix->id }}"
+                            >
+                                <option
+                                    value="exact"
+                                    @selected(
+                                        $workflowPrefix->route_set_mode
+                                        === 'exact'
+                                    )
+                                >
+                                    Somente prefixo exato
+                                </option>
+
+                                <option
+                                    value="more_specifics"
+                                    @selected(
+                                        $workflowPrefix->route_set_mode
+                                        === 'more_specifics'
+                                    )
+                                >
+                                    Permitir mais específicos
+                                </option>
+                            </select>
+                        </div>
+
+                        <div
+                            class="field-group prefix-maximum-group"
+                            data-prefix-maximum="{{ $workflowPrefix->id }}"
+                        >
+                            <label for="maximum-{{ $workflowPrefix->id }}">
+                                Limite máximo
+                            </label>
+
+                            <input
+                                id="maximum-{{ $workflowPrefix->id }}"
+                                class="form-control"
+                                name="maximum_length"
+                                type="number"
+                                min="{{ $workflowPrefix->prefixLength() + 1 }}"
+                                max="{{ $workflowPrefix->ip_version === 6
+                                    ? 128
+                                    : 32 }}"
+                                value="{{ $workflowPrefix->maximum_length }}"
+                            >
+                        </div>
+
+                        <label class="workflow-prefix-checkbox">
+                            <input
+                                type="hidden"
+                                name="generate_route_object"
+                                value="0"
+                            >
+
+                            <input
+                                name="generate_route_object"
+                                type="checkbox"
+                                value="1"
+                                @checked(
+                                    $workflowPrefix->generate_route_object
+                                )
+                            >
+
+                            <span>
+                                Gerar
+                                {{ $workflowPrefix->ip_version === 6
+                                    ? 'route6'
+                                    : 'route' }}
+                            </span>
+                        </label>
+
+                        <button
+                            class="button button-secondary"
+                            type="submit"
+                        >
+                            Salvar política
+                        </button>
+                    </form>
+                @endforeach
+            </div>
+        @endif
+    </section>
+
     <section class="workflow-progress">
         @foreach ($workflow->steps as $step)
             <div
@@ -332,6 +485,33 @@
 
     <script>
         (() => {
+            const refreshPrefixMode = (field) => {
+                const group = document.querySelector(
+                    `[data-prefix-maximum="${field.dataset.prefixId}"]`
+                );
+
+                const input = group?.querySelector('input');
+
+                if (! group || ! input) {
+                    return;
+                }
+
+                const enabled = field.value === 'more_specifics';
+
+                group.hidden = ! enabled;
+                input.disabled = ! enabled;
+            };
+
+            document.querySelectorAll('.prefix-mode-field')
+                .forEach((field) => {
+                    field.addEventListener(
+                        'change',
+                        () => refreshPrefixMode(field)
+                    );
+
+                    refreshPrefixMode(field);
+                });
+
             document.querySelectorAll('.copy-button').forEach((button) => {
                 button.addEventListener('click', async () => {
                     const target = document.getElementById(

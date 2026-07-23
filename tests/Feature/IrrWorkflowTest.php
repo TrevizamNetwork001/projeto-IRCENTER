@@ -278,6 +278,42 @@ class IrrWorkflowTest extends TestCase
         );
     }
 
+    public function test_administrator_can_update_prefix_policy(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $workflow = $this->createWorkflow();
+
+        $workflowPrefix = $workflow->prefixes()
+            ->firstOrFail();
+
+        $this->actingAs($admin)
+            ->patch(route(
+                'irr-workflows.prefixes.update',
+                [$workflow, $workflowPrefix]
+            ), [
+                'route_set_mode' => 'more_specifics',
+                'maximum_length' => 28,
+                'generate_route_object' => '0',
+            ])
+            ->assertRedirect();
+
+        $workflowPrefix->refresh();
+
+        $this->assertSame(
+            'more_specifics',
+            $workflowPrefix->route_set_mode
+        );
+
+        $this->assertSame(28, $workflowPrefix->maximum_length);
+        $this->assertFalse(
+            $workflowPrefix->generate_route_object
+        );
+    }
+
     public function test_workflow_suggests_route_set_more_specific_limits(): void
     {
         $autonomousSystem = AutonomousSystem::factory()->create([

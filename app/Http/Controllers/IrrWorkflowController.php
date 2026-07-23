@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIrrWorkflowRequest;
 use App\Http\Requests\UpdateIrrWorkflowStepRequest;
+use App\Http\Requests\UpdateIrrWorkflowPrefixRequest;
 use App\Models\AutonomousSystem;
 use App\Models\Client;
 use App\Models\IrrWorkflow;
 use App\Models\IrrWorkflowStep;
+use App\Models\IrrWorkflowPrefix;
 use App\Services\IrrWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -38,6 +40,7 @@ class IrrWorkflowController extends Controller
                 ->where('active', true)
                 ->orderBy('asn')
                 ->get(),
+            'irrProfiles' => config('irr.profiles', []),
         ]);
     }
 
@@ -58,12 +61,60 @@ class IrrWorkflowController extends Controller
             'client',
             'autonomousSystem',
             'autonomousSystem.prefixes',
+            'prefixes',
             'steps',
         ]);
 
         return view('irr-workflows.show', [
             'workflow' => $irrWorkflow,
         ]);
+    }
+
+    public function updatePrefixPolicy(
+        UpdateIrrWorkflowPrefixRequest $request,
+        IrrWorkflow $irrWorkflow,
+        IrrWorkflowPrefix $workflowPrefix,
+        IrrWorkflowService $service
+    ): RedirectResponse {
+        abort_unless(
+            $workflowPrefix->irr_workflow_id === $irrWorkflow->id,
+            404
+        );
+
+        $data = $request->validated();
+
+        if (
+            $data['route_set_mode']
+            === IrrWorkflowPrefix::MODE_EXACT
+        ) {
+            $data['maximum_length'] = null;
+        }
+
+        $workflowPrefix->update($data);
+
+        $routeSetStep = $irrWorkflow->steps()
+            ->where('step_key', 'route_set')
+            ->first();
+
+        if (
+            $routeSetStep instanceof IrrWorkflowStep
+            && $routeSetStep->status === IrrWorkflowStep::STATUS_READY
+        ) {
+            $service->prepareStep(
+                $irrWorkflow->fresh([
+                    'client',
+                    'autonomousSystem',
+                    'prefixes',
+                    'steps',
+                ]),
+                $routeSetStep->step_number
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Política do prefixo atualizada.'
+        );
     }
 
     public function markSent(
