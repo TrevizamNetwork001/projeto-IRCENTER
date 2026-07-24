@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
-use Carbon\Carbon;
 use App\Models\Notification;
+use Carbon\Carbon;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -50,5 +53,15 @@ class AppServiceProvider extends ServiceProvider
                         ->count(),
             ]);
         });
+
+        RateLimiter::for(
+            'documentation-api',
+            fn (Request $request) => Limit::perMinute(
+                (int) config(
+                    'documentation.rate_limit',
+                    120
+                )
+            )->by($request->ip())
+        );
     }
 }
