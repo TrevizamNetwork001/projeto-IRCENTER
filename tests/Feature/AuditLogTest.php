@@ -53,7 +53,7 @@ class AuditLogTest extends TestCase
             ->post(route('clients.store'), [
                 'legal_name' => 'Cliente Auditoria Ltda',
                 'trade_name' => 'Cliente Auditoria',
-                'document' => '12345678000199',
+                'document' => '11222333000181',
                 'email' => 'audit@example.net',
                 'phone' => '11999999999',
                 'country' => 'BR',
@@ -90,13 +90,11 @@ class AuditLogTest extends TestCase
         $payload = $client->only([
             'legal_name',
             'trade_name',
-            'document',
             'email',
             'phone',
             'country',
             'state',
             'city',
-            'address',
             'notes',
             'active',
         ]);

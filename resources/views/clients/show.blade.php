@@ -12,7 +12,10 @@
 
             <h1>{{ $client->displayName() }}</h1>
 
-            <p>{{ $client->legal_name }}</p>
+            <p>
+                {{ $client->legal_name }}
+                · {{ $client->client_code }}
+            </p>
         </div>
 
         @if (auth()->user()->isAdministrator())
@@ -60,6 +63,20 @@
 
             <dl class="details-list">
                 <div>
+                    <dt>Código interno</dt>
+                    <dd class="table-mono">
+                        {{ $client->client_code }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Número do contrato</dt>
+                    <dd class="table-mono">
+                        {{ $client->contract_number ?: '—' }}
+                    </dd>
+                </div>
+
+                <div>
                     <dt>Razão social</dt>
                     <dd>{{ $client->legal_name }}</dd>
                 </div>
@@ -71,7 +88,7 @@
 
                 <div>
                     <dt>Documento</dt>
-                    <dd class="table-mono">{{ $client->document ?: '—' }}</dd>
+                    <dd class="table-mono">{{ $client->formattedDocument() }}</dd>
                 </div>
 
                 <div>
@@ -97,7 +114,7 @@
 
                 <div>
                     <dt>Telefone</dt>
-                    <dd>{{ $client->phone ?: '—' }}</dd>
+                    <dd>{{ $client->formattedPhone() }}</dd>
                 </div>
 
                 <div>
@@ -119,11 +136,50 @@
                 </div>
 
                 <div>
-                    <dt>Localidade</dt>
+                    <dt>Endereço</dt>
                     <dd>
-                        {{ collect([$client->city, $client->state])
-                            ->filter()
-                            ->implode(' / ') ?: '—' }}
+                        @if (
+                            $client->street
+                            || $client->address_number
+                            || $client->district
+                            || $client->city
+                            || $client->state
+                            || $client->postal_code
+                        )
+                            <span>
+                                {{ collect([
+                                    $client->street,
+                                    $client->address_number,
+                                ])->filter()->implode(', ') }}
+                            </span>
+
+                            @if (
+                                $client->address_complement
+                                || $client->district
+                            )
+                                <span class="table-secondary-text">
+                                    {{ collect([
+                                        $client->address_complement,
+                                        $client->district,
+                                    ])->filter()->implode(' — ') }}
+                                </span>
+                            @endif
+
+                            <span class="table-secondary-text">
+                                {{ collect([
+                                    $client->city,
+                                    $client->state,
+                                ])->filter()->implode(' / ') }}
+
+                                @if ($client->postal_code)
+                                    · CEP {{ $client->formattedPostalCode() }}
+                                @endif
+
+                                · {{ $client->country }}
+                            </span>
+                        @else
+                            —
+                        @endif
                     </dd>
                 </div>
             </dl>

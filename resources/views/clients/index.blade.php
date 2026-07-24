@@ -40,7 +40,7 @@
                     name="search"
                     type="search"
                     value="{{ $search }}"
-                    placeholder="Buscar por nome, documento, e-mail ou cidade"
+                    placeholder="Buscar por nome, código, contrato, documento, e-mail ou cidade"
                 >
             </div>
 
@@ -104,11 +104,18 @@
                                             {{ $client->legal_name }}
                                         </span>
                                     @endif
+
+                                    <span class="table-secondary-text table-mono">
+                                        {{ $client->client_code }}
+                                        @if ($client->contract_number)
+                                            · {{ $client->contract_number }}
+                                        @endif
+                                    </span>
                                 </td>
 
                                 <td>
                                     <span class="table-mono">
-                                        {{ $client->document ?: '—' }}
+                                        {{ $client->formattedDocument() }}
                                     </span>
                                 </td>
 
@@ -123,7 +130,7 @@
 
                                     @if ($client->phone)
                                         <span class="table-secondary-text">
-                                            {{ $client->phone }}
+                                            {{ $client->formattedPhone() }}
                                         </span>
                                     @endif
                                 </td>

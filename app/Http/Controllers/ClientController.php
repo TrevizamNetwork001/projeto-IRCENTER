@@ -6,6 +6,7 @@ use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,6 +25,8 @@ class ClientController extends Controller
                         ->where('legal_name', 'ilike', "%{$search}%")
                         ->orWhere('trade_name', 'ilike', "%{$search}%")
                         ->orWhere('document', 'ilike', "%{$search}%")
+                        ->orWhere('client_code', 'ilike', "%{$search}%")
+                        ->orWhere('contract_number', 'ilike', "%{$search}%")
                         ->orWhere('email', 'ilike', "%{$search}%")
                         ->orWhere('city', 'ilike', "%{$search}%");
                 });
@@ -56,7 +59,35 @@ class ClientController extends Controller
 
     public function store(StoreClientRequest $request): RedirectResponse
     {
-        $client = Client::create($request->validated());
+        $data = $request->validated();
+        $generateContract = (bool) (
+            $data['generate_contract_number'] ?? false
+        );
+
+        unset($data['generate_contract_number']);
+
+        $client = DB::transaction(function () use (
+            $data,
+            $generateContract
+        ): Client {
+            $client = Client::create($data);
+
+            $client->forceFill([
+                'client_code' => sprintf(
+                    'CLI-%06d',
+                    $client->id
+                ),
+                'contract_number' => $generateContract
+                    ? sprintf(
+                        'CTR-%s-%06d',
+                        now()->format('Y'),
+                        $client->id
+                    )
+                    : $client->contract_number,
+            ])->save();
+
+            return $client->refresh();
+        });
 
         app(AuditService::class)->record(
             'created',
@@ -92,8 +123,22 @@ class ClientController extends Controller
         Client $client
     ): RedirectResponse {
         $oldValues = $client->getOriginal();
+        $data = $request->validated();
+        $generateContract = (bool) (
+            $data['generate_contract_number'] ?? false
+        );
 
-        $client->update($request->validated());
+        unset($data['generate_contract_number']);
+
+        if ($generateContract) {
+            $data['contract_number'] = sprintf(
+                'CTR-%s-%06d',
+                now()->format('Y'),
+                $client->id
+            );
+        }
+
+        $client->update($data);
 
         app(AuditService::class)->record(
             'updated',

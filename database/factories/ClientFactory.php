@@ -17,9 +17,9 @@ class ClientFactory extends Factory
         return [
             'legal_name' => fake()->company().' LTDA',
             'trade_name' => fake()->company(),
-            'document' => fake()->unique()->numerify('##############'),
+            'document' => null,
             'email' => fake()->companyEmail(),
-            'phone' => fake()->phoneNumber(),
+            'phone' => '(11) 99999-9999',
             'website' => fake()->url(),
             'city' => fake()->city(),
             'state' => fake()->stateAbbr(),

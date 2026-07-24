@@ -45,7 +45,7 @@ class ClientManagementTest extends TestCase
         $response = $this->actingAs($admin)->post(route('clients.store'), [
             'legal_name' => 'Trevizam Network LTDA',
             'trade_name' => 'Trevizam Network',
-            'document' => '12.345.678/0001-90',
+            'document' => '11.222.333/0001-81',
             'email' => 'CONTATO@EXAMPLE.COM',
             'phone' => '(11) 99999-9999',
             'website' => 'https://example.com',
@@ -63,7 +63,7 @@ class ClientManagementTest extends TestCase
         $this->assertDatabaseHas('clients', [
             'legal_name' => 'Trevizam Network LTDA',
             'trade_name' => 'Trevizam Network',
-            'document' => '12345678000190',
+            'document' => '11222333000181',
             'email' => 'contato@example.com',
             'country' => 'BR',
             'active' => true,
@@ -123,6 +123,153 @@ class ClientManagementTest extends TestCase
         ]);
     }
 
+    public function test_client_receives_automatic_internal_code(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Código LTDA',
+                'country' => 'BR',
+                'active' => '1',
+            ])
+            ->assertRedirect();
+
+        $client = Client::query()->firstOrFail();
+
+        $this->assertSame('CLI-000001', $client->client_code);
+    }
+
+    public function test_contract_number_can_be_generated_automatically(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Contrato LTDA',
+                'generate_contract_number' => '1',
+                'country' => 'BR',
+                'active' => '1',
+            ])
+            ->assertRedirect();
+
+        $client = Client::query()->firstOrFail();
+
+        $this->assertSame(
+            'CTR-'.now()->format('Y').'-000001',
+            $client->contract_number
+        );
+    }
+
+    public function test_manual_contract_number_is_normalized(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Contrato Manual',
+                'contract_number' => ' ctr-externo/2026-10 ',
+                'country' => 'BR',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('clients', [
+            'contract_number' => 'CTR-EXTERNO/2026-10',
+        ]);
+    }
+
+    public function test_invalid_cpf_or_cnpj_is_rejected(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Documento Inválido',
+                'document' => '111.111.111-11',
+                'country' => 'BR',
+            ])
+            ->assertSessionHasErrors('document');
+    }
+
+    public function test_phone_website_and_address_are_normalized(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Normalizado',
+                'phone' => '(11) 99999-8888',
+                'website' => 'empresa.com.br',
+                'postal_code' => '01001-000',
+                'street' => 'Praça da Sé',
+                'address_number' => '100',
+                'district' => 'Sé',
+                'city' => 'São Paulo',
+                'state' => 'sp',
+                'country' => 'br',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('clients', [
+            'phone' => '+5511999998888',
+            'website' => 'https://empresa.com.br',
+            'postal_code' => '01001000',
+            'street' => 'Praça da Sé',
+            'address_number' => '100',
+            'district' => 'Sé',
+            'city' => 'São Paulo',
+            'state' => 'SP',
+            'country' => 'BR',
+        ]);
+    }
+
+    public function test_invalid_phone_is_rejected(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente Telefone Inválido',
+                'phone' => '11111111111',
+                'country' => 'BR',
+            ])
+            ->assertSessionHasErrors('phone');
+    }
+
+    public function test_invalid_postal_code_is_rejected(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('clients.store'), [
+                'legal_name' => 'Cliente CEP Inválido',
+                'postal_code' => '123',
+                'country' => 'BR',
+            ])
+            ->assertSessionHasErrors('postal_code');
+    }
+
     public function test_client_document_must_be_unique(): void
     {
         $admin = User::factory()->create([
@@ -131,13 +278,13 @@ class ClientManagementTest extends TestCase
         ]);
 
         Client::factory()->create([
-            'document' => '12345678000190',
+            'document' => '11222333000181',
         ]);
 
         $this->actingAs($admin)
             ->post(route('clients.store'), [
                 'legal_name' => 'Cliente duplicado',
-                'document' => '12.345.678/0001-90',
+                'document' => '11.222.333/0001-81',
                 'country' => 'BR',
             ])
             ->assertSessionHasErrors('document');
