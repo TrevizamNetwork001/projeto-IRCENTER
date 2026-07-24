@@ -4,20 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Notification;
 use App\Services\AuditService;
-use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-    public function index(
-        Request $request,
-        NotificationService $notificationService
-    ): View {
+    public function index(Request $request): View
+    {
         $user = $request->user();
-
-        $notificationService->syncFor($user);
 
         $status = $request->string('status')->toString();
 

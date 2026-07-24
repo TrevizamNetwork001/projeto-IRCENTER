@@ -30,6 +30,9 @@ class NotificationTest extends TestCase
             'active' => true,
         ]);
 
+        $this->artisan('ircenter:sync-notifications')
+            ->assertSuccessful();
+
         $this->actingAs($viewer)
             ->get(route('notifications.index'))
             ->assertOk()

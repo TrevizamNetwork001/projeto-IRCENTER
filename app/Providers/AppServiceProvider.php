@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Carbon\Carbon;
-use App\Services\NotificationService;
+use App\Models\Notification;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -33,14 +33,21 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $notifications = app(NotificationService::class)
-                ->syncFor($user);
+            $notifications = Notification::query()
+                ->where('user_id', $user->id)
+                ->whereNull('resolved_at')
+                ->latest()
+                ->limit(6)
+                ->get();
 
             $view->with([
-                'topbarNotifications' => $notifications->take(6),
-                'topbarUnreadNotificationCount' => $notifications
-                    ->whereNull('read_at')
-                    ->count(),
+                'topbarNotifications' => $notifications,
+                'topbarUnreadNotificationCount' =>
+                    Notification::query()
+                        ->where('user_id', $user->id)
+                        ->whereNull('resolved_at')
+                        ->whereNull('read_at')
+                        ->count(),
             ]);
         });
     }
