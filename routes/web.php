@@ -12,6 +12,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrefixController;
 use App\Http\Controllers\Profile\PasswordController as ProfilePasswordController;
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RpkiValidationController;
 use App\Http\Controllers\RoutingIncidentController;
 use App\Http\Controllers\UserController;
@@ -43,6 +44,23 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get(
+        '/reports',
+        [ReportController::class, 'index']
+    )->name('reports.index');
+
+    Route::get(
+        '/reports/{report}/csv',
+        [ReportController::class, 'export']
+    )
+        ->whereIn('report', [
+            'clients',
+            'autonomous-systems',
+            'prefixes',
+            'incidents',
+        ])
+        ->name('reports.export');
 
     Route::get(
         '/routing-incidents',

@@ -4064,3 +4064,152 @@ html[data-theme="light"] .incident-status-pill {
         gap: 5px;
     }
 }
+
+/* Reports */
+
+.report-summary-grid,
+.report-incident-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.report-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 17px;
+}
+
+.report-summary-icon,
+.report-export-icon {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(33, 199, 232, 0.18);
+    border-radius: 10px;
+    background: rgba(33, 199, 232, 0.08);
+    color: var(--cyan);
+}
+
+.report-summary-card span,
+.report-summary-card strong,
+.report-incident-card span,
+.report-incident-card strong {
+    display: block;
+}
+
+.report-summary-card > div > span,
+.report-incident-card span {
+    color: var(--text-muted);
+    font-size: 8px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.report-summary-card strong,
+.report-incident-card strong {
+    margin-top: 5px;
+    color: var(--text);
+    font-size: 21px;
+}
+
+.report-filter-panel,
+.report-export-panel {
+    margin-bottom: 18px;
+}
+
+.report-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0 18px 18px;
+}
+
+.report-filter-actions {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 9px;
+    justify-content: flex-end;
+}
+
+.report-incident-card {
+    padding: 17px;
+}
+
+.report-export-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 0 18px 18px;
+}
+
+.report-export-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 13px;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-soft);
+}
+
+.report-export-card strong {
+    display: block;
+    color: var(--text);
+    font-size: 10px;
+}
+
+.report-export-card p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 9px;
+    line-height: 1.45;
+}
+
+html[data-theme="light"] .report-export-card {
+    background: #f8fafc;
+}
+
+@media (max-width: 1040px) {
+    .report-summary-grid,
+    .report-incident-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .report-export-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .report-summary-grid,
+    .report-incident-grid,
+    .report-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .report-export-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .report-export-card .button {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}

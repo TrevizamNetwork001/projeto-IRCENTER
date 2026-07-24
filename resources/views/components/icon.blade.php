@@ -137,6 +137,14 @@
             <path d="m5 12 4 4L19 6"/>
             @break
 
+        @case('report')
+            <path d="M6 3h9l3 3v15H6z"/>
+            <path d="M14 3v4h4"/>
+            <path d="M9 17v-4"/>
+            <path d="M12 17V9"/>
+            <path d="M15 17v-6"/>
+            @break
+
         @case('registry')
             <path d="M4 4h16v5H4z"/>
             <path d="M4 15h16v5H4z"/>

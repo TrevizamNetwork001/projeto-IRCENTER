@@ -107,6 +107,20 @@
 
             <nav class="sidebar-nav" aria-label="Navegação da plataforma">
                 <a
+                    href="{{ route('reports.index') }}"
+                    class="sidebar-link {{
+                        request()->routeIs('reports.*')
+                            ? 'is-active'
+                            : ''
+                    }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="report"/>
+                    </span>
+                    <span>Relatórios</span>
+                </a>
+
+                <a
                     href="{{ route('irr-workflows.index') }}"
                     class="sidebar-link {{ request()->routeIs('irr-workflows.*') ? 'is-active' : '' }}"
                 >
