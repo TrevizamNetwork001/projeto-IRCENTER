@@ -8,6 +8,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrefixController;
 use App\Http\Controllers\Profile\PasswordController as ProfilePasswordController;
 use App\Http\Controllers\Profile\ProfileController;
@@ -41,6 +42,21 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get(
+        '/notifications',
+        [NotificationController::class, 'index']
+    )->name('notifications.index');
+
+    Route::patch(
+        '/notifications/read-all',
+        [NotificationController::class, 'markAllRead']
+    )->name('notifications.read-all');
+
+    Route::patch(
+        '/notifications/{notification}/read',
+        [NotificationController::class, 'markRead']
+    )->name('notifications.read');
 
     Route::get(
         '/profile',

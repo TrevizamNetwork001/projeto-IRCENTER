@@ -190,10 +190,117 @@
                         </span>
                     </button>
 
-                    <button class="topbar-icon-button" type="button" aria-label="Notificações" disabled>
-                        <x-icon name="bell" size="19"/>
-                        <span class="notification-indicator"></span>
-                    </button>
+                    <div class="notification-menu">
+                        <button
+                            id="notification-menu-toggle"
+                            class="topbar-icon-button"
+                            type="button"
+                            aria-label="Notificações"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            aria-controls="notification-menu-dropdown"
+                        >
+                            <x-icon name="bell" size="19"/>
+
+                            @if ($topbarUnreadNotificationCount > 0)
+                                <span class="notification-indicator">
+                                    {{ $topbarUnreadNotificationCount > 9
+                                        ? '9+'
+                                        : $topbarUnreadNotificationCount }}
+                                </span>
+                            @endif
+                        </button>
+
+                        <div
+                            id="notification-menu-dropdown"
+                            class="notification-menu-dropdown"
+                            role="menu"
+                            hidden
+                        >
+                            <header class="notification-menu-header">
+                                <div>
+                                    <strong>Notificações</strong>
+                                    <span>
+                                        {{ $topbarUnreadNotificationCount }}
+                                        não lida(s)
+                                    </span>
+                                </div>
+
+                                <a href="{{ route('notifications.index') }}">
+                                    Ver todas
+                                </a>
+                            </header>
+
+                            @if ($topbarNotifications->isEmpty())
+                                <div class="notification-menu-empty">
+                                    <x-icon name="bell" size="20"/>
+
+                                    <div>
+                                        <strong>Nenhuma pendência</strong>
+                                        <span>
+                                            O ambiente está consistente.
+                                        </span>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="notification-menu-list">
+                                    @foreach (
+                                        $topbarNotifications as $notification
+                                    )
+                                        <a
+                                            class="notification-menu-item
+                                                {{ $notification->isUnread()
+                                                    ? 'is-unread'
+                                                    : '' }}"
+                                            href="{{ $notification->action_url
+                                                ?: route(
+                                                    'notifications.index'
+                                                ) }}"
+                                            role="menuitem"
+                                        >
+                                            <span
+                                                class="notification-priority-dot
+                                                    is-{{
+                                                        $notification->priority
+                                                    }}"
+                                            ></span>
+
+                                            <span
+                                                class="notification-menu-content"
+                                            >
+                                                <strong>
+                                                    {{ $notification->title }}
+                                                </strong>
+
+                                                <span>
+                                                    {{ $notification->message }}
+                                                </span>
+                                            </span>
+
+                                            <time
+                                                datetime="{{
+                                                    $notification->updated_at
+                                                }}"
+                                            >
+                                                {{ $notification->updated_at
+                                                    ?->diffForHumans() }}
+                                            </time>
+                                        </a>
+                                    @endforeach
+                                </div>
+
+                                <footer class="notification-menu-footer">
+                                    <a
+                                        href="{{
+                                            route('notifications.index')
+                                        }}"
+                                    >
+                                        Abrir Central de Notificações
+                                    </a>
+                                </footer>
+                            @endif
+                        </div>
+                    </div>
 
                     <div class="user-menu account-menu">
                         <button
@@ -371,5 +478,70 @@
                 });
         })();
     </script>
+    <script>
+        (() => {
+            const toggle = document.getElementById(
+                'notification-menu-toggle'
+            );
+
+            const dropdown = document.getElementById(
+                'notification-menu-dropdown'
+            );
+
+            const closeMenu = () => {
+                if (! toggle || ! dropdown) {
+                    return;
+                }
+
+                dropdown.hidden = true;
+                toggle.setAttribute('aria-expanded', 'false');
+            };
+
+            toggle?.addEventListener('click', event => {
+                event.stopPropagation();
+
+                const willOpen = dropdown.hidden;
+
+                dropdown.hidden = ! willOpen;
+                toggle.setAttribute(
+                    'aria-expanded',
+                    willOpen ? 'true' : 'false'
+                );
+
+                if (willOpen) {
+                    const accountDropdown = document.getElementById(
+                        'account-menu-dropdown'
+                    );
+
+                    const accountToggle = document.getElementById(
+                        'account-menu-toggle'
+                    );
+
+                    if (accountDropdown) {
+                        accountDropdown.hidden = true;
+                    }
+
+                    accountToggle?.setAttribute(
+                        'aria-expanded',
+                        'false'
+                    );
+                }
+            });
+
+            dropdown?.addEventListener('click', event => {
+                event.stopPropagation();
+            });
+
+            document.addEventListener('click', closeMenu);
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                    toggle?.focus();
+                }
+            });
+        })();
+    </script>
+
 </body>
 </html>
