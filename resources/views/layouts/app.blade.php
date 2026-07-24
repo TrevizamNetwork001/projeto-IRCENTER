@@ -195,11 +195,14 @@
                         <span class="notification-indicator"></span>
                     </button>
 
-                    <div class="user-menu">
-                        <a
-                            class="user-profile-link"
-                            href="{{ route('profile.edit') }}"
-                            title="Abrir meu perfil"
+                    <div class="user-menu account-menu">
+                        <button
+                            id="account-menu-toggle"
+                            class="user-profile-link account-menu-toggle"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            aria-controls="account-menu-dropdown"
                         >
                             <x-user-avatar :user="auth()->user()"/>
 
@@ -207,16 +210,70 @@
                                 <strong>{{ auth()->user()->name }}</strong>
                                 <span>{{ auth()->user()->roleLabel() }}</span>
                             </div>
-                        </a>
 
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
+                            <span
+                                class="account-menu-chevron"
+                                aria-hidden="true"
+                            >
+                                ▾
+                            </span>
+                        </button>
 
-                            <button class="logout-button" type="submit" title="Sair">
-                                <x-icon name="logout" size="18"/>
-                                <span>Sair</span>
-                            </button>
-                        </form>
+                        <div
+                            id="account-menu-dropdown"
+                            class="account-menu-dropdown"
+                            role="menu"
+                            hidden
+                        >
+                            <div class="account-menu-header">
+                                <strong>{{ auth()->user()->name }}</strong>
+                                <span>{{ auth()->user()->roleLabel() }}</span>
+                            </div>
+
+                            <a
+                                class="account-menu-item"
+                                href="{{ route('profile.edit') }}"
+                                role="menuitem"
+                            >
+                                Meu perfil
+                            </a>
+
+                            <a
+                                class="account-menu-item"
+                                href="{{ route('profile.password.edit') }}"
+                                role="menuitem"
+                            >
+                                Alterar minha senha
+                            </a>
+
+                            @if (auth()->user()->isAdministrator())
+                                <a
+                                    class="account-menu-item"
+                                    href="{{ route('users.index') }}"
+                                    role="menuitem"
+                                >
+                                    Gerenciar usuários
+                                </a>
+                            @endif
+
+                            <div class="account-menu-divider"></div>
+
+                            <form
+                                method="POST"
+                                action="{{ route('logout') }}"
+                            >
+                                @csrf
+
+                                <button
+                                    class="account-menu-item account-menu-logout"
+                                    type="submit"
+                                    role="menuitem"
+                                >
+                                    <x-icon name="logout" size="16"/>
+                                    <span>Sair</span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -250,6 +307,68 @@
                     // O tema continua funcionando durante a sessão.
                 }
             });
+        })();
+    </script>
+
+    <script>
+        (() => {
+            const toggle = document.getElementById(
+                'account-menu-toggle'
+            );
+
+            const dropdown = document.getElementById(
+                'account-menu-dropdown'
+            );
+
+            const closeMenu = () => {
+                if (! toggle || ! dropdown) {
+                    return;
+                }
+
+                dropdown.hidden = true;
+                toggle.setAttribute('aria-expanded', 'false');
+            };
+
+            toggle?.addEventListener('click', event => {
+                event.stopPropagation();
+
+                const willOpen = dropdown.hidden;
+
+                dropdown.hidden = ! willOpen;
+                toggle.setAttribute(
+                    'aria-expanded',
+                    willOpen ? 'true' : 'false'
+                );
+            });
+
+            dropdown?.addEventListener('click', event => {
+                event.stopPropagation();
+            });
+
+            document.addEventListener('click', closeMenu);
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                    toggle?.focus();
+                }
+            });
+
+            document
+                .querySelectorAll('[data-auto-dismiss]')
+                .forEach(alert => {
+                    const delay = Number(
+                        alert.dataset.autoDismiss || 5000
+                    );
+
+                    window.setTimeout(() => {
+                        alert.classList.add('is-hiding');
+
+                        window.setTimeout(() => {
+                            alert.remove();
+                        }, 300);
+                    }, delay);
+                });
         })();
     </script>
 </body>

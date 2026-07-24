@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\PrefixController;
+use App\Http\Controllers\Profile\PasswordController as ProfilePasswordController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\RpkiValidationController;
 use App\Http\Controllers\UserController;
@@ -50,6 +51,16 @@ Route::middleware([
         '/profile/avatar',
         [ProfileController::class, 'updateAvatar']
     )->name('profile.avatar.update');
+
+    Route::get(
+        '/profile/password',
+        [ProfilePasswordController::class, 'edit']
+    )->name('profile.password.edit');
+
+    Route::put(
+        '/profile/password',
+        [ProfilePasswordController::class, 'update']
+    )->name('profile.password.update');
 
     Route::patch(
         '/clients/{client}/toggle-active',

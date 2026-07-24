@@ -146,6 +146,71 @@ class UserManagementTest extends TestCase
             ->assertSee($user->name);
     }
 
+    public function test_user_can_access_voluntary_password_form(): void
+    {
+        $user = User::factory()->create([
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('profile.password.edit'))
+            ->assertOk()
+            ->assertSee('Alterar minha senha');
+    }
+
+    public function test_user_can_change_password_from_profile(): void
+    {
+        $user = User::factory()->create([
+            'password' => 'SenhaAtual123',
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('profile.password.update'), [
+                'current_password' => 'SenhaAtual123',
+                'password' => 'NovaSenha987',
+                'password_confirmation' => 'NovaSenha987',
+            ])
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertTrue(
+            Hash::check('NovaSenha987', $user->fresh()->password)
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'password_changed',
+            'resource_type' => 'User',
+            'resource_id' => $user->id,
+        ]);
+    }
+
+    public function test_profile_password_requires_current_password(): void
+    {
+        $user = User::factory()->create([
+            'password' => 'SenhaAtual123',
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('profile.password.update'), [
+                'current_password' => 'SenhaErrada123',
+                'password' => 'NovaSenha987',
+                'password_confirmation' => 'NovaSenha987',
+            ])
+            ->assertSessionHasErrors('current_password');
+
+        $this->assertTrue(
+            Hash::check(
+                'SenhaAtual123',
+                $user->fresh()->password
+            )
+        );
+    }
+
     public function test_administrator_cannot_block_self(): void
     {
         $admin = User::factory()->create([
