@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\PrefixController;
+use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\RpkiValidationController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,16 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get(
+        '/profile',
+        [ProfileController::class, 'edit']
+    )->name('profile.edit');
+
+    Route::put(
+        '/profile/avatar',
+        [ProfileController::class, 'updateAvatar']
+    )->name('profile.avatar.update');
 
     Route::patch(
         '/clients/{client}/toggle-active',

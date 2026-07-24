@@ -28,6 +28,11 @@ class StoreUserRequest extends FormRequest
                 'required',
                 Rule::in(User::roles()),
             ],
+            'avatar_key' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys(User::avatars())),
+            ],
             'password' => [
                 'required',
                 'confirmed',
@@ -42,7 +47,10 @@ class StoreUserRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $avatarKey = trim((string) $this->input('avatar_key'));
+
         $this->merge([
+            'avatar_key' => $avatarKey === '' ? null : $avatarKey,
             'email' => strtolower(
                 trim((string) $this->input('email'))
             ),

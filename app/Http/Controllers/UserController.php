@@ -72,6 +72,7 @@ class UserController extends Controller
                 'must_change_password' => true,
             ]),
             'roles' => User::roles(),
+            'avatars' => User::avatars(),
         ]);
     }
 
@@ -104,6 +105,7 @@ class UserController extends Controller
         return view('users.edit', [
             'managedUser' => $user,
             'roles' => User::roles(),
+            'avatars' => User::avatars(),
         ]);
     }
 

@@ -41,6 +41,64 @@
         @enderror
     </div>
 
+    <div class="field-group field-span-2">
+        <label>Avatar</label>
+
+        <div class="avatar-picker">
+            <label class="avatar-option">
+                <input
+                    name="avatar_key"
+                    type="radio"
+                    value=""
+                    @checked(old('avatar_key', $managedUser->avatar_key) === null)
+                >
+
+                <span class="avatar-option-preview">
+                    <x-user-avatar :user="$managedUser" size="large"/>
+                </span>
+
+                <span class="avatar-option-label">
+                    Inicial do nome
+                </span>
+            </label>
+
+            @foreach ($avatars as $avatarKey => $avatar)
+                <label class="avatar-option">
+                    <input
+                        name="avatar_key"
+                        type="radio"
+                        value="{{ $avatarKey }}"
+                        @checked(
+                            old(
+                                'avatar_key',
+                                $managedUser->avatar_key
+                            ) === $avatarKey
+                        )
+                    >
+
+                    <span class="avatar-option-preview">
+                        <span
+                            class="user-avatar user-avatar-large has-symbol"
+                            aria-hidden="true"
+                        >
+                            <span class="user-avatar-symbol">
+                                {{ $avatar['symbol'] }}
+                            </span>
+                        </span>
+                    </span>
+
+                    <span class="avatar-option-label">
+                        {{ $avatar['label'] }}
+                    </span>
+                </label>
+            @endforeach
+        </div>
+
+        @error('avatar_key')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+
     <div class="field-group">
         <label for="role">Perfil <span>*</span></label>
 

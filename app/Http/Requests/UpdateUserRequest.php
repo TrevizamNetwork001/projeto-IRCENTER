@@ -30,6 +30,11 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 Rule::in(User::roles()),
             ],
+            'avatar_key' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys(User::avatars())),
+            ],
             'active' => ['required', 'boolean'],
             'must_change_password' => ['required', 'boolean'],
         ];
@@ -37,7 +42,10 @@ class UpdateUserRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $avatarKey = trim((string) $this->input('avatar_key'));
+
         $this->merge([
+            'avatar_key' => $avatarKey === '' ? null : $avatarKey,
             'email' => strtolower(
                 trim((string) $this->input('email'))
             ),

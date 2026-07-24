@@ -196,14 +196,18 @@
                     </button>
 
                     <div class="user-menu">
-                        <div class="user-avatar">
-                            {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
-                        </div>
+                        <a
+                            class="user-profile-link"
+                            href="{{ route('profile.edit') }}"
+                            title="Abrir meu perfil"
+                        >
+                            <x-user-avatar :user="auth()->user()"/>
 
-                        <div class="user-details">
-                            <strong>{{ auth()->user()->name }}</strong>
-                            <span>{{ auth()->user()->roleLabel() }}</span>
-                        </div>
+                            <div class="user-details">
+                                <strong>{{ auth()->user()->name }}</strong>
+                                <span>{{ auth()->user()->roleLabel() }}</span>
+                            </div>
+                        </a>
 
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

@@ -11,6 +11,7 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable([
     'name',
+    'avatar_key',
     'email',
     'password',
     'role',
@@ -74,6 +75,103 @@ class User extends Authenticatable
             self::ROLE_OPERATOR => 'Operador',
             default => 'Somente leitura',
         };
+    }
+
+    /**
+     * @return array<string, array{label: string, symbol: string}>
+     */
+    public static function avatars(): array
+    {
+        return [
+            'astronaut' => [
+                'label' => 'Astronauta',
+                'symbol' => '🧑‍🚀',
+            ],
+            'robot' => [
+                'label' => 'Robô',
+                'symbol' => '🤖',
+            ],
+            'wolf' => [
+                'label' => 'Lobo',
+                'symbol' => '🐺',
+            ],
+            'eagle' => [
+                'label' => 'Águia',
+                'symbol' => '🦅',
+            ],
+            'cat' => [
+                'label' => 'Gato',
+                'symbol' => '🐱',
+            ],
+            'fox' => [
+                'label' => 'Raposa',
+                'symbol' => '🦊',
+            ],
+            'owl' => [
+                'label' => 'Coruja',
+                'symbol' => '🦉',
+            ],
+            'technician' => [
+                'label' => 'Técnico',
+                'symbol' => '🧑‍💻',
+            ],
+            'operator' => [
+                'label' => 'Operador',
+                'symbol' => '🎧',
+            ],
+            'shield' => [
+                'label' => 'Escudo',
+                'symbol' => '🛡️',
+            ],
+            'network' => [
+                'label' => 'Rede',
+                'symbol' => '🌐',
+            ],
+            'server' => [
+                'label' => 'Servidor',
+                'symbol' => '🖥️',
+            ],
+        ];
+    }
+
+    public function avatarSymbol(): ?string
+    {
+        if ($this->avatar_key === null) {
+            return null;
+        }
+
+        return self::avatars()[$this->avatar_key]['symbol'] ?? null;
+    }
+
+    public function avatarLabel(): ?string
+    {
+        if ($this->avatar_key === null) {
+            return null;
+        }
+
+        return self::avatars()[$this->avatar_key]['label'] ?? null;
+    }
+
+    public function initials(): string
+    {
+        $parts = preg_split(
+            '/\s+/u',
+            trim($this->name),
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        );
+
+        if (! $parts) {
+            return '?';
+        }
+
+        $initials = mb_substr($parts[0], 0, 1);
+
+        if (count($parts) > 1) {
+            $initials .= mb_substr($parts[array_key_last($parts)], 0, 1);
+        }
+
+        return mb_strtoupper($initials);
     }
 
     protected function casts(): array

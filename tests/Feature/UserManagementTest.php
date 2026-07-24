@@ -62,6 +62,90 @@ class UserManagementTest extends TestCase
         ]);
     }
 
+    public function test_administrator_can_define_user_avatar(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('users.store'), [
+                'name' => 'Operador Robô',
+                'email' => 'robot@example.net',
+                'avatar_key' => 'robot',
+                'role' => User::ROLE_OPERATOR,
+                'password' => 'SenhaForte123',
+                'password_confirmation' => 'SenhaForte123',
+                'active' => '1',
+                'must_change_password' => '1',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'robot@example.net',
+            'avatar_key' => 'robot',
+        ]);
+    }
+
+    public function test_user_can_change_own_avatar(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+            'must_change_password' => false,
+            'avatar_key' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('profile.avatar.update'), [
+                'avatar_key' => 'owl',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            'owl',
+            $user->fresh()->avatar_key
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $user->id,
+            'action' => 'avatar_updated',
+            'resource_type' => 'User',
+            'resource_id' => $user->id,
+        ]);
+    }
+
+    public function test_invalid_avatar_is_rejected(): void
+    {
+        $user = User::factory()->create([
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('profile.avatar.update'), [
+                'avatar_key' => 'invalid-avatar',
+            ])
+            ->assertSessionHasErrors('avatar_key');
+
+        $this->assertNull($user->fresh()->avatar_key);
+    }
+
+    public function test_authenticated_user_can_access_own_profile(): void
+    {
+        $user = User::factory()->create([
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertSee('Meu perfil')
+            ->assertSee($user->name);
+    }
+
     public function test_administrator_cannot_block_self(): void
     {
         $admin = User::factory()->create([
