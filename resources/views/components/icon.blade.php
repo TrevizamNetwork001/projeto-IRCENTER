@@ -105,6 +105,23 @@
             <path d="m16.5 8-3.5 8"/>
             @break
 
+        @case('mail')
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <path d="m3 7 9 6 9-6"/>
+            @break
+
+        @case('eye')
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12"/>
+            <circle cx="12" cy="12" r="3"/>
+            @break
+
+        @case('eye-off')
+            <path d="m3 3 18 18"/>
+            <path d="M10.6 6.2A10.5 10.5 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-2.1 2.8"/>
+            <path d="M6.6 6.6C3.7 8.3 2 12 2 12s3.5 6 10 6a10 10 0 0 0 5.4-1.6"/>
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+            @break
+
         @case('lock')
             <rect x="5" y="10" width="14" height="10" rx="2"/>
             <path d="M8 10V7a4 4 0 0 1 8 0v3"/>

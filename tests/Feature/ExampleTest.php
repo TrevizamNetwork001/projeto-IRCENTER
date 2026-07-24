@@ -20,7 +20,7 @@ class ExampleTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('IRCENTER')
-            ->assertSee('Acesso ao painel');
+            ->assertSee('Acessar o IRCENTER');
     }
 
     public function test_dashboard_requires_authentication(): void
