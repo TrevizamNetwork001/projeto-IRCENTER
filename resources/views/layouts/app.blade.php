@@ -179,6 +179,22 @@
 
                 @if (auth()->user()->isAdministrator())
                     <a
+                        href="{{ route('system-diagnostic.index') }}"
+                        class="sidebar-link {{
+                            request()->routeIs('system-diagnostic.*')
+                                ? 'is-active'
+                                : ''
+                        }}"
+                    >
+                        <span class="sidebar-link-icon">
+                            <x-icon name="activity"/>
+                        </span>
+                        <span>Diagnóstico</span>
+                    </a>
+                @endif
+
+                @if (auth()->user()->isAdministrator())
+                    <a
                         href="{{ route('audit.index') }}"
                         class="sidebar-link {{ request()->routeIs('audit.*') ? 'is-active' : '' }}"
                     >

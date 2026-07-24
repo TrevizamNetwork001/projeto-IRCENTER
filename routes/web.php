@@ -14,8 +14,10 @@ use App\Http\Controllers\PrefixController;
 use App\Http\Controllers\Profile\PasswordController as ProfilePasswordController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReadinessController;
 use App\Http\Controllers\RpkiValidationController;
 use App\Http\Controllers\RoutingIncidentController;
+use App\Http\Controllers\SystemDiagnosticController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +26,13 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 })->name('home');
+
+Route::get(
+    '/health/ready',
+    ReadinessController::class
+)
+    ->middleware('throttle:30,1')
+    ->name('health.ready');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -45,6 +54,11 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get(
+        '/system-diagnostic',
+        SystemDiagnosticController::class
+    )->name('system-diagnostic.index');
 
     Route::post(
         '/external-integrations/{externalIntegration}/test',
