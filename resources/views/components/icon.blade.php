@@ -137,6 +137,19 @@
             <path d="m5 12 4 4L19 6"/>
             @break
 
+        @case('integration')
+            <path d="M8 12h8"/>
+            <path d="M12 8v8"/>
+            <path d="M5 4h4v4H5z"/>
+            <path d="M15 4h4v4h-4z"/>
+            <path d="M5 16h4v4H5z"/>
+            <path d="M15 16h4v4h-4z"/>
+            <path d="m9 8 2 2"/>
+            <path d="m15 8-2 2"/>
+            <path d="m9 16 2-2"/>
+            <path d="m15 16-2-2"/>
+            @break
+
         @case('report')
             <path d="M6 3h9l3 3v15H6z"/>
             <path d="M14 3v4h4"/>

@@ -6,6 +6,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
@@ -44,6 +45,22 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::post(
+        '/external-integrations/{externalIntegration}/test',
+        [ExternalIntegrationController::class, 'test']
+    )->name('external-integrations.test');
+
+    Route::resource(
+        'external-integrations',
+        ExternalIntegrationController::class
+    )
+        ->parameters([
+            'external-integrations' => 'externalIntegration',
+        ])
+        ->except([
+            'destroy',
+        ]);
 
     Route::get(
         '/reports',

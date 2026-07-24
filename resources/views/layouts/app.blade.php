@@ -151,6 +151,22 @@
                 </a>
                 @if (auth()->user()->isAdministrator())
                     <a
+                        href="{{ route('external-integrations.index') }}"
+                        class="sidebar-link {{
+                            request()->routeIs('external-integrations.*')
+                                ? 'is-active'
+                                : ''
+                        }}"
+                    >
+                        <span class="sidebar-link-icon">
+                            <x-icon name="integration"/>
+                        </span>
+                        <span>Integrações</span>
+                    </a>
+                @endif
+
+                @if (auth()->user()->isAdministrator())
+                    <a
                         href="{{ route('users.index') }}"
                         class="sidebar-link {{ request()->routeIs('users.*') ? 'is-active' : '' }}"
                     >
