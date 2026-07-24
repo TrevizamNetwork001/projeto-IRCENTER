@@ -38,6 +38,11 @@ class Client extends Model
         return $this->hasMany(AutonomousSystem::class);
     }
 
+    public function routingIncidents(): HasMany
+    {
+        return $this->hasMany(RoutingIncident::class);
+    }
+
     public function prefixes(): HasMany
     {
         return $this->hasMany(Prefix::class);

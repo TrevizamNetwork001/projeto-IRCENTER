@@ -6,6 +6,7 @@ use App\Models\AutonomousSystem;
 use App\Models\Client;
 use App\Models\Notification;
 use App\Models\Prefix;
+use App\Models\RoutingIncident;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -152,6 +153,56 @@ class NotificationService
                 ]),
             ],
         ];
+
+        if ($user->canOperate()) {
+            $criticalIncidents = RoutingIncident::query()
+                ->where('severity', RoutingIncident::SEVERITY_CRITICAL)
+                ->whereNotIn('status', [
+                    RoutingIncident::STATUS_RESOLVED,
+                    RoutingIncident::STATUS_CLOSED,
+                ])
+                ->count();
+
+            $highIncidents = RoutingIncident::query()
+                ->where('severity', RoutingIncident::SEVERITY_HIGH)
+                ->whereNotIn('status', [
+                    RoutingIncident::STATUS_RESOLVED,
+                    RoutingIncident::STATUS_CLOSED,
+                ])
+                ->count();
+
+            $definitions[] = [
+                'unique_key' => 'critical-routing-incidents',
+                'count' => $criticalIncidents,
+                'priority' => Notification::PRIORITY_CRITICAL,
+                'title' => 'Incidentes críticos em aberto',
+                'message' => $this->quantityMessage(
+                    $criticalIncidents,
+                    'incidente crítico exige atuação imediata.',
+                    'incidentes críticos exigem atuação imediata.'
+                ),
+                'action_url' => route('routing-incidents.index', [
+                    'severity' => RoutingIncident::SEVERITY_CRITICAL,
+                    'status' => 'open',
+                ]),
+            ];
+
+            $definitions[] = [
+                'unique_key' => 'high-routing-incidents',
+                'count' => $highIncidents,
+                'priority' => Notification::PRIORITY_WARNING,
+                'title' => 'Incidentes de alta severidade',
+                'message' => $this->quantityMessage(
+                    $highIncidents,
+                    'incidente de alta severidade está em aberto.',
+                    'incidentes de alta severidade estão em aberto.'
+                ),
+                'action_url' => route('routing-incidents.index', [
+                    'severity' => RoutingIncident::SEVERITY_HIGH,
+                    'status' => 'open',
+                ]),
+            ];
+        }
 
         if ($user->isAdministrator()) {
             $blockedUsers = User::query()

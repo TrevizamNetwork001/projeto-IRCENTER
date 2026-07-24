@@ -33,6 +33,11 @@ class AutonomousSystem extends Model
         return $this->belongsTo(Client::class);
     }
 
+    public function routingIncidents(): HasMany
+    {
+        return $this->hasMany(RoutingIncident::class);
+    }
+
     public function prefixes(): HasMany
     {
         return $this->hasMany(Prefix::class);

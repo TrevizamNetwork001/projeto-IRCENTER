@@ -49,6 +49,20 @@
                 </a>
 
                 <a
+                    href="{{ route('routing-incidents.index') }}"
+                    class="sidebar-link {{
+                        request()->routeIs('routing-incidents.*')
+                            ? 'is-active'
+                            : ''
+                    }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="incident"/>
+                    </span>
+                    <span>Incidentes</span>
+                </a>
+
+                <a
                     href="{{ route('clients.index') }}"
                     class="sidebar-link {{ request()->routeIs('clients.*') ? 'is-active' : '' }}"
                 >

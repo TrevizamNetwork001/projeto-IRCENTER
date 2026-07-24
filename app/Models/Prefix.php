@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'client_id',
@@ -34,6 +35,11 @@ class Prefix extends Model
     public function autonomousSystem(): BelongsTo
     {
         return $this->belongsTo(AutonomousSystem::class);
+    }
+
+    public function routingIncidents(): HasMany
+    {
+        return $this->hasMany(RoutingIncident::class);
     }
 
     public function irrObjects(): \Illuminate\Database\Eloquent\Relations\HasMany

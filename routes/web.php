@@ -13,6 +13,7 @@ use App\Http\Controllers\PrefixController;
 use App\Http\Controllers\Profile\PasswordController as ProfilePasswordController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\RpkiValidationController;
+use App\Http\Controllers\RoutingIncidentController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,41 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get(
+        '/routing-incidents',
+        [RoutingIncidentController::class, 'index']
+    )->name('routing-incidents.index');
+
+    Route::get(
+        '/routing-incidents/create',
+        [RoutingIncidentController::class, 'create']
+    )->name('routing-incidents.create');
+
+    Route::post(
+        '/routing-incidents',
+        [RoutingIncidentController::class, 'store']
+    )->name('routing-incidents.store');
+
+    Route::get(
+        '/routing-incidents/{routingIncident}',
+        [RoutingIncidentController::class, 'show']
+    )->name('routing-incidents.show');
+
+    Route::get(
+        '/routing-incidents/{routingIncident}/edit',
+        [RoutingIncidentController::class, 'edit']
+    )->name('routing-incidents.edit');
+
+    Route::put(
+        '/routing-incidents/{routingIncident}',
+        [RoutingIncidentController::class, 'update']
+    )->name('routing-incidents.update');
+
+    Route::post(
+        '/routing-incidents/{routingIncident}/updates',
+        [RoutingIncidentController::class, 'storeUpdate']
+    )->name('routing-incidents.updates.store');
 
     Route::get(
         '/notifications',
