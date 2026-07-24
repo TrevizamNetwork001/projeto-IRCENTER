@@ -78,30 +78,6 @@ class ProductionReadinessTest extends TestCase
             ->assertSee('Fila');
     }
 
-    public function test_hsts_is_applied_on_secure_production_request(): void
-    {
-        config([
-            'app.env' => 'production',
-            'app.url' => 'https://ircenter.example.test',
-        ]);
-
-        $this->call(
-            'GET',
-            '/login',
-            [],
-            [],
-            [],
-            [
-                'HTTPS' => 'on',
-                'SERVER_PORT' => 443,
-                'HTTP_HOST' => 'ircenter.example.test',
-            ]
-        )->assertHeader(
-            'Strict-Transport-Security',
-            'max-age=31536000; includeSubDomains'
-        );
-    }
-
     public function test_custom_forbidden_page_is_rendered(): void
     {
         $viewer = User::factory()->create([

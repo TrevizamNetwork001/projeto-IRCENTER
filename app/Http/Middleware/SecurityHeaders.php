@@ -44,16 +44,6 @@ class SecurityHeaders
             'none'
         );
 
-        if (
-            config('app.env') === 'production'
-            && $request->isSecure()
-        ) {
-            $response->headers->set(
-                'Strict-Transport-Security',
-                'max-age=31536000; includeSubDomains'
-            );
-        }
-
         return $response;
     }
 }
