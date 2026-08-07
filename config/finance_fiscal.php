@@ -27,6 +27,11 @@ return [
             false
         ),
 
+        'payment_webhooks_enabled' => env(
+            'PAYMENT_WEBHOOKS_ENABLED',
+            false
+        ),
+
         'allow_general_email_fallback' => env(
             'FINANCE_GENERAL_EMAIL_FALLBACK',
             false

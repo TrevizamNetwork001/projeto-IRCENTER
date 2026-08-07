@@ -3,6 +3,7 @@
 namespace App\Modules\Finance\Infrastructure;
 
 use App\Modules\Finance\Contracts\PaymentProvider;
+use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Support\Decimal;
@@ -180,6 +181,152 @@ final class EfiPaymentProvider implements PaymentProvider
                 $providerChargeId,
             status: 'canceled',
         );
+    }
+
+    /**
+     * @return list<EfiNotificationEvent>
+     */
+    public function fetchNotificationEvents(
+        string $token,
+    ): array {
+        $this->assertOperationAllowed();
+
+        if (
+            preg_match(
+                '/^[A-Za-z0-9-]{10,120}$/',
+                $token
+            ) !== 1
+        ) {
+            throw new InvalidArgumentException(
+                'Token de notificação Efí inválido.'
+            );
+        }
+
+        $response = $this->authorizedRequest()
+            ->get(
+                $this->baseUrl()
+                    .'/v1/notification/'
+                    .rawurlencode($token)
+            );
+
+        $response->throw();
+
+        $data = $response->json('data');
+
+        if (! is_array($data)) {
+            throw new RuntimeException(
+                'Histórico de notificação Efí inválido.'
+            );
+        }
+
+        $events = [];
+
+        foreach ($data as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $eventId = $item['id'] ?? null;
+
+            $chargeId = data_get(
+                $item,
+                'identifiers.charge_id'
+            );
+
+            $type = (string) (
+                $item['type'] ?? ''
+            );
+
+            $current = data_get(
+                $item,
+                'status.current'
+            );
+
+            $previous = data_get(
+                $item,
+                'status.previous'
+            );
+
+            if (
+                (! is_int($eventId)
+                    && ! is_string($eventId))
+                || (! is_int($chargeId)
+                    && ! is_string($chargeId))
+                || $type === ''
+                || ! is_string($current)
+            ) {
+                continue;
+            }
+
+            $value = $item['value'] ?? null;
+
+            $valueCents = (
+                is_int($value)
+                && $value >= 0
+            ) ? $value : null;
+
+            $received = $item[
+                'received_by_bank_at'
+            ] ?? null;
+
+            $created = $item[
+                'created_at'
+            ] ?? null;
+
+            $events[] =
+                new EfiNotificationEvent(
+                    eventId:
+                        (string) $eventId,
+
+                    chargeId:
+                        (string) $chargeId,
+
+                    type:
+                        $type,
+
+                    currentStatus:
+                        $current,
+
+                    previousStatus:
+                        is_string($previous)
+                            ? $previous
+                            : null,
+
+                    normalizedStatus:
+                        $this->mapStatus(
+                            $current
+                        ),
+
+                    valueCents:
+                        $valueCents,
+
+                    receivedByBankAt:
+                        is_string($received)
+                            ? $received
+                            : null,
+
+                    providerCreatedAtRaw:
+                        is_string($created)
+                            ? $created
+                            : null,
+
+                    payload:
+                        $item,
+                );
+        }
+
+        usort(
+            $events,
+            fn (
+                EfiNotificationEvent $left,
+                EfiNotificationEvent $right
+            ): int =>
+                (int) $left->eventId
+                <=>
+                (int) $right->eventId
+        );
+
+        return $events;
     }
 
     public function validateWebhookRequest(

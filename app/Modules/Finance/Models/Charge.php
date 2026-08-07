@@ -38,6 +38,8 @@ final class Charge extends Model
         'provider_pix_copy_paste',
         'provider_created_at',
         'last_synced_at',
+        'last_provider_event_id',
+        'last_provider_event_at',
     ];
 
     protected function casts(): array
@@ -49,6 +51,8 @@ final class Charge extends Model
             'provider_created_at' =>
                 'immutable_datetime',
             'last_synced_at' =>
+                'immutable_datetime',
+            'last_provider_event_at' =>
                 'immutable_datetime',
         ];
     }

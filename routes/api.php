@@ -37,3 +37,10 @@ Route::prefix('v1/documentation')
             [DocumentationResourceController::class, 'prefixes']
         )->name('api.documentation.prefixes.index');
     });
+
+Route::post(
+    '/v1/webhooks/payments/efi',
+    \App\Http\Controllers\Api\V1\EfiPaymentWebhookController::class
+)
+    ->middleware('throttle:120,1')
+    ->name('api.webhooks.payments.efi');
