@@ -26,6 +26,11 @@ return [
             'PAYMENT_LIVE_ENABLED',
             false
         ),
+
+        'allow_general_email_fallback' => env(
+            'FINANCE_GENERAL_EMAIL_FALLBACK',
+            false
+        ),
     ],
 
     'fiscal' => [

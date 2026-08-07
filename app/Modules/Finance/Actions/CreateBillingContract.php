@@ -76,6 +76,29 @@ final class CreateBillingContract
             );
         }
 
+        $billingEmailOverride = $attributes[
+            'billing_email_override'
+        ] ?? null;
+
+        if ($billingEmailOverride !== null) {
+            $billingEmailOverride = trim(
+                (string) $billingEmailOverride
+            );
+
+            if ($billingEmailOverride === '') {
+                $billingEmailOverride = null;
+            } elseif (
+                ! filter_var(
+                    $billingEmailOverride,
+                    FILTER_VALIDATE_EMAIL
+                )
+            ) {
+                throw new InvalidArgumentException(
+                    'E-mail financeiro do contrato é inválido.'
+                );
+            }
+        }
+
         $normalizedItems = [];
 
         foreach ($items as $position => $item) {
@@ -116,6 +139,7 @@ final class CreateBillingContract
                 $generationDay,
                 $dueDay,
                 $frequency,
+                $billingEmailOverride,
                 $actorUserId,
             ): BillingContract {
                 $contract = BillingContract::query()->create([
@@ -131,9 +155,7 @@ final class CreateBillingContract
                     'status' => BillingContract::STATUS_DRAFT,
 
                     'billing_email_override' =>
-                        $attributes[
-                            'billing_email_override'
-                        ] ?? null,
+                        $billingEmailOverride,
 
                     'auto_charge' => false,
                     'send_email' => false,
