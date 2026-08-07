@@ -37,12 +37,17 @@ printf '%s\n' \
     "Ambiente de teste obrigatório:" \
     "  APP_ENV=testing" \
     "  DB_CONNECTION=sqlite" \
-    "  DB_DATABASE=:memory:"
+    "  DB_DATABASE=:memory:" \
+    "  FINANCE_FISCAL_DB_CONNECTION=sqlite" \
+    "  FINANCE_FISCAL_DB_DATABASE=:memory:"
 
 APP_ENV=testing \
 DB_CONNECTION=sqlite \
 DB_DATABASE=:memory: \
 DB_URL= \
+FINANCE_FISCAL_DB_CONNECTION=sqlite \
+FINANCE_FISCAL_DB_DATABASE=:memory: \
+FINANCE_FISCAL_DB_URL= \
 CACHE_STORE=array \
 QUEUE_CONNECTION=sync \
 SESSION_DRIVER=array \

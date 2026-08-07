@@ -99,6 +99,43 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'finance_fiscal' => [
+            'driver' => env(
+                'FINANCE_FISCAL_DB_CONNECTION',
+                'pgsql'
+            ),
+            'url' => env('FINANCE_FISCAL_DB_URL'),
+            'host' => env(
+                'FINANCE_FISCAL_DB_HOST',
+                'postgres'
+            ),
+            'port' => env(
+                'FINANCE_FISCAL_DB_PORT',
+                '5432'
+            ),
+            'database' => env(
+                'FINANCE_FISCAL_DB_DATABASE'
+            ),
+            'username' => env(
+                'FINANCE_FISCAL_DB_USERNAME'
+            ),
+            'password' => env(
+                'FINANCE_FISCAL_DB_PASSWORD'
+            ),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env(
+                'FINANCE_FISCAL_DB_SSLMODE',
+                'prefer'
+            ),
+            'foreign_key_constraints' => env(
+                'FINANCE_FISCAL_DB_FOREIGN_KEYS',
+                true
+            ),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

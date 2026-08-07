@@ -24,11 +24,19 @@ if (is_file($productionConfigCache)) {
 $environment = getenv('APP_ENV');
 $connection = getenv('DB_CONNECTION');
 $database = getenv('DB_DATABASE');
+$financeConnection = getenv(
+    'FINANCE_FISCAL_DB_CONNECTION'
+);
+$financeDatabase = getenv(
+    'FINANCE_FISCAL_DB_DATABASE'
+);
 
 if (
     $environment !== 'testing'
     || $connection !== 'sqlite'
     || $database !== ':memory:'
+    || $financeConnection !== 'sqlite'
+    || $financeDatabase !== ':memory:'
 ) {
     fwrite(
         STDERR,

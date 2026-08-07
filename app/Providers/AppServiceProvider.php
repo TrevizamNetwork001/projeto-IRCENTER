@@ -18,7 +18,44 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(
+            \App\Modules\Shared\Contracts\ClientDirectory::class,
+            \App\Modules\Shared\Infrastructure\CoreClientDirectory::class,
+        );
+
+        $this->app->singleton(
+            \App\Modules\Finance\Contracts\PaymentProvider::class,
+            function () {
+                return match (
+                    config(
+                        'finance_fiscal.finance.payment_provider',
+                        'fake'
+                    )
+                ) {
+                    'fake' => new \App\Modules\Finance\Infrastructure\FakePaymentProvider(),
+                    default => throw new \LogicException(
+                        'Payment provider não suportado.'
+                    ),
+                };
+            }
+        );
+
+        $this->app->singleton(
+            \App\Modules\Fiscal\Contracts\NfseProvider::class,
+            function () {
+                return match (
+                    config(
+                        'finance_fiscal.fiscal.nfse_provider',
+                        'fake'
+                    )
+                ) {
+                    'fake' => new \App\Modules\Fiscal\Infrastructure\FakeNfseProvider(),
+                    default => throw new \LogicException(
+                        'NFS-e provider não suportado.'
+                    ),
+                };
+            }
+        );
     }
 
     /**
