@@ -33,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
                     )
                 ) {
                     'fake' => new \App\Modules\Finance\Infrastructure\FakePaymentProvider(),
+
+                    'efi' => new \App\Modules\Finance\Infrastructure\EfiPaymentProvider(),
                     default => throw new \LogicException(
                         'Payment provider não suportado.'
                     ),

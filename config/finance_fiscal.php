@@ -52,4 +52,26 @@ return [
         ),
     ],
 
+
+    'providers' => [
+        'efi' => [
+            'environment' => env(
+                'EFI_ENVIRONMENT',
+                'homologation'
+            ),
+
+            'client_id' => env(
+                'EFI_CLIENT_ID'
+            ),
+
+            'client_secret' => env(
+                'EFI_CLIENT_SECRET'
+            ),
+
+            'notification_url' => env(
+                'EFI_NOTIFICATION_URL'
+            ),
+        ],
+    ],
+
 ];

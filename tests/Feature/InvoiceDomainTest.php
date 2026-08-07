@@ -258,6 +258,92 @@ class InvoiceDomainTest extends TestCase
             );
     }
 
+    public function test_invoice_freezes_current_payer_snapshot(): void
+    {
+        $client = Client::factory()->create([
+            'legal_name' =>
+                'Empresa Snapshot LTDA',
+            'document' =>
+                '12345678000199',
+            'phone' =>
+                '1133334444',
+            'postal_code' =>
+                '01001000',
+            'street' =>
+                'Rua Antiga',
+            'address_number' =>
+                '10',
+            'district' =>
+                'Centro',
+            'city' =>
+                'São Paulo',
+            'state' =>
+                'SP',
+            'country' =>
+                'BR',
+            'active' =>
+                true,
+        ]);
+
+        $contract = app(
+            CreateBillingContract::class
+        )->handle(
+            clientId: $client->id,
+            attributes: [
+                'billing_email_override' =>
+                    'financeiro@cliente.test',
+            ],
+            items: [
+                [
+                    'description' => 'Serviço',
+                    'unit_amount' => '100.00',
+                ],
+            ],
+        );
+
+        $client->update([
+            'street' => 'Rua Atual',
+            'address_number' => '99',
+        ]);
+
+        $contract = app(
+            ActivateBillingContract::class
+        )->handle($contract->id);
+
+        $invoice = app(
+            GenerateInvoiceForContract::class
+        )->handle(
+            $contract->id,
+            '2026-08'
+        );
+
+        $this->assertSame(
+            'Rua Atual',
+            $invoice->client_street_snapshot
+        );
+
+        $this->assertSame(
+            '99',
+            $invoice
+                ->client_address_number_snapshot
+        );
+
+        $this->assertSame(
+            'financeiro@cliente.test',
+            $invoice->billing_email_snapshot
+        );
+
+        $client->update([
+            'street' => 'Rua Posterior',
+        ]);
+
+        $this->assertSame(
+            'Rua Atual',
+            $invoice->fresh()
+                ->client_street_snapshot
+        );
+    }
+
     private function createActiveContract(
         array $attributes = [],
         array $items = [],

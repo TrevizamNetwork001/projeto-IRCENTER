@@ -93,7 +93,7 @@ final class FakePaymentProvider implements PaymentProvider
         return $result;
     }
 
-    public function verifyWebhook(
+    public function validateWebhookRequest(
         string $rawBody,
         array $headers,
     ): bool {

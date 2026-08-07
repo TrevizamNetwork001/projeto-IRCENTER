@@ -4,10 +4,8 @@ namespace App\Modules\Finance\Actions;
 
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Data\PaymentChargeRequest;
-use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
-use App\Modules\Finance\Services\BillingRecipientResolver;
 use App\Modules\Finance\Support\Decimal;
 use App\Modules\Shared\Services\DomainAudit;
 use DomainException;
@@ -18,7 +16,6 @@ final class CreateChargeForInvoice
 {
     public function __construct(
         private readonly PaymentProvider $provider,
-        private readonly BillingRecipientResolver $recipients,
         private readonly DomainAudit $audit,
     ) {
     }
@@ -124,21 +121,6 @@ final class CreateChargeForInvoice
                     return $existing;
                 }
 
-                $billingEmail = null;
-
-                if ($invoice->billing_contract_id) {
-                    $contract = BillingContract::query()
-                        ->find(
-                            $invoice->billing_contract_id
-                        );
-
-                    if ($contract) {
-                        $billingEmail =
-                            $this->recipients
-                                ->resolve($contract);
-                    }
-                }
-
                 $request = new PaymentChargeRequest(
                     invoicePublicId:
                         $invoice->public_id,
@@ -170,7 +152,35 @@ final class CreateChargeForInvoice
                             ->client_document_snapshot,
 
                     payerEmail:
-                        $billingEmail,
+                        $invoice->billing_email_snapshot,
+
+                    payerPhone:
+                        $invoice->client_phone_snapshot,
+
+                    payerPostalCode:
+                        $invoice->client_postal_code_snapshot,
+
+                    payerStreet:
+                        $invoice->client_street_snapshot,
+
+                    payerAddressNumber:
+                        $invoice->client_address_number_snapshot,
+
+                    payerAddressComplement:
+                        $invoice
+                            ->client_address_complement_snapshot,
+
+                    payerDistrict:
+                        $invoice->client_district_snapshot,
+
+                    payerCity:
+                        $invoice->client_city_snapshot,
+
+                    payerState:
+                        $invoice->client_state_snapshot,
+
+                    payerCountry:
+                        $invoice->client_country_snapshot,
                 );
 
                 $result = $this->provider

@@ -29,7 +29,7 @@ interface PaymentProvider
         string $idempotencyKey,
     ): PaymentChargeResult;
 
-    public function verifyWebhook(
+    public function validateWebhookRequest(
         string $rawBody,
         array $headers,
     ): bool;

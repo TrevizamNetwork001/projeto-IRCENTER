@@ -5,7 +5,9 @@ namespace App\Modules\Finance\Actions;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Support\Decimal;
+use App\Modules\Shared\Contracts\ClientDirectory;
 use App\Modules\Shared\Services\DomainAudit;
+use App\Modules\Finance\Services\BillingRecipientResolver;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,8 @@ use InvalidArgumentException;
 final class GenerateInvoiceForContract
 {
     public function __construct(
+        private readonly ClientDirectory $clients,
+        private readonly BillingRecipientResolver $recipients,
         private readonly DomainAudit $audit,
     ) {
     }
@@ -96,6 +100,25 @@ final class GenerateInvoiceForContract
                     );
                 }
 
+                $client = $this->clients->find(
+                    $contract->core_client_id
+                );
+
+                if (! $client) {
+                    throw new DomainException(
+                        'Cliente do IRCENTER não encontrado.'
+                    );
+                }
+
+                if (! $client->active) {
+                    throw new DomainException(
+                        'Cliente inativo não pode gerar nova fatura.'
+                    );
+                }
+
+                $billingEmail = $this->recipients
+                    ->resolve($contract);
+
                 $items = $contract->items()
                     ->where('active', true)
                     ->get();
@@ -159,22 +182,49 @@ final class GenerateInvoiceForContract
                         $contract->id,
 
                     'core_client_id' =>
-                        $contract->core_client_id,
+                        $client->id,
 
                     'client_code_snapshot' =>
-                        $contract->client_code_snapshot,
+                        $client->clientCode,
 
                     'client_legal_name_snapshot' =>
-                        $contract
-                            ->client_legal_name_snapshot,
+                        $client->legalName,
 
                     'client_trade_name_snapshot' =>
-                        $contract
-                            ->client_trade_name_snapshot,
+                        $client->tradeName,
 
                     'client_document_snapshot' =>
-                        $contract
-                            ->client_document_snapshot,
+                        $client->document,
+
+                    'billing_email_snapshot' =>
+                        $billingEmail,
+
+                    'client_phone_snapshot' =>
+                        $client->phone,
+
+                    'client_postal_code_snapshot' =>
+                        $client->postalCode,
+
+                    'client_street_snapshot' =>
+                        $client->street,
+
+                    'client_address_number_snapshot' =>
+                        $client->addressNumber,
+
+                    'client_address_complement_snapshot' =>
+                        $client->addressComplement,
+
+                    'client_district_snapshot' =>
+                        $client->district,
+
+                    'client_city_snapshot' =>
+                        $client->city,
+
+                    'client_state_snapshot' =>
+                        $client->state,
+
+                    'client_country_snapshot' =>
+                        $client->country,
 
                     'source' =>
                         Invoice::SOURCE_RECURRING,

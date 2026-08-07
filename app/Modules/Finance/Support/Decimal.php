@@ -57,6 +57,26 @@ final class Decimal
         );
     }
 
+    public static function moneyToCents(
+        string|int $value,
+    ): int {
+        $normalized = self::money($value);
+
+        $digits = str_replace(
+            '.',
+            '',
+            $normalized
+        );
+
+        $digits = ltrim($digits, '0');
+
+        return (int) (
+            $digits === ''
+                ? '0'
+                : $digits
+        );
+    }
+
     private static function normalize(
         mixed $value,
         int $scale,
