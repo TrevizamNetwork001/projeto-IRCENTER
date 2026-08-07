@@ -3,6 +3,7 @@
 namespace App\Modules\Finance\Actions;
 
 use App\Modules\Finance\Models\BillingContract;
+use App\Modules\Finance\Support\Decimal;
 use App\Modules\Shared\Contracts\ClientDirectory;
 use App\Modules\Shared\Services\DomainAudit;
 use DomainException;
@@ -45,19 +46,13 @@ final class CreateBillingContract
             $attributes['due_day'] ?? 20
         );
 
-        if (
-            $generationDay < 1
-            || $generationDay > 31
-        ) {
+        if ($generationDay < 1 || $generationDay > 31) {
             throw new InvalidArgumentException(
                 'Dia de geração deve estar entre 1 e 31.'
             );
         }
 
-        if (
-            $dueDay < 1
-            || $dueDay > 31
-        ) {
+        if ($dueDay < 1 || $dueDay > 31) {
             throw new InvalidArgumentException(
                 'Dia de vencimento deve estar entre 1 e 31.'
             );
@@ -81,45 +76,43 @@ final class CreateBillingContract
             );
         }
 
-        foreach ($items as $item) {
-            if (
-                empty(trim((string) (
-                    $item['description'] ?? ''
-                )))
-            ) {
+        $normalizedItems = [];
+
+        foreach ($items as $position => $item) {
+            $description = trim(
+                (string) ($item['description'] ?? '')
+            );
+
+            if ($description === '') {
                 throw new InvalidArgumentException(
                     'Descrição do item é obrigatória.'
                 );
             }
 
-            if (
-                ! isset($item['unit_amount'])
-                || ! is_numeric($item['unit_amount'])
-                || (float) $item['unit_amount'] < 0
-            ) {
-                throw new InvalidArgumentException(
-                    'Valor unitário inválido.'
-                );
-            }
+            $normalizedItems[] = [
+                'service_code' =>
+                    $item['service_code'] ?? null,
 
-            if (
-                isset($item['quantity'])
-                && (
-                    ! is_numeric($item['quantity'])
-                    || (float) $item['quantity'] <= 0
-                )
-            ) {
-                throw new InvalidArgumentException(
-                    'Quantidade inválida.'
-                );
-            }
+                'description' => $description,
+
+                'quantity' => Decimal::quantity(
+                    $item['quantity'] ?? '1'
+                ),
+
+                'unit_amount' => Decimal::money(
+                    $item['unit_amount'] ?? null
+                ),
+
+                'sort_order' =>
+                    $item['sort_order'] ?? $position,
+            ];
         }
 
         return DB::connection('finance_fiscal')
             ->transaction(function () use (
                 $client,
                 $attributes,
-                $items,
+                $normalizedItems,
                 $generationDay,
                 $dueDay,
                 $frequency,
@@ -135,11 +128,6 @@ final class CreateBillingContract
                     'generation_day' => $generationDay,
                     'due_day' => $dueDay,
                     'currency' => 'BRL',
-
-                    /*
-                     * Contrato nasce draft.
-                     * Automação nunca é habilitada implicitamente.
-                     */
                     'status' => BillingContract::STATUS_DRAFT,
 
                     'billing_email_override' =>
@@ -157,24 +145,10 @@ final class CreateBillingContract
                         $attributes['ends_on'] ?? null,
                 ]);
 
-                foreach ($items as $position => $item) {
+                foreach ($normalizedItems as $item) {
                     $contract->items()->create([
-                        'service_code' =>
-                            $item['service_code'] ?? null,
-
-                        'description' =>
-                            trim($item['description']),
-
-                        'quantity' =>
-                            $item['quantity'] ?? '1.0000',
-
-                        'unit_amount' =>
-                            $item['unit_amount'],
-
+                        ...$item,
                         'active' => true,
-
-                        'sort_order' =>
-                            $item['sort_order'] ?? $position,
                     ]);
                 }
 
@@ -187,16 +161,21 @@ final class CreateBillingContract
                     metadata: [
                         'public_id' =>
                             $contract->public_id,
+
                         'core_client_id' =>
                             $contract->core_client_id,
+
                         'frequency' =>
                             $contract->frequency,
+
                         'generation_day' =>
                             $contract->generation_day,
+
                         'due_day' =>
                             $contract->due_day,
+
                         'items_count' =>
-                            count($items),
+                            count($normalizedItems),
                     ],
                 );
 

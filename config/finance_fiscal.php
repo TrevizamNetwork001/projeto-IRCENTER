@@ -4,6 +4,11 @@ return [
 
     'database_connection' => 'finance_fiscal',
 
+    'timezone' => env(
+        'FINANCE_FISCAL_TIMEZONE',
+        'America/Sao_Paulo'
+    ),
+
     'finance' => [
         'enabled' => env('FINANCE_ENABLED', false),
 
