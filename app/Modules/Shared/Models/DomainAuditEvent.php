@@ -3,6 +3,7 @@
 namespace App\Modules\Shared\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 
 final class DomainAuditEvent extends Model
 {
@@ -24,6 +25,21 @@ final class DomainAuditEvent extends Model
         'user_agent',
         'created_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (): void {
+            throw new LogicException(
+                'Eventos de auditoria são imutáveis.'
+            );
+        });
+
+        static::deleting(function (): void {
+            throw new LogicException(
+                'Eventos de auditoria são imutáveis.'
+            );
+        });
+    }
 
     protected function casts(): array
     {
