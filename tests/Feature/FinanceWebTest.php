@@ -296,6 +296,48 @@ class FinanceWebTest extends TestCase
         );
     }
 
+    public function test_administrator_can_create_contract_with_brazilian_decimal_separator(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        $admin = $this->admin();
+
+        $client = Client::factory()->create([
+            'active' => true,
+        ]);
+
+        $payload = $this->contractPayload($client);
+
+        $payload['unit_amount'] = '1,00';
+
+        $response = $this->actingAs($admin)
+            ->post(
+                route('finance.contracts.store'),
+                $payload
+            );
+
+        $contract = BillingContract::query()
+            ->firstOrFail();
+
+        $response->assertRedirect(
+            route(
+                'finance.contracts.show',
+                $contract
+            )
+        );
+
+        $item = $contract->items()
+            ->firstOrFail();
+
+        $this->assertSame(
+            '1.00',
+            $item->unit_amount
+        );
+    }
+
     private function admin(): User
     {
         return User::factory()->create([

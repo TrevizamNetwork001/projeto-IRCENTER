@@ -221,7 +221,7 @@
         >
 
         <small class="field-help">
-            Use ponto como separador decimal.
+            Aceita vírgula ou ponto como separador decimal.
         </small>
 
         @error('unit_amount')

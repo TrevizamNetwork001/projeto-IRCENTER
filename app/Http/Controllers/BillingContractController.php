@@ -120,6 +120,27 @@ final class BillingContractController extends Controller
     ): RedirectResponse {
         $this->authorizeWrite();
 
+        /*
+         * A interface é pt-BR, então aceitamos vírgula
+         * ou ponto como separador decimal.
+         *
+         * O domínio continua recebendo strings
+         * normalizadas com ponto.
+         */
+        $request->merge([
+            'quantity' => str_replace(
+                ',',
+                '.',
+                trim((string) $request->input('quantity'))
+            ),
+
+            'unit_amount' => str_replace(
+                ',',
+                '.',
+                trim((string) $request->input('unit_amount'))
+            ),
+        ]);
+
         $data = $request->validate([
             'client_id' => [
                 'required',
@@ -179,6 +200,12 @@ final class BillingContractController extends Controller
                 'required',
                 'regex:/^\d{1,12}(\.\d{1,2})?$/',
             ],
+        ], [
+            'quantity.regex' =>
+                'Quantidade deve ser um número com até 4 casas decimais.',
+
+            'unit_amount.regex' =>
+                'Valor unitário deve ser um número com até 2 casas decimais.',
         ]);
 
         try {
