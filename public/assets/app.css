@@ -4601,3 +4601,45 @@ html[data-theme="light"] .integration-status-pill {
         padding: 20px 10px !important;
     }
 }
+
+/* =========================================================
+   Financeiro - Efí homologação
+   ========================================================= */
+
+.finance-homologation-banner,
+.finance-uncertain-banner,
+.finance-charge-existing-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+}
+
+.finance-homologation-banner {
+    border: 1px solid rgba(245, 158, 11, .55);
+    background: rgba(245, 158, 11, .10);
+}
+
+.finance-uncertain-banner {
+    border: 1px solid rgba(239, 68, 68, .45);
+    background: rgba(239, 68, 68, .08);
+}
+
+.finance-charge-existing-banner {
+    border: 1px solid rgba(59, 130, 246, .35);
+    background: rgba(59, 130, 246, .07);
+}
+
+.finance-homologation-banner strong,
+.finance-uncertain-banner strong,
+.finance-charge-existing-banner strong {
+    font-weight: 800;
+}
+
+.finance-homologation-banner span,
+.finance-uncertain-banner span,
+.finance-charge-existing-banner span {
+    line-height: 1.5;
+}

@@ -453,6 +453,362 @@ class ChargeWebTest extends TestCase
         );
     }
 
+    public function test_efi_homologation_requires_strong_confirmation_phrase(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        config()->set(
+            'finance_fiscal.providers.efi.environment',
+            'homologation'
+        );
+
+        $this->app->instance(
+            PaymentProvider::class,
+            $this->efiHomologationProbeProvider()
+        );
+
+        $invoice = $this->invoice();
+
+        $this->actingAs($this->admin())
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO_PIX,
+
+                    'confirm_provider_submission' =>
+                        '1',
+
+                    'confirm_provider_phrase' =>
+                        'CONFIRMACAO ERRADA',
+                ]
+            )
+            ->assertSessionHasErrors(
+                'confirm_provider_phrase'
+            );
+
+        $this->assertDatabaseCount(
+            'charges',
+            0,
+            'finance_fiscal'
+        );
+    }
+
+    public function test_efi_homologation_can_submit_with_strong_confirmation(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        config()->set(
+            'finance_fiscal.providers.efi.environment',
+            'homologation'
+        );
+
+        $this->app->instance(
+            PaymentProvider::class,
+            $this->efiHomologationProbeProvider()
+        );
+
+        $invoice = $this->invoice();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->get(
+                route(
+                    'finance.invoices.show',
+                    $invoice
+                )
+            )
+            ->assertOk()
+            ->assertSee('EFÍ — HOMOLOGAÇÃO')
+            ->assertSee(
+                'EMITIR EFI HOMOLOGACAO'
+            );
+
+        $this->actingAs($admin)
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO_PIX,
+
+                    'confirm_provider_submission' =>
+                        '1',
+
+                    'confirm_provider_phrase' =>
+                        'EMITIR EFI HOMOLOGACAO',
+                ]
+            )
+            ->assertRedirect(
+                route(
+                    'finance.invoices.show',
+                    $invoice
+                )
+            );
+
+        $charge = Charge::query()
+            ->firstOrFail();
+
+        $this->assertSame(
+            'efi',
+            $charge->provider
+        );
+
+        $this->assertSame(
+            Charge::STATUS_OPEN,
+            $charge->status
+        );
+
+        $this->assertSame(
+            'efi-hml-probe-1',
+            $charge->provider_charge_id
+        );
+
+        $this->assertSame(
+            '000201EFI-HOMOLOGACAO',
+            $charge->provider_pix_copy_paste
+        );
+    }
+
+    public function test_efi_non_homologation_environment_is_hard_blocked_by_web(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        config()->set(
+            'finance_fiscal.providers.efi.environment',
+            'production'
+        );
+
+        /*
+         * Este provider deliberadamente declara
+         * isLive=false para comprovar que o bloqueio
+         * de environment da Web é independente.
+         */
+        $this->app->instance(
+            PaymentProvider::class,
+            $this->efiHomologationProbeProvider()
+        );
+
+        $invoice = $this->invoice();
+
+        $this->actingAs($this->admin())
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO_PIX,
+
+                    'confirm_provider_submission' =>
+                        '1',
+
+                    'confirm_provider_phrase' =>
+                        'EMITIR EFI HOMOLOGACAO',
+                ]
+            )
+            ->assertStatus(503);
+
+        $this->assertDatabaseCount(
+            'charges',
+            0,
+            'finance_fiscal'
+        );
+    }
+
+    public function test_existing_charge_blocks_new_web_submission_with_different_method(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        $admin = $this->admin();
+        $invoice = $this->invoice();
+
+        $this->actingAs($admin)
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO,
+                ]
+            )
+            ->assertRedirect();
+
+        $this->actingAs($admin)
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO_PIX,
+                ]
+            )
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount(
+            'charges',
+            1,
+            'finance_fiscal'
+        );
+    }
+
+    public function test_uncertain_charge_blocks_any_new_web_submission(): void
+    {
+        config()->set(
+            'finance_fiscal.finance.enabled',
+            true
+        );
+
+        $invoice = $this->invoice();
+
+        Charge::query()->create([
+            'invoice_id' =>
+                $invoice->id,
+
+            'provider' =>
+                'probe',
+
+            'method' =>
+                Charge::METHOD_BOLETO,
+
+            'status' =>
+                Charge::STATUS_SUBMISSION_UNKNOWN,
+
+            'idempotency_key' =>
+                'probe:uncertain:'
+                .$invoice->public_id,
+
+            'provider_charge_id' =>
+                null,
+
+            'amount' =>
+                $invoice->total,
+
+            'currency' =>
+                $invoice->currency,
+
+            'due_on' =>
+                $invoice->due_on
+                    ->toDateString(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->post(
+                route(
+                    'finance.invoices.charges.store',
+                    $invoice
+                ),
+                [
+                    'method' =>
+                        Charge::METHOD_BOLETO_PIX,
+                ]
+            )
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount(
+            'charges',
+            1,
+            'finance_fiscal'
+        );
+    }
+
+    private function efiHomologationProbeProvider(): PaymentProvider
+    {
+        return new class implements PaymentProvider
+        {
+            public function key(): string
+            {
+                return 'efi';
+            }
+
+            public function capabilities(): array
+            {
+                return [
+                    Charge::METHOD_BOLETO,
+                    Charge::METHOD_BOLETO_PIX,
+                ];
+            }
+
+            public function isLive(): bool
+            {
+                return false;
+            }
+
+            public function createCharge(
+                PaymentChargeRequest $request,
+            ): PaymentChargeResult {
+                return new PaymentChargeResult(
+                    providerChargeId:
+                        'efi-hml-probe-1',
+
+                    status:
+                        Charge::STATUS_OPEN,
+
+                    checkoutUrl:
+                        'https://example.test/'
+                        .'efi-hml/1',
+
+                    pixCopyPaste:
+                        '000201EFI-HOMOLOGACAO',
+                );
+            }
+
+            public function findCharge(
+                string $providerChargeId,
+            ): ?PaymentChargeResult {
+                return null;
+            }
+
+            public function cancelCharge(
+                string $providerChargeId,
+                string $idempotencyKey,
+            ): PaymentChargeResult {
+                throw new \RuntimeException(
+                    'Cancelamento nao deve '
+                    .'ser executado neste teste.'
+                );
+            }
+
+            public function validateWebhookRequest(
+                string $rawBody,
+                array $headers,
+            ): bool {
+                return false;
+            }
+
+            public function parseWebhook(
+                string $rawBody,
+                array $headers,
+            ): array {
+                return [];
+            }
+        };
+    }
+
     private function invoice(): Invoice
     {
         $client = Client::factory()->create([

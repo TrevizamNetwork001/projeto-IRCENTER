@@ -318,6 +318,42 @@
         </div>
     </section>
 
+    @php
+        $blockingCharge = $charges->first(
+            fn ($candidate) => in_array(
+                $candidate->status,
+                [
+                    'submitting',
+                    'submission_unknown',
+                    'created',
+                    'open',
+                    'paid',
+                    'overdue',
+                ],
+                true
+            )
+        );
+
+        $blockingChargeIsUncertain =
+            $blockingCharge
+            && in_array(
+                $blockingCharge->status,
+                [
+                    'submitting',
+                    'submission_unknown',
+                ],
+                true
+            );
+
+        $isEfiHomologation =
+            $paymentProviderKey === 'efi'
+            && $efiEnvironment === 'homologation';
+
+        $isEfiWebBlocked =
+            $paymentProviderKey === 'efi'
+            && $efiEnvironment !== 'homologation';
+    @endphp
+
     <section class="panel">
         <div class="page-heading">
             <div>
@@ -344,20 +380,61 @@
             </div>
         </div>
 
-        @if ($paymentProviderLive)
+        @if ($isEfiHomologation)
+            <div class="finance-homologation-banner">
+                <strong>
+                    EFÍ — HOMOLOGAÇÃO
+                </strong>
+
+                <span>
+                    Esta cobrança será enviada ao ambiente
+                    de homologação da Efí. Nenhuma emissão
+                    em produção está liberada pela Web.
+                </span>
+            </div>
+        @endif
+
+        @if (
+            $paymentProviderLive
+            || $isEfiWebBlocked
+        )
             <div class="empty-state">
                 <div>
                     <strong>
-                        Provider live bloqueado
+                        Efí fora da homologação bloqueada
                     </strong>
 
                     <span>
-                        Esta versão da interface não emite
-                        cobranças em ambiente de produção,
-                        mesmo que PAYMENT_LIVE_ENABLED esteja
-                        habilitado.
+                        Esta versão da interface somente
+                        permite Efí em homologação.
+                        Produção permanece bloqueada
+                        independentemente das demais flags.
                     </span>
                 </div>
+            </div>
+        @elseif ($blockingChargeIsUncertain)
+            <div class="finance-uncertain-banner">
+                <strong>
+                    Submissão de cobrança incerta
+                </strong>
+
+                <span>
+                    Não gere outra cobrança para esta
+                    fatura. Use a ação Reconciliar na
+                    cobrança abaixo quando disponível.
+                </span>
+            </div>
+        @elseif ($blockingCharge)
+            <div class="finance-charge-existing-banner">
+                <strong>
+                    Cobrança já existente
+                </strong>
+
+                <span>
+                    Esta fatura já possui uma cobrança
+                    operacional. Nova emissão pela Web
+                    permanece bloqueada.
+                </span>
             </div>
         @elseif (
             $financeEnabled
@@ -458,6 +535,45 @@
                             </div>
                         @enderror
                     </div>
+
+                    @if ($isEfiHomologation)
+                        <div
+                            class="field-group field-span-2"
+                        >
+                            <label
+                                for="confirm_provider_phrase"
+                            >
+                                Confirmação forte
+                            </label>
+
+                            <input
+                                id="confirm_provider_phrase"
+                                class="form-control table-mono"
+                                type="text"
+                                name="confirm_provider_phrase"
+                                value=""
+                                autocomplete="off"
+                                spellcheck="false"
+                                placeholder="EMITIR EFI HOMOLOGACAO"
+                                required
+                            >
+
+                            <small class="field-help">
+                                Digite exatamente:
+                                <strong>
+                                    EMITIR EFI HOMOLOGACAO
+                                </strong>
+                            </small>
+
+                            @error(
+                                'confirm_provider_phrase'
+                            )
+                                <div class="field-error">
+                                    {{ $message }}
+                                </div>
+                            @enderror
+                        </div>
+                    @endif
                 @endif
 
                 <div

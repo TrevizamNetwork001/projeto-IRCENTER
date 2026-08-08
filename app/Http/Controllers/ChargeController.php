@@ -29,6 +29,46 @@ final class ChargeController extends Controller
     ): RedirectResponse {
         $this->authorizeMutation();
 
+        /*
+         * Trava Web adicional.
+         *
+         * Enquanto já existir uma cobrança operacional
+         * ou incerta para a fatura, a interface não
+         * permite uma nova submissão, mesmo com outro
+         * método/provider.
+         *
+         * A regra de domínio existente de idempotência
+         * continua preservada abaixo desta camada.
+         */
+        $blockingCharge =
+            $this->blockingChargeForInvoice(
+                $invoice
+            );
+
+        if ($blockingCharge) {
+            $uncertain = in_array(
+                $blockingCharge->status,
+                [
+                    Charge::STATUS_SUBMITTING,
+                    Charge::STATUS_SUBMISSION_UNKNOWN,
+                ],
+                true
+            );
+
+            return back()->with(
+                'error',
+                $uncertain
+                    ? 'Já existe uma cobrança em estado '
+                        .'incerto para esta fatura. '
+                        .'Nenhuma nova submissão foi '
+                        .'realizada. Use a reconciliação '
+                        .'quando disponível.'
+                    : 'Já existe uma cobrança ativa para '
+                        .'esta fatura. Nenhuma nova '
+                        .'submissão foi realizada.'
+            );
+        }
+
         $methods = $this->availableMethods();
 
         if ($methods === []) {
@@ -62,6 +102,31 @@ final class ChargeController extends Controller
                 'confirm_provider_submission.accepted' =>
                     'Confirme explicitamente a emissão '
                     .'no ambiente do provider.',
+            ]);
+        }
+
+        /*
+         * Efí exige confirmação forte adicional.
+         *
+         * A frase não contém segredo. Ela serve apenas
+         * como barreira contra clique acidental.
+         */
+        if ($this->provider->key() === 'efi') {
+            $request->validate([
+                'confirm_provider_phrase' => [
+                    'required',
+                    'string',
+                    Rule::in([
+                        'EMITIR EFI HOMOLOGACAO',
+                    ]),
+                ],
+            ], [
+                'confirm_provider_phrase.required' =>
+                    'Digite a frase de confirmação.',
+
+                'confirm_provider_phrase.in' =>
+                    'Digite exatamente '
+                    .'"EMITIR EFI HOMOLOGACAO".',
             ]);
         }
 
@@ -204,6 +269,29 @@ final class ChargeController extends Controller
         );
     }
 
+    private function blockingChargeForInvoice(
+        Invoice $invoice,
+    ): ?Charge {
+        return Charge::query()
+            ->where(
+                'invoice_id',
+                $invoice->id
+            )
+            ->whereIn(
+                'status',
+                [
+                    Charge::STATUS_SUBMITTING,
+                    Charge::STATUS_SUBMISSION_UNKNOWN,
+                    Charge::STATUS_CREATED,
+                    Charge::STATUS_OPEN,
+                    Charge::STATUS_PAID,
+                    Charge::STATUS_OVERDUE,
+                ]
+            )
+            ->latest('id')
+            ->first();
+    }
+
     /**
      * @return list<string>
      */
@@ -238,11 +326,29 @@ final class ChargeController extends Controller
         );
 
         /*
-         * Trava EXTRA da FASE 4A.
+         * A Web Efí desta fase é EXCLUSIVAMENTE
+         * homologação.
+         *
+         * Mesmo um ambiente desconhecido/futuro deve
+         * permanecer bloqueado até ser revisado.
+         */
+        if ($this->provider->key() === 'efi') {
+            abort_unless(
+                config(
+                    'finance_fiscal.providers.'
+                    .'efi.environment'
+                ) === 'homologation',
+                503,
+                'Efí pela interface Web está liberada '
+                .'somente em homologação.'
+            );
+        }
+
+        /*
+         * Trava independente contra provider live.
          *
          * Mesmo que PAYMENT_LIVE_ENABLED seja ligado
-         * por engano, a Web ainda não pode emitir
-         * cobrança em provider live.
+         * por engano, a Web continua bloqueada.
          */
         abort_if(
             $this->provider->isLive(),
