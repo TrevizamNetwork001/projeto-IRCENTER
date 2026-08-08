@@ -10,7 +10,9 @@ use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Support\Decimal;
 use App\Modules\Shared\Services\DomainAudit;
 use DomainException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -273,6 +275,11 @@ final class CreateChargeForInvoice
                                         STATUS_SUBMISSION_UNKNOWN,
                             ]);
 
+                            $diagnostics =
+                                $this->failureDiagnostics(
+                                    $exception
+                                );
+
                             $this->audit->record(
                                 module:
                                     'finance',
@@ -302,13 +309,31 @@ final class CreateChargeForInvoice
                                         $locked
                                             ->method,
 
-                                    /*
-                                     * Somente a classe.
-                                     * Nunca persistimos
-                                     * mensagem/response.
-                                     */
-                                    'error_type' =>
-                                        $exception::class,
+                                    ...$diagnostics,
+                                ],
+                            );
+
+                            Log::warning(
+                                'Falha ao submeter cobrança ao provider.',
+                                [
+                                    'charge_public_id' =>
+                                        $locked->public_id,
+
+                                    'invoice_public_id' =>
+                                        $locked->invoice
+                                            ->public_id,
+
+                                    'provider' =>
+                                        $locked->provider,
+
+                                    'method' =>
+                                        $locked->method,
+
+                                    'correlation_id' =>
+                                        $locked
+                                            ->idempotency_key,
+
+                                    ...$diagnostics,
                                 ],
                             );
                         }
@@ -566,5 +591,47 @@ final class CreateChargeForInvoice
             $this->provider->key(),
             $method,
         );
+    }
+
+    /** @return array<string, int|string|null> */
+    private function failureDiagnostics(
+        Throwable $exception,
+    ): array {
+        $diagnostics = [
+            'error_type' => $exception::class,
+            'http_status' => null,
+            'remote_error_code' => null,
+        ];
+
+        if (! $exception instanceof RequestException) {
+            return $diagnostics;
+        }
+
+        $response = $exception->response;
+
+        if ($response === null) {
+            return $diagnostics;
+        }
+
+        $diagnostics['http_status'] = $response->status();
+
+        foreach (['code', 'error_code'] as $key) {
+            $candidate = $response->json($key);
+
+            if (
+                (is_int($candidate) || is_string($candidate))
+                && preg_match(
+                    '/^[A-Za-z0-9._:-]{1,80}$/',
+                    (string) $candidate,
+                ) === 1
+            ) {
+                $diagnostics['remote_error_code'] =
+                    (string) $candidate;
+
+                break;
+            }
+        }
+
+        return $diagnostics;
     }
 }

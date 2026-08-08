@@ -15,9 +15,12 @@ use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
@@ -49,6 +52,118 @@ class ChargeSubmissionSafetyTest extends TestCase
             'finance_fiscal.finance.'
             .'payment_live_enabled',
             false
+        );
+    }
+
+    #[DataProvider('httpSubmissionFailures')]
+    public function test_http_failure_preserves_unknown_with_sanitized_diagnostics(
+        int $status,
+        ?string $expectedCode,
+    ): void {
+        Http::preventStrayRequests();
+        Log::spy();
+
+        $secret = 'super-secret-response-value';
+
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' =>
+                Http::response(['access_token' => 'test-token']),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step' =>
+                Http::response([
+                    'code' => $expectedCode,
+                    'message' => 'rejected '.$secret,
+                    'authorization' => 'Bearer '.$secret,
+                    'client_secret' => $secret,
+                    'customer' => ['email' => $secret.'@example.test'],
+                ], $status),
+        ]);
+
+        $invoice = $this->efiInvoice();
+
+        try {
+            $this->efiAction()->handle(
+                $invoice->id,
+                Charge::METHOD_BOLETO_PIX,
+            );
+            $this->fail('RequestException esperada.');
+        } catch (RequestException) {
+            // A resposta bruta nunca é transformada em mensagem da aplicação.
+        }
+
+        $charge = Charge::query()->where('invoice_id', $invoice->id)->firstOrFail();
+        $this->assertSame(Charge::STATUS_SUBMISSION_UNKNOWN, $charge->status);
+        $this->assertNull($charge->provider_charge_id);
+
+        $event = \App\Modules\Shared\Models\DomainAuditEvent::query()
+            ->where('action', 'charge.submission_unknown')
+            ->where('entity_id', (string) $charge->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($status, $event->metadata['http_status']);
+        $this->assertSame(RequestException::class, $event->metadata['error_type']);
+        $this->assertSame($expectedCode, $event->metadata['remote_error_code']);
+        $this->assertStringNotContainsString($secret, json_encode($event->metadata));
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(
+            function (string $message, array $context) use ($status, $secret): bool {
+                $encoded = json_encode([$message, $context]);
+
+                return $status === $context['http_status']
+                    && RequestException::class === $context['error_type']
+                    && ! str_contains($encoded, $secret)
+                    && ! array_key_exists('message', $context)
+                    && ! array_key_exists('response', $context);
+            }
+        );
+    }
+
+    public static function httpSubmissionFailures(): array
+    {
+        return [
+            '422 explicit response' => [422, 'VALIDATION_ERROR'],
+            '500 response' => [500, null],
+        ];
+    }
+
+    public function test_connection_failure_preserves_unknown_without_http_response(): void
+    {
+        Http::preventStrayRequests();
+        Log::spy();
+
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' =>
+                Http::response(['access_token' => 'test-token']),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step' =>
+                Http::failedConnection('connection-secret-must-not-leak'),
+        ]);
+
+        $invoice = $this->efiInvoice();
+
+        try {
+            $this->efiAction()->handle(
+                $invoice->id,
+                Charge::METHOD_BOLETO_PIX,
+            );
+            $this->fail('ConnectionException esperada.');
+        } catch (ConnectionException) {
+            // Sem response: a submissão continua deliberadamente incerta.
+        }
+
+        $charge = Charge::query()->where('invoice_id', $invoice->id)->firstOrFail();
+        $this->assertSame(Charge::STATUS_SUBMISSION_UNKNOWN, $charge->status);
+
+        $event = \App\Modules\Shared\Models\DomainAuditEvent::query()
+            ->where('action', 'charge.submission_unknown')
+            ->where('entity_id', (string) $charge->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame(ConnectionException::class, $event->metadata['error_type']);
+        $this->assertNull($event->metadata['http_status']);
+        $this->assertStringNotContainsString(
+            'connection-secret-must-not-leak',
+            json_encode($event->metadata),
         );
     }
 
@@ -470,6 +585,39 @@ class ChargeSubmissionSafetyTest extends TestCase
             'contested' => ['contested'],
             'future unknown' => ['future_new_efi_status'],
         ];
+    }
+
+    private function efiAction(): CreateChargeForInvoice
+    {
+        config()->set('finance_fiscal.providers.efi.environment', 'homologation');
+        config()->set('finance_fiscal.providers.efi.client_id', 'test-client');
+        config()->set('finance_fiscal.providers.efi.client_secret', 'test-secret');
+        config()->set('finance_fiscal.providers.efi.notification_url', null);
+
+        return new CreateChargeForInvoice(
+            app(EfiPaymentProvider::class),
+            app(DomainAudit::class),
+        );
+    }
+
+    private function efiInvoice(): Invoice
+    {
+        $invoice = $this->invoice();
+        $invoice->update([
+            'client_legal_name_snapshot' => 'Cliente Efí Teste LTDA',
+            'client_document_snapshot' => '12.345.678/0001-99',
+            'billing_email_snapshot' => 'financeiro@cliente.test',
+            'client_phone_snapshot' => '11986065675',
+            'client_postal_code_snapshot' => '01001-000',
+            'client_street_snapshot' => 'Praça da Sé',
+            'client_address_number_snapshot' => '100',
+            'client_district_snapshot' => 'Sé',
+            'client_city_snapshot' => 'São Paulo',
+            'client_state_snapshot' => 'SP',
+            'client_country_snapshot' => 'BR',
+        ]);
+
+        return $invoice->fresh();
     }
 
     private function charge(Invoice $invoice, string $status, string $method): Charge
