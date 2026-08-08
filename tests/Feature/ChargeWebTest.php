@@ -161,6 +161,11 @@ class ChargeWebTest extends TestCase
             )
         );
 
+        $response->assertSessionHas(
+            '_old_input.method',
+            Charge::METHOD_BOLETO_PIX
+        );
+
         $charge = Charge::query()
             ->firstOrFail();
 

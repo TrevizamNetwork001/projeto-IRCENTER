@@ -119,6 +119,9 @@ final class ChargeController extends Controller
                 'finance.invoices.show',
                 $invoice
             )
+            ->withInput([
+                'method' => $data['method'],
+            ])
             ->with(
                 'success',
                 $message

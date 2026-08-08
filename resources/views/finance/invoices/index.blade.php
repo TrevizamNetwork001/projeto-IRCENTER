@@ -226,7 +226,15 @@
                                 <td>
                                     <span
                                         class="status-pill {{
-                                            $invoice->status === 'paid'
+                                            in_array(
+                                                $invoice->status,
+                                                [
+                                                    'open',
+                                                    'partially_paid',
+                                                    'paid',
+                                                ],
+                                                true
+                                            )
                                                 ? 'is-active'
                                                 : 'is-inactive'
                                         }}"

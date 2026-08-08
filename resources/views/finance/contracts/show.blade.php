@@ -291,8 +291,8 @@
                 <div>
                     <strong>Nenhuma fatura gerada</strong>
                     <span>
-                        A geração manual entra na próxima etapa
-                        do Financeiro Web.
+                        Use o seletor de competência acima
+                        para gerar a primeira fatura.
                     </span>
                 </div>
             </div>
@@ -358,7 +358,19 @@
                                     }}
                                 </td>
 
-                                <td>{{ $invoice->status }}</td>
+                                <td>
+                                    {{
+                                        match ($invoice->status) {
+                                            'draft' => 'Rascunho',
+                                            'open' => 'Aberta',
+                                            'partially_paid' =>
+                                                'Parcialmente paga',
+                                            'paid' => 'Paga',
+                                            'canceled' => 'Cancelada',
+                                            default => $invoice->status,
+                                        }
+                                    }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
