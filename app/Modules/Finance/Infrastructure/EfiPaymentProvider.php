@@ -9,6 +9,7 @@ use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Support\Decimal;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -85,6 +86,16 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
 
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $request->dueOn) !== 1) {
             throw new InvalidArgumentException('Vencimento da cobrança Efí é inválido.');
+        }
+
+        if (
+            $request->dueOn <= CarbonImmutable::now(
+                config('finance_fiscal.timezone', 'America/Sao_Paulo')
+            )->toDateString()
+        ) {
+            throw new InvalidArgumentException(
+                'Vencimento da cobrança Efí deve ser futuro.'
+            );
         }
 
         $valueCents = Decimal::moneyToCents($request->amount);
@@ -669,15 +680,9 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             )
         );
 
-        if (
-            ! in_array(
-                strlen($document),
-                [11, 14],
-                true
-            )
-        ) {
+        if (! $this->isValidBrazilianDocument($document)) {
             throw new InvalidArgumentException(
-                'CPF/CNPJ do pagador é obrigatório.'
+                'CPF/CNPJ do pagador é inválido.'
             );
         }
 
@@ -704,7 +709,16 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             || $number === ''
             || $district === ''
             || $city === ''
-            || strlen($state) !== 2
+            || ! in_array(
+                $state,
+                [
+                    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF',
+                    'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
+                    'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS',
+                    'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+                ],
+                true
+            )
         ) {
             throw new InvalidArgumentException(
                 'Endereço do pagador está incompleto.'
@@ -762,6 +776,70 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         }
 
         return $customer;
+    }
+
+    private function isValidBrazilianDocument(
+        string $document,
+    ): bool {
+        $length = strlen($document);
+
+        if (! in_array($length, [11, 14], true)) {
+            return false;
+        }
+
+        if (preg_match('/^(\d)\1+$/', $document) === 1) {
+            return false;
+        }
+
+        return $length === 11
+            ? $this->hasValidCpfChecksum($document)
+            : $this->hasValidCnpjChecksum($document);
+    }
+
+    private function hasValidCpfChecksum(string $document): bool
+    {
+        for ($digit = 9; $digit < 11; $digit++) {
+            $sum = 0;
+
+            for ($position = 0; $position < $digit; $position++) {
+                $sum += (int) $document[$position]
+                    * (($digit + 1) - $position);
+            }
+
+            $expected = (10 * $sum) % 11;
+            $expected = $expected === 10 ? 0 : $expected;
+
+            if ((int) $document[$digit] !== $expected) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function hasValidCnpjChecksum(string $document): bool
+    {
+        $weights = [
+            [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
+            [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2],
+        ];
+
+        foreach ($weights as $index => $digitWeights) {
+            $sum = 0;
+
+            foreach ($digitWeights as $position => $weight) {
+                $sum += (int) $document[$position] * $weight;
+            }
+
+            $remainder = $sum % 11;
+            $expected = $remainder < 2 ? 0 : 11 - $remainder;
+
+            if ((int) $document[12 + $index] !== $expected) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function normalizeBrazilianPhone(

@@ -184,7 +184,7 @@ class EfiPaymentProviderTest extends TestCase
                     ][
                         'juridical_person'
                     ]['cnpj']
-                    === '12345678000199'
+                    === '12345678000195'
                     && $request[
                         'payment'
                     ][
@@ -247,6 +247,100 @@ class EfiPaymentProviderTest extends TestCase
         }
 
         Http::assertNothingSent();
+    }
+
+    #[DataProvider('validBrazilianDocuments')]
+    public function test_valid_document_is_normalized_and_sent(
+        string $input,
+        string $field,
+        string $expected,
+    ): void {
+        $this->fakeSuccessfulCharge();
+
+        app(EfiPaymentProvider::class)->createCharge(
+            $this->request(payerDocument: $input)
+        );
+
+        Http::assertSent(
+            fn (Request $request): bool =>
+                $request->url() ===
+                    'https://cobrancas-h.api.efipay.com.br'
+                    .'/v1/charge/one-step'
+                && data_get(
+                    $request->data(),
+                    'payment.banking_billet.customer.'.$field
+                ) === $expected
+        );
+    }
+
+    #[DataProvider('invalidBrazilianDocuments')]
+    public function test_invalid_document_checksum_is_rejected_before_http(
+        string $document,
+    ): void {
+        Http::fake();
+
+        try {
+            app(EfiPaymentProvider::class)->preflightCharge(
+                $this->request(payerDocument: $document)
+            );
+            $this->fail('Documento inválido deveria falhar.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame(
+                'CPF/CNPJ do pagador é inválido.',
+                $exception->getMessage()
+            );
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_invalid_email_is_rejected_before_http(): void
+    {
+        Http::fake();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            app(EfiPaymentProvider::class)->preflightCharge(
+                $this->request(payerEmail: 'email-invalido')
+            );
+        } finally {
+            Http::assertNothingSent();
+        }
+    }
+
+    #[DataProvider('invalidRequiredAddressFields')]
+    public function test_missing_required_address_is_rejected_before_http(
+        string $field,
+    ): void {
+        Http::fake();
+
+        $arguments = [$field => '   '];
+
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            app(EfiPaymentProvider::class)->preflightCharge(
+                $this->request(...$arguments)
+            );
+        } finally {
+            Http::assertNothingSent();
+        }
+    }
+
+    public function test_non_future_due_date_is_rejected_before_http(): void
+    {
+        Http::fake();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            app(EfiPaymentProvider::class)->preflightCharge(
+                $this->request(dueOn: now()->toDateString())
+            );
+        } finally {
+            Http::assertNothingSent();
+        }
     }
 
     #[DataProvider('moneyValues')]
@@ -624,6 +718,37 @@ class EfiPaymentProviderTest extends TestCase
         ];
     }
 
+    public static function validBrazilianDocuments(): array
+    {
+        return [
+            'CPF formatado' => ['942.715.646-56', 'cpf', '94271564656'],
+            'CPF somente dígitos' => ['94271564656', 'cpf', '94271564656'],
+            'CNPJ formatado' => ['12.345.678/0001-95', 'juridical_person.cnpj', '12345678000195'],
+            'CNPJ somente dígitos' => ['12345678000195', 'juridical_person.cnpj', '12345678000195'],
+        ];
+    }
+
+    public static function invalidBrazilianDocuments(): array
+    {
+        return [
+            'CPF checksum inválido' => ['94271564657'],
+            'CPF repetido' => ['11111111111'],
+            'CNPJ checksum inválido' => ['12345678000199'],
+            'CNPJ repetido' => ['00000000000000'],
+        ];
+    }
+
+    public static function invalidRequiredAddressFields(): array
+    {
+        return [
+            'logradouro' => ['payerStreet'],
+            'número' => ['payerAddressNumber'],
+            'bairro' => ['payerDistrict'],
+            'cidade' => ['payerCity'],
+            'UF' => ['payerState'],
+        ];
+    }
+
     private function fakeSuccessfulCharge(): void
     {
         Http::fake([
@@ -647,6 +772,14 @@ class EfiPaymentProviderTest extends TestCase
         string $payerPhone = '(11) 3333-4444',
         string $amount = '850.00',
         string $method = 'boleto_pix',
+        string $payerDocument = '12.345.678/0001-95',
+        string $payerEmail = 'financeiro@cliente.test',
+        string $payerStreet = 'Praça da Sé',
+        string $payerAddressNumber = '100',
+        string $payerDistrict = 'Sé',
+        string $payerCity = 'São Paulo',
+        string $payerState = 'SP',
+        string $dueOn = '2026-08-20',
     ): PaymentChargeRequest
     {
         return new PaymentChargeRequest(
@@ -666,16 +799,16 @@ class EfiPaymentProviderTest extends TestCase
                 'BRL',
 
             dueOn:
-                '2026-08-20',
+                $dueOn,
 
             payerName:
                 'Empresa XYZ LTDA',
 
             payerDocument:
-                '12.345.678/0001-99',
+                $payerDocument,
 
             payerEmail:
-                'financeiro@cliente.test',
+                $payerEmail,
 
             payerPhone:
                 $payerPhone,
@@ -684,22 +817,22 @@ class EfiPaymentProviderTest extends TestCase
                 '01001-000',
 
             payerStreet:
-                'Praça da Sé',
+                $payerStreet,
 
             payerAddressNumber:
-                '100',
+                $payerAddressNumber,
 
             payerAddressComplement:
                 'Sala 1',
 
             payerDistrict:
-                'Sé',
+                $payerDistrict,
 
             payerCity:
-                'São Paulo',
+                $payerCity,
 
             payerState:
-                'SP',
+                $payerState,
 
             payerCountry:
                 'BR',

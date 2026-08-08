@@ -553,7 +553,7 @@ class ChargeSubmissionSafetyTest extends TestCase
         $invoice = $this->invoice();
         $invoice->update([
             'client_legal_name_snapshot' => 'Cliente Efí Teste LTDA',
-            'client_document_snapshot' => '12.345.678/0001-99',
+            'client_document_snapshot' => '12.345.678/0001-95',
             'billing_email_snapshot' => 'financeiro@cliente.test',
             'client_phone_snapshot' => '11986065675',
             'client_postal_code_snapshot' => '01001-000',
@@ -605,7 +605,7 @@ class ChargeSubmissionSafetyTest extends TestCase
         $invoice = $this->invoice();
         $invoice->update([
             'client_legal_name_snapshot' => 'Cliente Efí Teste LTDA',
-            'client_document_snapshot' => '12.345.678/0001-99',
+            'client_document_snapshot' => '12.345.678/0001-95',
             'billing_email_snapshot' => 'financeiro@cliente.test',
             'client_phone_snapshot' => '11986065675',
             'client_postal_code_snapshot' => '01001-000',
