@@ -8,6 +8,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\BillingContractController;
+use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\IrrObjectController;
@@ -85,6 +86,21 @@ Route::middleware([
         FinanceDashboardController::class
     )->name('finance.dashboard');
 
+
+
+    Route::post(
+        '/finance/invoices/{invoice}/charges',
+        [ChargeController::class, 'store']
+    )
+        ->whereNumber('invoice')
+        ->name('finance.invoices.charges.store');
+
+    Route::post(
+        '/finance/charges/{charge}/reconcile',
+        [ChargeController::class, 'reconcile']
+    )
+        ->whereNumber('charge')
+        ->name('finance.charges.reconcile');
 
     Route::get(
         '/finance/invoices',

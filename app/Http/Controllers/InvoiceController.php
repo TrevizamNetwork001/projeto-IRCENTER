@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Modules\Finance\Actions\GenerateInvoiceForContract;
+use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
+use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
@@ -14,6 +16,11 @@ use InvalidArgumentException;
 
 final class InvoiceController extends Controller
 {
+    public function __construct(
+        private readonly PaymentProvider $paymentProvider,
+    ) {
+    }
+
     public function index(Request $request): View
     {
         $search = trim(
@@ -144,6 +151,44 @@ final class InvoiceController extends Controller
             'contract' => $contract,
             'financeEnabled' =>
                 $this->financeEnabled(),
+
+            'paymentProviderKey' =>
+                $this->paymentProvider->key(),
+
+            'paymentProviderLive' =>
+                $this->paymentProvider->isLive(),
+
+            'paymentLiveEnabled' =>
+                (bool) config(
+                    'finance_fiscal.finance.'
+                    .'payment_live_enabled',
+                    false
+                ),
+
+            'efiEnvironment' =>
+                (string) config(
+                    'finance_fiscal.providers.efi.environment',
+                    'homologation'
+                ),
+
+            'availablePaymentMethods' =>
+                array_values(
+                    array_intersect(
+                        [
+                            Charge::METHOD_BOLETO,
+                            Charge::METHOD_PIX,
+                            Charge::METHOD_BOLETO_PIX,
+                        ],
+                        $this->paymentProvider
+                            ->capabilities()
+                    )
+                ),
+
+            'reconciliationAvailable' =>
+                $this->paymentProvider
+                    instanceof CorrelatablePaymentProvider
+                && $this->paymentProvider->key()
+                    !== 'fake',
         ]);
     }
 

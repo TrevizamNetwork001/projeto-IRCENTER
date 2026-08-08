@@ -47,6 +47,14 @@
         </div>
     @endif
 
+    @if (session('error'))
+        <section class="panel">
+            <div class="field-error">
+                {{ session('error') }}
+            </div>
+        </section>
+    @endif
+
     <section class="panel">
         <div class="table-responsive">
             <table class="data-table">
@@ -316,18 +324,177 @@
                 <h2>Cobranças</h2>
 
                 <p>
-                    Somente visualização nesta fase.
+                    Provider:
+                    <strong>
+                        @if ($paymentProviderKey === 'fake')
+                            Fake · simulador local
+                        @elseif (
+                            $paymentProviderKey === 'efi'
+                            && $efiEnvironment === 'homologation'
+                        )
+                            Efí · Homologação
+                        @elseif ($paymentProviderLive)
+                            {{ $paymentProviderKey }}
+                            · PRODUÇÃO BLOQUEADA NA WEB
+                        @else
+                            {{ $paymentProviderKey }}
+                        @endif
+                    </strong>
                 </p>
             </div>
         </div>
 
+        @if ($paymentProviderLive)
+            <div class="empty-state">
+                <div>
+                    <strong>
+                        Provider live bloqueado
+                    </strong>
+
+                    <span>
+                        Esta versão da interface não emite
+                        cobranças em ambiente de produção,
+                        mesmo que PAYMENT_LIVE_ENABLED esteja
+                        habilitado.
+                    </span>
+                </div>
+            </div>
+        @elseif (
+            $financeEnabled
+            && auth()->user()->isAdministrator()
+            && $invoice->status === 'open'
+            && $availablePaymentMethods !== []
+        )
+            <form
+                class="form-grid"
+                method="POST"
+                action="{{
+                    route(
+                        'finance.invoices.charges.store',
+                        $invoice
+                    )
+                }}"
+            >
+                @csrf
+
+                <div class="field-group">
+                    <label for="method">
+                        Método de cobrança
+                    </label>
+
+                    <select
+                        id="method"
+                        class="form-control"
+                        name="method"
+                        required
+                    >
+                        @foreach (
+                            $availablePaymentMethods
+                            as $method
+                        )
+                            <option
+                                value="{{ $method }}"
+                                @selected(
+                                    old('method')
+                                    === $method
+                                )
+                            >
+                                @switch($method)
+                                    @case('boleto')
+                                        Boleto
+                                        @break
+
+                                    @case('pix')
+                                        Pix
+                                        @break
+
+                                    @case('boleto_pix')
+                                        Boleto + Pix
+                                        @break
+
+                                    @default
+                                        {{ $method }}
+                                @endswitch
+                            </option>
+                        @endforeach
+                    </select>
+
+                    @error('method')
+                        <div class="field-error">
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                @if ($paymentProviderKey !== 'fake')
+                    <div
+                        class="field-group field-span-2"
+                    >
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="confirm_provider_submission"
+                                value="1"
+                                required
+                            >
+
+                            Confirmo a emissão desta cobrança
+                            no ambiente
+                            <strong>
+                                {{
+                                    $paymentProviderKey
+                                    === 'efi'
+                                    ? 'Efí Homologação'
+                                    : $paymentProviderKey
+                                }}
+                            </strong>.
+                        </label>
+
+                        @error(
+                            'confirm_provider_submission'
+                        )
+                            <div class="field-error">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+                @endif
+
+                <div
+                    class="form-actions field-span-2"
+                >
+                    <button
+                        class="button button-primary"
+                        type="submit"
+                    >
+                        Gerar cobrança
+                    </button>
+                </div>
+            </form>
+        @elseif (! $financeEnabled)
+            <div class="empty-state">
+                <div>
+                    <strong>
+                        Emissão bloqueada
+                    </strong>
+
+                    <span>
+                        FINANCE_ENABLED está desabilitado.
+                    </span>
+                </div>
+            </div>
+        @endif
+
         @if ($charges->isEmpty())
             <div class="empty-state">
                 <div>
-                    <strong>Nenhuma cobrança associada</strong>
+                    <strong>
+                        Nenhuma cobrança associada
+                    </strong>
+
                     <span>
-                        A emissão de boleto/Pix pela Web
-                        será liberada em etapa controlada.
+                        Nenhuma submissão foi registrada
+                        para esta fatura.
                     </span>
                 </div>
             </div>
@@ -342,21 +509,67 @@
                             <th>ID provider</th>
                             <th>Valor</th>
                             <th>Pagamento</th>
+                            <th>Ação</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach ($charges as $charge)
                             <tr>
-                                <td>{{ $charge->provider }}</td>
+                                <td>
+                                    {{ $charge->provider }}
+                                </td>
 
-                                <td>{{ $charge->method }}</td>
+                                <td>
+                                    @switch($charge->method)
+                                        @case('boleto')
+                                            Boleto
+                                            @break
 
-                                <td>{{ $charge->status }}</td>
+                                        @case('pix')
+                                            Pix
+                                            @break
+
+                                        @case('boleto_pix')
+                                            Boleto + Pix
+                                            @break
+
+                                        @default
+                                            {{ $charge->method }}
+                                    @endswitch
+                                </td>
+
+                                <td>
+                                    {{
+                                        match (
+                                            $charge->status
+                                        ) {
+                                            'submitting' =>
+                                                'Enviando / incerto',
+                                            'submission_unknown' =>
+                                                'Submissão incerta',
+                                            'created' =>
+                                                'Criada',
+                                            'open' =>
+                                                'Aberta',
+                                            'paid' =>
+                                                'Paga',
+                                            'overdue' =>
+                                                'Vencida',
+                                            'canceled' =>
+                                                'Cancelada',
+                                            'failed' =>
+                                                'Falhou',
+                                            default =>
+                                                $charge->status,
+                                        }
+                                    }}
+                                </td>
 
                                 <td class="table-mono">
                                     {{
-                                        $charge->provider_charge_id
+                                        $charge
+                                            ->provider_charge_id
                                         ?: '—'
                                     }}
                                 </td>
@@ -365,7 +578,8 @@
                                     R$
                                     {{
                                         number_format(
-                                            (float) $charge->amount,
+                                            (float)
+                                                $charge->amount,
                                             2,
                                             ',',
                                             '.'
@@ -375,7 +589,8 @@
 
                                 <td>
                                     @if (
-                                        $charge->provider_checkout_url
+                                        $charge
+                                            ->provider_checkout_url
                                         && str_starts_with(
                                             $charge
                                                 ->provider_checkout_url,
@@ -393,11 +608,71 @@
                                         >
                                             Abrir cobrança
                                         </a>
-                                    @elseif (
+                                    @endif
+
+                                    @if (
                                         $charge
                                             ->provider_pix_copy_paste
                                     )
-                                        Pix disponível
+                                        <div
+                                            class="field-group"
+                                        >
+                                            <label>
+                                                Pix copia e cola
+                                            </label>
+
+                                            <textarea
+                                                class="form-control table-mono"
+                                                rows="3"
+                                                readonly
+                                            >{{ $charge->provider_pix_copy_paste }}</textarea>
+                                        </div>
+                                    @elseif (
+                                        ! $charge
+                                            ->provider_checkout_url
+                                    )
+                                        —
+                                    @endif
+                                </td>
+
+                                <td>
+                                    @if (
+                                        $reconciliationAvailable
+                                        && $charge->provider
+                                            === $paymentProviderKey
+                                        && in_array(
+                                            $charge->status,
+                                            [
+                                                'submitting',
+                                                'submission_unknown',
+                                            ],
+                                            true
+                                        )
+                                        && ! $charge
+                                            ->provider_charge_id
+                                        && $financeEnabled
+                                        && auth()
+                                            ->user()
+                                            ->isAdministrator()
+                                    )
+                                        <form
+                                            method="POST"
+                                            action="{{
+                                                route(
+                                                    'finance.charges.reconcile',
+                                                    $charge
+                                                )
+                                            }}"
+                                        >
+                                            @csrf
+
+                                            <button
+                                                class="button button-secondary"
+                                                type="submit"
+                                            >
+                                                Reconciliar
+                                            </button>
+                                        </form>
                                     @else
                                         —
                                     @endif
