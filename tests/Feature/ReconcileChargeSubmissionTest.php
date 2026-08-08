@@ -170,6 +170,31 @@ class ReconcileChargeSubmissionTest extends TestCase
         );
     }
 
+    public function test_failed_remote_status_can_be_safely_refreshed_by_provider_id(): void
+    {
+        $invoice = $this->invoice();
+        $charge = $this->charge($invoice, Charge::STATUS_FAILED);
+        $charge->update(['provider_charge_id' => 'probe-unknown-status']);
+
+        $provider = $this->provider(
+            new PaymentChargeResult(
+                providerChargeId: 'probe-unknown-status',
+                status: Charge::STATUS_OPEN,
+            )
+        );
+
+        $result = (new ReconcileChargeSubmission(
+            $provider,
+            app(DomainAudit::class),
+        ))->handle($charge->id);
+
+        $this->assertSame(1, $provider->findCalls);
+        $this->assertSame(0, $provider->correlationCalls);
+        $this->assertSame(0, $provider->createCalls);
+        $this->assertSame(Charge::STATUS_OPEN, $result->status);
+        $this->assertSame('probe-unknown-status', $result->provider_charge_id);
+    }
+
     private function provider(
         ?PaymentChargeResult $lookupResult,
     ): PaymentProvider&CorrelatablePaymentProvider {
@@ -182,6 +207,8 @@ class ReconcileChargeSubmissionTest extends TestCase
             public int $createCalls = 0;
 
             public int $correlationCalls = 0;
+
+            public int $findCalls = 0;
 
             public int $transactionLevel = -1;
 
@@ -222,7 +249,9 @@ class ReconcileChargeSubmissionTest extends TestCase
             public function findCharge(
                 string $providerChargeId,
             ): ?PaymentChargeResult {
-                return null;
+                $this->findCalls++;
+
+                return $this->lookupResult;
             }
 
             public function findChargeByCorrelation(

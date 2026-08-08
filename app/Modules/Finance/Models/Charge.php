@@ -32,6 +32,17 @@ final class Charge extends Model
             self::STATUS_OPEN,
             self::STATUS_PAID,
             self::STATUS_OVERDUE,
+            self::STATUS_FAILED,
+        ];
+    }
+
+    /** @return list<string> */
+    public static function reconcilableStatuses(): array
+    {
+        return [
+            self::STATUS_SUBMITTING,
+            self::STATUS_SUBMISSION_UNKNOWN,
+            self::STATUS_FAILED,
         ];
     }
 

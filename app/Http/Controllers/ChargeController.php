@@ -279,14 +279,7 @@ final class ChargeController extends Controller
             )
             ->whereIn(
                 'status',
-                [
-                    Charge::STATUS_SUBMITTING,
-                    Charge::STATUS_SUBMISSION_UNKNOWN,
-                    Charge::STATUS_CREATED,
-                    Charge::STATUS_OPEN,
-                    Charge::STATUS_PAID,
-                    Charge::STATUS_OVERDUE,
-                ]
+                Charge::blockingStatuses()
             )
             ->latest('id')
             ->first();

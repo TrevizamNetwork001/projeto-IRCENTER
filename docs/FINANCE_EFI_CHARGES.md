@@ -15,8 +15,12 @@ artefatos; exceção depois de iniciada a chamada externa produz
 ocorrido e nunca autoriza retry automático.
 
 Estados bloqueantes: `submitting`, `submission_unknown`, `created`, `open`,
-`paid` e `overdue`. `canceled` e `failed` não bloqueiam outra decisão de
-cobrança, embora a chave única continue impedindo reutilizar a mesma reserva.
+`paid`, `overdue` e `failed`. `failed` é conservadoramente bloqueante porque
+pode representar uma cobrança externa posteriormente devolvida, contestada ou
+um status remoto ainda desconhecido. Somente `canceled` não bloqueia: ele é
+usado apenas após cancelamento remoto confirmado, nunca para timeout, erro
+local ou resultado incerto. Uma nova emissão após cancelamento continua sendo
+uma decisão explícita do operador, não um retry automático.
 O `lockForUpdate` da Invoice serializa a decisão em bancos com lock de linha;
 SQLite em memória cobre a invariante sequencial, não concorrência física real.
 
@@ -38,6 +42,26 @@ Status Efí: `new`, `waiting`, `identified`, `approved` e `unpaid` viram `open`;
 `paid`/`settled`, `paid`; `expired`, `overdue`; `canceled`, `canceled`;
 `refunded`/`contested` e desconhecidos, `failed`. Status desconhecido jamais é
 tratado como pago.
+
+## Matriz de risco dos estados locais
+
+| Status local | Risco externo | Bloqueia nova emissão? | Reconciliável hoje? | Observação |
+|---|---|---:|---:|---|
+| `pending` | não iniciado | não | não | Não é criado pelo fluxo Efí atual. |
+| `submitting` | submissão em curso | sim | sim | Nunca reenviar. |
+| `submission_unknown` | criação pode ter ocorrido | sim | sim | Exige GET/correlação. |
+| `created` | cobrança criada | sim | não | Resultado externo conhecido. |
+| `open` | obrigação aberta | sim | não | Cobrança operacional. |
+| `paid` | obrigação liquidada | sim | não | Histórico financeiro definitivo. |
+| `overdue` | obrigação vencida | sim | não | Continua exigível. |
+| `failed` | cobrança criada, refund/contestação ou status desconhecido | sim | não pela UI atual | Exige revisão; não implica segurança para reemitir. |
+| `canceled` | cancelamento remoto confirmado | não | não | Nova emissão deliberada é permitida. |
+
+`refunded`, `contested` e qualquer status remoto Efí ainda desconhecido são
+mapeados para `failed`. Assim permanecem visíveis como falha/revisão, nunca
+viram `paid` e não liberam nova submissão. Uma sincronização futura poderá
+atualizá-los por um fluxo GET explícito; esta fase não amplia o botão de
+reconciliação além de `submitting`/`submission_unknown`.
 
 ## Erros, reconciliação e segurança
 

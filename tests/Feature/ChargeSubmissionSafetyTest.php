@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -341,6 +342,153 @@ class ChargeSubmissionSafetyTest extends TestCase
 
         $this->assertSame($first->id, $second->id);
         $this->assertDatabaseCount('charges', 1, 'finance_fiscal');
+    }
+
+    public function test_any_risk_charge_blocks_same_and_different_method_in_domain(): void
+    {
+        $provider = new class implements PaymentProvider
+        {
+            public int $calls = 0;
+
+            public function key(): string { return 'probe'; }
+            public function capabilities(): array { return ['boleto', 'boleto_pix']; }
+            public function isLive(): bool { return false; }
+            public function createCharge(PaymentChargeRequest $request): PaymentChargeResult
+            {
+                $this->calls++;
+
+                return new PaymentChargeResult('new-'.$this->calls, Charge::STATUS_OPEN);
+            }
+            public function findCharge(string $providerChargeId): ?PaymentChargeResult { return null; }
+            public function cancelCharge(string $providerChargeId, string $idempotencyKey): PaymentChargeResult
+            {
+                return new PaymentChargeResult($providerChargeId, Charge::STATUS_CANCELED);
+            }
+            public function validateWebhookRequest(string $rawBody, array $headers): bool { return true; }
+            public function parseWebhook(string $rawBody, array $headers): array { return []; }
+        };
+
+        $action = new CreateChargeForInvoice($provider, app(DomainAudit::class));
+
+        foreach (Charge::blockingStatuses() as $status) {
+            $invoice = $this->invoice();
+            $existing = $this->charge($invoice, $status, Charge::METHOD_BOLETO);
+
+            $same = $action->handle($invoice->id, Charge::METHOD_BOLETO);
+            $different = $action->handle($invoice->id, Charge::METHOD_BOLETO_PIX);
+
+            $this->assertSame($existing->id, $same->id, $status.' mesmo método');
+            $this->assertSame($existing->id, $different->id, $status.' método diferente');
+        }
+
+        $this->assertSame(0, $provider->calls);
+    }
+
+    public function test_canceled_is_non_blocking_only_for_a_new_idempotency_key(): void
+    {
+        $provider = new class implements PaymentProvider
+        {
+            public int $calls = 0;
+            public function key(): string { return 'probe'; }
+            public function capabilities(): array { return ['boleto', 'boleto_pix']; }
+            public function isLive(): bool { return false; }
+            public function createCharge(PaymentChargeRequest $request): PaymentChargeResult
+            {
+                $this->calls++;
+                return new PaymentChargeResult('replacement-1', Charge::STATUS_OPEN);
+            }
+            public function findCharge(string $providerChargeId): ?PaymentChargeResult { return null; }
+            public function cancelCharge(string $providerChargeId, string $idempotencyKey): PaymentChargeResult
+            {
+                return new PaymentChargeResult($providerChargeId, Charge::STATUS_CANCELED);
+            }
+            public function validateWebhookRequest(string $rawBody, array $headers): bool { return true; }
+            public function parseWebhook(string $rawBody, array $headers): array { return []; }
+        };
+
+        $invoice = $this->invoice();
+        $canceled = $this->charge($invoice, Charge::STATUS_CANCELED, Charge::METHOD_BOLETO);
+        $action = new CreateChargeForInvoice($provider, app(DomainAudit::class));
+
+        $same = $action->handle($invoice->id, Charge::METHOD_BOLETO);
+        $replacement = $action->handle($invoice->id, Charge::METHOD_BOLETO_PIX);
+
+        $this->assertSame($canceled->id, $same->id);
+        $this->assertNotSame($canceled->id, $replacement->id);
+        $this->assertSame(1, $provider->calls);
+    }
+
+    #[DataProvider('riskyEfiStatuses')]
+    public function test_efi_risky_remote_status_persists_failed_and_blocks_second_post(
+        string $remoteStatus,
+    ): void {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' =>
+                Http::response(['access_token' => 'test-token']),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step' =>
+                Http::response(['data' => ['charge_id' => 9001, 'status' => $remoteStatus]]),
+        ]);
+
+        config()->set('finance_fiscal.providers.efi.environment', 'homologation');
+        config()->set('finance_fiscal.providers.efi.client_id', 'test-client');
+        config()->set('finance_fiscal.providers.efi.client_secret', 'test-secret');
+        config()->set('finance_fiscal.providers.efi.notification_url', null);
+
+        $invoice = $this->invoice();
+        $invoice->update([
+            'client_legal_name_snapshot' => 'Cliente Efí Teste LTDA',
+            'client_document_snapshot' => '12.345.678/0001-99',
+            'billing_email_snapshot' => 'financeiro@cliente.test',
+            'client_phone_snapshot' => '11986065675',
+            'client_postal_code_snapshot' => '01001-000',
+            'client_street_snapshot' => 'Praça da Sé',
+            'client_address_number_snapshot' => '100',
+            'client_district_snapshot' => 'Sé',
+            'client_city_snapshot' => 'São Paulo',
+            'client_state_snapshot' => 'SP',
+            'client_country_snapshot' => 'BR',
+        ]);
+        $action = new CreateChargeForInvoice(
+            app(EfiPaymentProvider::class),
+            app(DomainAudit::class),
+        );
+
+        $first = $action->handle($invoice->id, Charge::METHOD_BOLETO);
+        $second = $action->handle($invoice->id, Charge::METHOD_BOLETO_PIX);
+
+        $this->assertSame(Charge::STATUS_FAILED, $first->status);
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('charges', 1, 'finance_fiscal');
+        Http::assertSentCount(2);
+    }
+
+    public static function riskyEfiStatuses(): array
+    {
+        return [
+            'refunded' => ['refunded'],
+            'contested' => ['contested'],
+            'future unknown' => ['future_new_efi_status'],
+        ];
+    }
+
+    private function charge(Invoice $invoice, string $status, string $method): Charge
+    {
+        return Charge::query()->create([
+            'invoice_id' => $invoice->id,
+            'provider' => 'probe',
+            'method' => $method,
+            'status' => $status,
+            'idempotency_key' => sprintf(
+                'invoice:%s:provider:probe:method:%s',
+                $invoice->public_id,
+                $method,
+            ),
+            'provider_charge_id' => 'existing-'.$invoice->id,
+            'amount' => $invoice->total,
+            'currency' => $invoice->currency,
+            'due_on' => $invoice->due_on->toDateString(),
+        ]);
     }
 
     private function invoice(): Invoice

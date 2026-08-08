@@ -84,19 +84,9 @@ final class ReconcileChargeSubmission
         if (
             ! in_array(
                 $charge->status,
-                [
-                    Charge::STATUS_SUBMITTING,
-                    Charge::STATUS_SUBMISSION_UNKNOWN,
-                ],
+                Charge::reconcilableStatuses(),
                 true
             )
-        ) {
-            return $charge;
-        }
-
-        if (
-            $charge->provider_charge_id
-            !== null
         ) {
             return $charge;
         }
@@ -128,9 +118,11 @@ final class ReconcileChargeSubmission
          * Este método executa apenas buscas.
          * Nunca cria uma nova cobrança.
          */
-        $result =
-            $this->provider
-                ->findChargeByCorrelation(
+        $result = $charge->provider_charge_id !== null
+            ? $this->provider->findCharge(
+                $charge->provider_charge_id
+            )
+            : $this->provider->findChargeByCorrelation(
                     $charge->idempotency_key,
                     $beginDate,
                     $endDate,
@@ -154,11 +146,7 @@ final class ReconcileChargeSubmission
                     if (
                         ! in_array(
                             $locked->status,
-                            [
-                                Charge::STATUS_SUBMITTING,
-                                Charge::
-                                    STATUS_SUBMISSION_UNKNOWN,
-                            ],
+                            Charge::reconcilableStatuses(),
                             true
                         )
                     ) {
@@ -244,11 +232,7 @@ final class ReconcileChargeSubmission
                 if (
                     ! in_array(
                         $locked->status,
-                        [
-                            Charge::STATUS_SUBMITTING,
-                            Charge::
-                                STATUS_SUBMISSION_UNKNOWN,
-                        ],
+                        Charge::reconcilableStatuses(),
                         true
                     )
                 ) {
@@ -256,8 +240,9 @@ final class ReconcileChargeSubmission
                 }
 
                 if (
-                    $locked->provider_charge_id
-                    !== null
+                    $locked->provider_charge_id !== null
+                    && $locked->provider_charge_id
+                        !== $result->providerChargeId
                 ) {
                     return $locked;
                 }

@@ -329,6 +329,7 @@
                     'open',
                     'paid',
                     'overdue',
+                    'failed',
                 ],
                 true
             )
@@ -344,6 +345,10 @@
                 ],
                 true
             );
+
+        $blockingChargeRequiresReview =
+            $blockingCharge
+            && $blockingCharge->status === 'failed';
 
         $isEfiHomologation =
             $paymentProviderKey === 'efi'
@@ -422,6 +427,18 @@
                     Não gere outra cobrança para esta
                     fatura. Use a ação Reconciliar na
                     cobrança abaixo quando disponível.
+                </span>
+            </div>
+        @elseif ($blockingChargeRequiresReview)
+            <div class="finance-charge-existing-banner">
+                <strong>
+                    Cobrança existente requer revisão
+                </strong>
+
+                <span>
+                    A cobrança anterior pode representar uma
+                    obrigação externa. Nova emissão permanece
+                    bloqueada e não deve ser tentada novamente.
                 </span>
             </div>
         @elseif ($blockingCharge)

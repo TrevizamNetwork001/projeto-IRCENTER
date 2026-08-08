@@ -736,6 +736,40 @@ class ChargeWebTest extends TestCase
         );
     }
 
+    public function test_failed_charge_requires_review_and_hides_new_charge_form(): void
+    {
+        config()->set('finance_fiscal.finance.enabled', true);
+
+        $invoice = $this->invoice();
+
+        Charge::query()->create([
+            'invoice_id' => $invoice->id,
+            'provider' => 'fake',
+            'method' => Charge::METHOD_BOLETO,
+            'status' => Charge::STATUS_FAILED,
+            'idempotency_key' => 'failed:'.$invoice->public_id,
+            'provider_charge_id' => 'fake-failed-1',
+            'amount' => $invoice->total,
+            'currency' => $invoice->currency,
+            'due_on' => $invoice->due_on->toDateString(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('finance.invoices.show', $invoice))
+            ->assertOk()
+            ->assertSee('Cobrança existente requer revisão')
+            ->assertDontSee('Gerar cobrança');
+
+        $this->actingAs($this->admin())
+            ->post(route('finance.invoices.charges.store', $invoice), [
+                'method' => Charge::METHOD_BOLETO_PIX,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount('charges', 1, 'finance_fiscal');
+    }
+
     private function efiHomologationProbeProvider(): PaymentProvider
     {
         return new class implements PaymentProvider
