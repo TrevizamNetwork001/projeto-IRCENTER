@@ -2,6 +2,7 @@
 
 namespace App\Modules\Finance\Infrastructure;
 
+use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
@@ -13,7 +14,7 @@ use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
 
-final class EfiPaymentProvider implements PaymentProvider
+final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentProvider
 {
     public function key(): string
     {
@@ -136,16 +137,55 @@ final class EfiPaymentProvider implements PaymentProvider
     ): ?PaymentChargeResult {
         $this->assertOperationAllowed();
 
-        $response = $this->authorizedRequest()
-            ->get(
-                $this->baseUrl()
-                    .'/v1/charge/'
-                    .rawurlencode($providerChargeId)
-            );
+        return $this->findChargeWithRequest(
+            $this->authorizedRequest(),
+            $providerChargeId,
+        );
+    }
 
-        if ($response->status() === 404) {
-            return null;
+    public function findChargeByCorrelation(
+        string $correlationId,
+        string $beginDate,
+        string $endDate,
+    ): ?PaymentChargeResult {
+        $this->assertOperationAllowed();
+
+        $correlationId = trim(
+            $correlationId
+        );
+
+        if (
+            $correlationId === ''
+            || strlen($correlationId) > 180
+        ) {
+            throw new InvalidArgumentException(
+                'Correlação de cobrança Efí inválida.'
+            );
         }
+
+        $this->assertLookupDateRange(
+            $beginDate,
+            $endDate,
+        );
+
+        /*
+         * Um único OAuth é reutilizado tanto para
+         * a listagem quanto para o detalhe.
+         */
+        $http = $this->authorizedRequest();
+
+        $response = $http->get(
+            $this->baseUrl()
+                .'/v1/charges',
+            [
+                'charge_type' => 'billet',
+                'custom_id' => $correlationId,
+                'begin_date' => $beginDate,
+                'end_date' => $endDate,
+                'limit' => 100,
+                'page' => 1,
+            ],
+        );
 
         $response->throw();
 
@@ -153,11 +193,73 @@ final class EfiPaymentProvider implements PaymentProvider
 
         if (! is_array($data)) {
             throw new RuntimeException(
-                'Resposta inválida da Efí.'
+                'Listagem de cobranças Efí inválida.'
             );
         }
 
-        return $this->resultFromData($data);
+        /*
+         * Mesmo enviando custom_id como filtro,
+         * nunca confiamos apenas no filtro remoto.
+         */
+        $matches = array_values(
+            array_filter(
+                $data,
+                static function (
+                    mixed $item
+                ) use (
+                    $correlationId
+                ): bool {
+                    return is_array($item)
+                        && isset(
+                            $item['custom_id']
+                        )
+                        && (string) $item[
+                            'custom_id'
+                        ] === $correlationId;
+                }
+            )
+        );
+
+        if ($matches === []) {
+            return null;
+        }
+
+        if (count($matches) !== 1) {
+            throw new RuntimeException(
+                'Reconciliação Efí ambígua: '
+                .'mais de uma cobrança encontrada.'
+            );
+        }
+
+        $providerChargeId =
+            $matches[0]['id']
+            ?? null;
+
+        if (
+            ! is_int($providerChargeId)
+            && ! is_string($providerChargeId)
+        ) {
+            throw new RuntimeException(
+                'ID da cobrança Efí ausente '
+                .'na reconciliação.'
+            );
+        }
+
+        $providerChargeId = trim(
+            (string) $providerChargeId
+        );
+
+        if ($providerChargeId === '') {
+            throw new RuntimeException(
+                'ID da cobrança Efí inválido '
+                .'na reconciliação.'
+            );
+        }
+
+        return $this->findChargeWithRequest(
+            $http,
+            $providerChargeId,
+        );
     }
 
     public function cancelCharge(
@@ -369,6 +471,93 @@ final class EfiPaymentProvider implements PaymentProvider
         return [
             'notification' => $token,
         ];
+    }
+
+    private function findChargeWithRequest(
+        PendingRequest $http,
+        string $providerChargeId,
+    ): ?PaymentChargeResult {
+        $response = $http->get(
+            $this->baseUrl()
+                .'/v1/charge/'
+                .rawurlencode(
+                    $providerChargeId
+                )
+        );
+
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        $response->throw();
+
+        $data = $response->json('data');
+
+        if (! is_array($data)) {
+            throw new RuntimeException(
+                'Resposta inválida da Efí.'
+            );
+        }
+
+        return $this->resultFromData(
+            $data
+        );
+    }
+
+    private function assertLookupDateRange(
+        string $beginDate,
+        string $endDate,
+    ): void {
+        foreach (
+            [
+                'begin_date' => $beginDate,
+                'end_date' => $endDate,
+            ]
+            as $field => $value
+        ) {
+            if (
+                preg_match(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $value
+                ) !== 1
+            ) {
+                throw new InvalidArgumentException(
+                    $field.' Efí inválida.'
+                );
+            }
+
+            [
+                $year,
+                $month,
+                $day,
+            ] = array_map(
+                'intval',
+                explode('-', $value)
+            );
+
+            if (
+                ! checkdate(
+                    $month,
+                    $day,
+                    $year
+                )
+            ) {
+                throw new InvalidArgumentException(
+                    $field.' Efí inválida.'
+                );
+            }
+        }
+
+        /*
+         * YYYY-MM-DD pode ser comparado
+         * lexicalmente depois da validação.
+         */
+        if ($beginDate > $endDate) {
+            throw new InvalidArgumentException(
+                'Período de reconciliação Efí '
+                .'inválido.'
+            );
+        }
     }
 
     private function authorizedRequest(): PendingRequest

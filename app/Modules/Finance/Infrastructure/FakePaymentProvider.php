@@ -2,18 +2,24 @@
 
 namespace App\Modules\Finance\Infrastructure;
 
+use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class FakePaymentProvider implements PaymentProvider
+final class FakePaymentProvider implements PaymentProvider, CorrelatablePaymentProvider
 {
     /**
      * @var array<string, PaymentChargeResult>
      */
     private array $charges = [];
+
+    /**
+     * @var array<string, PaymentChargeResult>
+     */
+    private array $chargesByCorrelation = [];
 
     public function key(): string
     {
@@ -49,7 +55,14 @@ final class FakePaymentProvider implements PaymentProvider
         );
 
         if (isset($this->charges[$providerChargeId])) {
-            return $this->charges[$providerChargeId];
+            $result =
+                $this->charges[$providerChargeId];
+
+            $this->chargesByCorrelation[
+                $request->idempotencyKey
+            ] = $result;
+
+            return $result;
         }
 
         $result = new PaymentChargeResult(
@@ -59,6 +72,10 @@ final class FakePaymentProvider implements PaymentProvider
 
         $this->charges[$providerChargeId] = $result;
 
+        $this->chargesByCorrelation[
+            $request->idempotencyKey
+        ] = $result;
+
         return $result;
     }
 
@@ -67,6 +84,16 @@ final class FakePaymentProvider implements PaymentProvider
     ): ?PaymentChargeResult {
         return $this->charges[$providerChargeId]
             ?? null;
+    }
+
+    public function findChargeByCorrelation(
+        string $correlationId,
+        string $beginDate,
+        string $endDate,
+    ): ?PaymentChargeResult {
+        return $this->chargesByCorrelation[
+            $correlationId
+        ] ?? null;
     }
 
     public function cancelCharge(

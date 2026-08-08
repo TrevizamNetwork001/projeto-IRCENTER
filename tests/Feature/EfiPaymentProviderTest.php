@@ -8,6 +8,7 @@ use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use LogicException;
+use RuntimeException;
 use Tests\TestCase;
 
 class EfiPaymentProviderTest extends TestCase
@@ -239,6 +240,216 @@ class EfiPaymentProviderTest extends TestCase
             'overdue',
             $expired->status
         );
+    }
+
+    public function test_find_charge_by_correlation_fetches_exact_match(): void
+    {
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' =>
+                        'token-test',
+                ]),
+
+            'https://cobrancas-h.api.efipay.com.br/v1/charges*'
+                => Http::response([
+                    'code' => 200,
+                    'data' => [
+                        [
+                            'id' => 100,
+                            'custom_id' =>
+                                'another-correlation',
+                        ],
+                        [
+                            'id' => 321,
+                            'custom_id' =>
+                                'invoice:test:provider:efi',
+                        ],
+                    ],
+                ]),
+
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/321'
+                => Http::response([
+                    'code' => 200,
+                    'data' => [
+                        'charge_id' => 321,
+                        'status' => 'waiting',
+                        'link' =>
+                            'https://boleto.test/321',
+                        'pix' => [
+                            'qrcode' =>
+                                '000201TESTE321',
+                        ],
+                    ],
+                ]),
+        ]);
+
+        $result = app(
+            EfiPaymentProvider::class
+        )->findChargeByCorrelation(
+            'invoice:test:provider:efi',
+            '2026-08-07',
+            '2026-08-09',
+        );
+
+        $this->assertNotNull(
+            $result
+        );
+
+        $this->assertSame(
+            '321',
+            $result->providerChargeId
+        );
+
+        $this->assertSame(
+            'open',
+            $result->status
+        );
+
+        $this->assertSame(
+            'https://boleto.test/321',
+            $result->checkoutUrl
+        );
+
+        $this->assertSame(
+            '000201TESTE321',
+            $result->pixCopyPaste
+        );
+
+        Http::assertSent(
+            function (
+                Request $request
+            ): bool {
+                if (
+                    $request->method() !== 'GET'
+                    || ! str_starts_with(
+                        $request->url(),
+                        'https://cobrancas-h.api.'
+                        .'efipay.com.br/v1/charges'
+                    )
+                ) {
+                    return false;
+                }
+
+                parse_str(
+                    (string) parse_url(
+                        $request->url(),
+                        PHP_URL_QUERY
+                    ),
+                    $query
+                );
+
+                return (
+                    $query['charge_type']
+                    ?? null
+                ) === 'billet'
+                    && (
+                        $query['custom_id']
+                        ?? null
+                    ) ===
+                        'invoice:test:provider:efi'
+                    && (
+                        $query['begin_date']
+                        ?? null
+                    ) === '2026-08-07'
+                    && (
+                        $query['end_date']
+                        ?? null
+                    ) === '2026-08-09';
+            }
+        );
+
+        /*
+         * OAuth + listagem + detalhe.
+         * O mesmo bearer é reutilizado.
+         */
+        Http::assertSentCount(3);
+    }
+
+    public function test_find_charge_by_correlation_returns_null_when_missing(): void
+    {
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' =>
+                        'token-test',
+                ]),
+
+            'https://cobrancas-h.api.efipay.com.br/v1/charges*'
+                => Http::response([
+                    'code' => 200,
+                    'data' => [],
+                ]),
+        ]);
+
+        $result = app(
+            EfiPaymentProvider::class
+        )->findChargeByCorrelation(
+            'invoice:test:provider:efi',
+            '2026-08-07',
+            '2026-08-09',
+        );
+
+        $this->assertNull(
+            $result
+        );
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_find_charge_by_correlation_blocks_ambiguous_matches(): void
+    {
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' =>
+                        'token-test',
+                ]),
+
+            'https://cobrancas-h.api.efipay.com.br/v1/charges*'
+                => Http::response([
+                    'code' => 200,
+                    'data' => [
+                        [
+                            'id' => 321,
+                            'custom_id' =>
+                                'invoice:test:provider:efi',
+                        ],
+                        [
+                            'id' => 322,
+                            'custom_id' =>
+                                'invoice:test:provider:efi',
+                        ],
+                    ],
+                ]),
+        ]);
+
+        try {
+            app(
+                EfiPaymentProvider::class
+            )->findChargeByCorrelation(
+                'invoice:test:provider:efi',
+                '2026-08-07',
+                '2026-08-09',
+            );
+
+            $this->fail(
+                'Reconciliação ambígua deveria falhar.'
+            );
+        } catch (
+            RuntimeException $exception
+        ) {
+            $this->assertStringContainsString(
+                'ambígua',
+                $exception->getMessage()
+            );
+        }
+
+        /*
+         * Não consulta detalhe nem faz qualquer POST
+         * de cobrança em caso ambíguo.
+         */
+        Http::assertSentCount(2);
     }
 
     public function test_production_is_blocked_without_live_flag(): void
