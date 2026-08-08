@@ -241,6 +241,49 @@
             <div>
                 <h2>Faturas</h2>
             </div>
+
+            @if (
+                $financeEnabled
+                && auth()->user()->isAdministrator()
+                && $contract->status === 'active'
+            )
+                <form
+                    class="form-actions"
+                    method="POST"
+                    action="{{
+                        route(
+                            'finance.contracts.invoices.generate',
+                            $contract
+                        )
+                    }}"
+                >
+                    @csrf
+
+                    <input
+                        class="form-control"
+                        type="month"
+                        name="competence"
+                        value="{{
+                            old(
+                                'competence',
+                                now(
+                                    config(
+                                        'finance_fiscal.timezone'
+                                    )
+                                )->format('Y-m')
+                            )
+                        }}"
+                        required
+                    >
+
+                    <button
+                        class="button button-primary"
+                        type="submit"
+                    >
+                        Gerar fatura
+                    </button>
+                </form>
+            @endif
         </div>
 
         @if ($invoices->isEmpty())
@@ -270,11 +313,21 @@
                         @foreach ($invoices as $invoice)
                             <tr>
                                 <td>
-                                    {{
-                                        $invoice
-                                            ->competence_month
-                                            ?->format('m/Y')
-                                    }}
+                                    <a
+                                        class="table-primary-link"
+                                        href="{{
+                                            route(
+                                                'finance.invoices.show',
+                                                $invoice
+                                            )
+                                        }}"
+                                    >
+                                        {{
+                                            $invoice
+                                                ->competence_month
+                                                ?->format('m/Y')
+                                        }}
+                                    </a>
                                 </td>
 
                                 <td>

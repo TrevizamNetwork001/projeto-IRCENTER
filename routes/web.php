@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\BillingContractController;
 use App\Http\Controllers\FinanceDashboardController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
@@ -83,6 +84,26 @@ Route::middleware([
         '/finance',
         FinanceDashboardController::class
     )->name('finance.dashboard');
+
+
+    Route::get(
+        '/finance/invoices',
+        [InvoiceController::class, 'index']
+    )->name('finance.invoices.index');
+
+    Route::get(
+        '/finance/invoices/{invoice}',
+        [InvoiceController::class, 'show']
+    )
+        ->whereNumber('invoice')
+        ->name('finance.invoices.show');
+
+    Route::post(
+        '/finance/contracts/{billingContract}/invoices',
+        [InvoiceController::class, 'generate']
+    )
+        ->whereNumber('billingContract')
+        ->name('finance.contracts.invoices.generate');
 
     Route::get(
         '/finance/contracts',

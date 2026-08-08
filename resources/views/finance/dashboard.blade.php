@@ -17,12 +17,21 @@
             </p>
         </div>
 
-        <a
-            class="button button-secondary"
-            href="{{ route('finance.contracts.index') }}"
-        >
-            Ver contratos
-        </a>
+        <div class="form-actions">
+            <a
+                class="button button-secondary"
+                href="{{ route('finance.contracts.index') }}"
+            >
+                Ver contratos
+            </a>
+
+            <a
+                class="button button-primary"
+                href="{{ route('finance.invoices.index') }}"
+            >
+                Ver faturas
+            </a>
+        </div>
     </section>
 
     @if (! $financeEnabled)
