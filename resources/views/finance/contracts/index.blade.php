@@ -38,8 +38,8 @@
     @endif
 
     @if (! $financeEnabled)
-        <section class="panel">
-            <div class="empty-state">
+        <section class="panel finance-safety-panel">
+            <div class="empty-state finance-safety-state">
                 <div>
                     <strong>Operações bloqueadas</strong>
                     <span>
@@ -107,7 +107,7 @@
         </form>
 
         @if ($contracts->isEmpty())
-            <div class="empty-state empty-state-large">
+            <div class="empty-state empty-state-large finance-list-empty">
                 <div>
                     <strong>Nenhum contrato encontrado</strong>
                     <span>

@@ -4502,3 +4502,102 @@ html[data-theme="light"] .integration-status-pill {
         flex-direction: column;
     }
 }
+
+/* =========================================================
+   Financeiro
+   ========================================================= */
+
+.page-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.finance-safety-panel {
+    padding: 18px 20px;
+}
+
+.finance-safety-state {
+    min-height: 0;
+    padding: 0;
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.finance-safety-state > div {
+    width: 100%;
+}
+
+.finance-safety-state strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.finance-list-empty {
+    min-height: 150px;
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+@media (max-width: 760px) {
+    .page-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .finance-safety-panel {
+        padding: 16px;
+    }
+
+    .finance-list-empty {
+        min-height: 120px;
+    }
+}
+
+/* Financeiro - compactacao final dos estados vazios */
+
+.panel.finance-safety-panel {
+    min-height: 0 !important;
+    padding: 16px 20px !important;
+}
+
+.panel.finance-safety-panel
+.empty-state.finance-safety-state {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 0 !important;
+    display: block !important;
+    text-align: left !important;
+}
+
+.panel.finance-safety-panel
+.empty-state.finance-safety-state > div {
+    min-height: 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+}
+
+.panel
+.empty-state.empty-state-large.finance-list-empty,
+.panel
+.empty-state.finance-list-empty {
+    min-height: 110px !important;
+    height: auto !important;
+    padding: 24px 12px !important;
+}
+
+@media (max-width: 760px) {
+    .panel.finance-safety-panel {
+        padding: 14px 16px !important;
+    }
+
+    .panel
+    .empty-state.empty-state-large.finance-list-empty,
+    .panel
+    .empty-state.finance-list-empty {
+        min-height: 90px !important;
+        padding: 20px 10px !important;
+    }
+}

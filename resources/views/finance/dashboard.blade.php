@@ -17,7 +17,7 @@
             </p>
         </div>
 
-        <div class="form-actions">
+        <div class="page-actions">
             <a
                 class="button button-secondary"
                 href="{{ route('finance.contracts.index') }}"
@@ -35,8 +35,8 @@
     </section>
 
     @if (! $financeEnabled)
-        <section class="panel">
-            <div class="empty-state">
+        <section class="panel finance-safety-panel">
+            <div class="empty-state finance-safety-state">
                 <div>
                     <strong>Módulo em modo protegido</strong>
                     <span>
@@ -121,12 +121,28 @@
 
                     <tr>
                         <th>Provider configurado</th>
-                        <td>{{ $paymentProvider }}</td>
+                        <td>
+                            {{
+                                match ($paymentProvider) {
+                                    'fake' => 'Simulador local',
+                                    'efi' => 'Efí',
+                                    default => $paymentProvider,
+                                }
+                            }}
+                        </td>
                     </tr>
 
                     <tr>
                         <th>Ambiente Efí</th>
-                        <td>{{ $efiEnvironment }}</td>
+                        <td>
+                            {{
+                                match ($efiEnvironment) {
+                                    'homologation' => 'Homologação',
+                                    'production' => 'Produção',
+                                    default => $efiEnvironment,
+                                }
+                            }}
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -141,7 +157,7 @@
         </div>
 
         @if ($recentContracts->isEmpty())
-            <div class="empty-state">
+            <div class="empty-state finance-list-empty">
                 <div>
                     <strong>Nenhum contrato financeiro</strong>
                     <span>
@@ -202,7 +218,7 @@
         </div>
 
         @if ($recentInvoices->isEmpty())
-            <div class="empty-state">
+            <div class="empty-state finance-list-empty">
                 <div>
                     <strong>Nenhuma fatura</strong>
                     <span>

@@ -27,8 +27,8 @@
     </section>
 
     @if (! $financeEnabled)
-        <section class="panel">
-            <div class="empty-state">
+        <section class="panel finance-safety-panel">
+            <div class="empty-state finance-safety-state">
                 <div>
                     <strong>Modo somente leitura</strong>
                     <span>
@@ -116,7 +116,7 @@
         </form>
 
         @if ($invoices->isEmpty())
-            <div class="empty-state empty-state-large">
+            <div class="empty-state empty-state-large finance-list-empty">
                 <div>
                     <strong>Nenhuma fatura encontrada</strong>
                     <span>
