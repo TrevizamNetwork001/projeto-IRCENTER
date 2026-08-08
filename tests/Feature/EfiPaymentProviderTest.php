@@ -7,7 +7,9 @@ use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -195,6 +197,56 @@ class EfiPaymentProviderTest extends TestCase
                     === '01001000';
             }
         );
+    }
+
+    #[DataProvider('validBrazilianPhones')]
+    public function test_payload_normalizes_brazilian_phone(
+        string $input,
+        string $expected,
+    ): void {
+        $this->fakeSuccessfulCharge();
+
+        app(EfiPaymentProvider::class)
+            ->createCharge(
+                $this->request($input)
+            );
+
+        Http::assertSent(
+            fn (Request $request): bool =>
+                $request->url() ===
+                    'https://cobrancas-h.api.efipay.com.br'
+                    .'/v1/charge/one-step'
+                && $request[
+                    'payment'
+                ][
+                    'banking_billet'
+                ][
+                    'customer'
+                ]['phone_number'] === $expected
+        );
+    }
+
+    public function test_invalid_phone_length_is_rejected_before_http(): void
+    {
+        Http::fake();
+
+        try {
+            app(EfiPaymentProvider::class)
+                ->createCharge(
+                    $this->request('+1 202 555 01234')
+                );
+
+            $this->fail(
+                'Telefone internacional inválido deveria falhar.'
+            );
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame(
+                'Telefone do pagador é inválido.',
+                $exception->getMessage()
+            );
+        }
+
+        Http::assertNothingSent();
     }
 
     public function test_unpaid_remains_open_and_expired_is_overdue(): void
@@ -490,7 +542,50 @@ class EfiPaymentProviderTest extends TestCase
             );
     }
 
-    private function request(): PaymentChargeRequest
+    public static function validBrazilianPhones(): array
+    {
+        return [
+            'celular com DDI e formatação' => [
+                '+5511986065675',
+                '11986065675',
+            ],
+            'celular com DDI sem formatação' => [
+                '5511986065675',
+                '11986065675',
+            ],
+            'celular nacional' => [
+                '11986065675',
+                '11986065675',
+            ],
+            'telefone fixo nacional' => [
+                '1133334444',
+                '1133334444',
+            ],
+        ];
+    }
+
+    private function fakeSuccessfulCharge(): void
+    {
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' => 'token-test',
+                ]),
+
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step'
+                => Http::response([
+                    'code' => 200,
+                    'data' => [
+                        'charge_id' => 99,
+                        'status' => 'waiting',
+                    ],
+                ]),
+        ]);
+    }
+
+    private function request(
+        string $payerPhone = '(11) 3333-4444',
+    ): PaymentChargeRequest
     {
         return new PaymentChargeRequest(
             invoicePublicId:
@@ -521,7 +616,7 @@ class EfiPaymentProviderTest extends TestCase
                 'financeiro@cliente.test',
 
             payerPhone:
-                '(11) 3333-4444',
+                $payerPhone,
 
             payerPostalCode:
                 '01001-000',

@@ -613,10 +613,8 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             (string) $request->payerDocument
         );
 
-        $phone = preg_replace(
-            '/\D+/',
-            '',
-            (string) $request->payerPhone
+        $phone = $this->normalizeBrazilianPhone(
+            $request->payerPhone
         );
 
         $zipcode = preg_replace(
@@ -672,18 +670,6 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         ) {
             throw new InvalidArgumentException(
                 'E-mail financeiro do pagador é obrigatório.'
-            );
-        }
-
-        if (
-            ! in_array(
-                strlen($phone),
-                [10, 11],
-                true
-            )
-        ) {
-            throw new InvalidArgumentException(
-                'Telefone do pagador é inválido.'
             );
         }
 
@@ -756,6 +742,44 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         }
 
         return $customer;
+    }
+
+    private function normalizeBrazilianPhone(
+        ?string $phone,
+    ): string {
+        $digits = preg_replace(
+            '/\D+/',
+            '',
+            (string) $phone
+        );
+
+        if (
+            in_array(
+                strlen($digits),
+                [12, 13],
+                true
+            )
+            && str_starts_with(
+                $digits,
+                '55'
+            )
+        ) {
+            $digits = substr($digits, 2);
+        }
+
+        if (
+            ! in_array(
+                strlen($digits),
+                [10, 11],
+                true
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Telefone do pagador é inválido.'
+            );
+        }
+
+        return $digits;
     }
 
     private function resultFromData(
