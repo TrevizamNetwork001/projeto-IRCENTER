@@ -11,6 +11,7 @@ use App\Modules\Shared\Services\DomainAudit;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Throwable;
 
 final class CreateChargeForInvoice
 {
@@ -25,6 +26,382 @@ final class CreateChargeForInvoice
         string $method,
         ?int $actorUserId = null,
     ): Charge {
+        $this->assertFinanceEnabled();
+        $this->assertMethodSupported($method);
+        $this->assertLiveAllowed();
+
+        /*
+         * FASE 1:
+         *
+         * Reserva a cobrança localmente em uma transação
+         * curta, antes de qualquer chamada externa.
+         *
+         * A partir de STATUS_SUBMITTING nunca repetimos
+         * automaticamente o POST ao provider.
+         */
+        $reservation =
+            DB::connection('finance_fiscal')
+                ->transaction(
+                    function () use (
+                        $invoiceId,
+                        $method,
+                        $actorUserId,
+                    ): array {
+                        $invoice = Invoice::query()
+                            ->whereKey($invoiceId)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (! $invoice) {
+                            throw new DomainException(
+                                'Fatura não encontrada.'
+                            );
+                        }
+
+                        if (
+                            $invoice->status
+                            !== Invoice::STATUS_OPEN
+                        ) {
+                            throw new DomainException(
+                                'Somente fatura aberta '
+                                .'pode gerar cobrança.'
+                            );
+                        }
+
+                        $idempotencyKey = sprintf(
+                            'invoice:%s:provider:%s:method:%s',
+                            $invoice->public_id,
+                            $this->provider->key(),
+                            $method,
+                        );
+
+                        $existing = Charge::query()
+                            ->where(
+                                'idempotency_key',
+                                $idempotencyKey,
+                            )
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($existing) {
+                            return [
+                                'charge' => $existing,
+                                'request' => null,
+                                'submit' => false,
+                            ];
+                        }
+
+                        $request =
+                            $this->makeRequest(
+                                $invoice,
+                                $idempotencyKey,
+                                $method,
+                            );
+
+                        $charge =
+                            Charge::query()->create([
+                                'invoice_id' =>
+                                    $invoice->id,
+
+                                'provider' =>
+                                    $this->provider->key(),
+
+                                'method' =>
+                                    $method,
+
+                                'status' =>
+                                    Charge::
+                                        STATUS_SUBMITTING,
+
+                                'idempotency_key' =>
+                                    $idempotencyKey,
+
+                                'provider_charge_id' =>
+                                    null,
+
+                                'amount' =>
+                                    Decimal::money(
+                                        $invoice->total
+                                    ),
+
+                                'currency' =>
+                                    $invoice->currency,
+
+                                'due_on' =>
+                                    $invoice->due_on
+                                        ->toDateString(),
+
+                                'provider_checkout_url' =>
+                                    null,
+
+                                'provider_pix_copy_paste' =>
+                                    null,
+
+                                'provider_created_at' =>
+                                    null,
+
+                                'last_synced_at' =>
+                                    null,
+                            ]);
+
+                        $this->audit->record(
+                            module: 'finance',
+
+                            action:
+                                'charge.submission_reserved',
+
+                            actorUserId:
+                                $actorUserId,
+
+                            entityType:
+                                'charge',
+
+                            entityId:
+                                $charge->id,
+
+                            metadata: [
+                                'public_id' =>
+                                    $charge->public_id,
+
+                                'invoice_id' =>
+                                    $invoice->id,
+
+                                'provider' =>
+                                    $charge->provider,
+
+                                'method' =>
+                                    $charge->method,
+
+                                'status' =>
+                                    $charge->status,
+
+                                'amount' =>
+                                    $charge->amount,
+                            ],
+                        );
+
+                        return [
+                            'charge' => $charge,
+                            'request' => $request,
+                            'submit' => true,
+                        ];
+                    }
+                );
+
+        /** @var Charge $charge */
+        $charge = $reservation['charge'];
+
+        /*
+         * Idempotência local:
+         *
+         * Se já existe qualquer cobrança para a chave,
+         * inclusive submitting/submission_unknown,
+         * nunca chamamos o provider novamente aqui.
+         */
+        if (! $reservation['submit']) {
+            return $charge->fresh();
+        }
+
+        /** @var PaymentChargeRequest $request */
+        $request = $reservation['request'];
+
+        /*
+         * FASE 2:
+         *
+         * A chamada HTTPS ocorre deliberadamente FORA
+         * da transação financeira.
+         */
+        try {
+            $result =
+                $this->provider->createCharge(
+                    $request
+                );
+        } catch (Throwable $exception) {
+            /*
+             * Se houve exceção após o início da
+             * submissão, não sabemos com segurança se
+             * o provider chegou ou não a criar a
+             * cobrança.
+             *
+             * Nunca fazemos retry automático.
+             */
+            DB::connection('finance_fiscal')
+                ->transaction(
+                    function () use (
+                        $charge,
+                        $actorUserId,
+                        $exception,
+                    ): void {
+                        $locked =
+                            Charge::query()
+                                ->whereKey(
+                                    $charge->id
+                                )
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                        if (
+                            $locked
+                                ->provider_charge_id
+                            === null
+                            && $locked->status
+                                === Charge::
+                                    STATUS_SUBMITTING
+                        ) {
+                            $locked->update([
+                                'status' =>
+                                    Charge::
+                                        STATUS_SUBMISSION_UNKNOWN,
+                            ]);
+
+                            $this->audit->record(
+                                module:
+                                    'finance',
+
+                                action:
+                                    'charge.submission_unknown',
+
+                                actorUserId:
+                                    $actorUserId,
+
+                                entityType:
+                                    'charge',
+
+                                entityId:
+                                    $locked->id,
+
+                                metadata: [
+                                    'public_id' =>
+                                        $locked
+                                            ->public_id,
+
+                                    'provider' =>
+                                        $locked
+                                            ->provider,
+
+                                    'method' =>
+                                        $locked
+                                            ->method,
+
+                                    /*
+                                     * Somente a classe.
+                                     * Nunca persistimos
+                                     * mensagem/response.
+                                     */
+                                    'error_type' =>
+                                        $exception::class,
+                                ],
+                            );
+                        }
+                    }
+                );
+
+            throw $exception;
+        }
+
+        /*
+         * FASE 3:
+         *
+         * Após sucesso externo, apenas persiste o
+         * resultado em uma segunda transação curta.
+         *
+         * Se esta transação falhar, a Charge continuará
+         * como submitting e também NÃO será reenviada
+         * automaticamente.
+         */
+        return DB::connection('finance_fiscal')
+            ->transaction(
+                function () use (
+                    $charge,
+                    $result,
+                    $actorUserId,
+                ): Charge {
+                    $locked =
+                        Charge::query()
+                            ->whereKey(
+                                $charge->id
+                            )
+                            ->lockForUpdate()
+                            ->firstOrFail();
+
+                    /*
+                     * Proteção defensiva caso algum
+                     * fluxo já tenha reconciliado a
+                     * cobrança.
+                     */
+                    if (
+                        $locked->provider_charge_id
+                        !== null
+                    ) {
+                        return $locked;
+                    }
+
+                    $locked->update([
+                        'status' =>
+                            $result->status,
+
+                        'provider_charge_id' =>
+                            $result
+                                ->providerChargeId,
+
+                        'provider_checkout_url' =>
+                            $result
+                                ->checkoutUrl,
+
+                        'provider_pix_copy_paste' =>
+                            $result
+                                ->pixCopyPaste,
+
+                        'provider_created_at' =>
+                            now(),
+
+                        'last_synced_at' =>
+                            now(),
+                    ]);
+
+                    $this->audit->record(
+                        module: 'finance',
+
+                        action:
+                            'charge.created',
+
+                        actorUserId:
+                            $actorUserId,
+
+                        entityType:
+                            'charge',
+
+                        entityId:
+                            $locked->id,
+
+                        metadata: [
+                            'public_id' =>
+                                $locked->public_id,
+
+                            'invoice_id' =>
+                                $locked->invoice_id,
+
+                            'provider' =>
+                                $locked->provider,
+
+                            'method' =>
+                                $locked->method,
+
+                            'status' =>
+                                $locked->status,
+
+                            'amount' =>
+                                $locked->amount,
+                        ],
+                    );
+
+                    return $locked;
+                }
+            );
+    }
+
+    private function assertFinanceEnabled(): void
+    {
         if (
             ! config(
                 'finance_fiscal.finance.enabled',
@@ -35,7 +412,11 @@ final class CreateChargeForInvoice
                 'Módulo financeiro está desabilitado.'
             );
         }
+    }
 
+    private function assertMethodSupported(
+        string $method,
+    ): void {
         if (
             ! in_array(
                 $method,
@@ -63,7 +444,10 @@ final class CreateChargeForInvoice
                 'Provider não suporta o método solicitado.'
             );
         }
+    }
 
+    private function assertLiveAllowed(): void
+    {
         if (
             $this->provider->isLive()
             && ! config(
@@ -76,187 +460,82 @@ final class CreateChargeForInvoice
                 'Cobrança live está desabilitada.'
             );
         }
+    }
 
-        return DB::connection('finance_fiscal')
-            ->transaction(function () use (
-                $invoiceId,
+    private function makeRequest(
+        Invoice $invoice,
+        string $idempotencyKey,
+        string $method,
+    ): PaymentChargeRequest {
+        return new PaymentChargeRequest(
+            invoicePublicId:
+                $invoice->public_id,
+
+            idempotencyKey:
+                $idempotencyKey,
+
+            method:
                 $method,
-                $actorUserId,
-            ): Charge {
-                $invoice = Invoice::query()
-                    ->whereKey($invoiceId)
-                    ->lockForUpdate()
-                    ->first();
 
-                if (! $invoice) {
-                    throw new DomainException(
-                        'Fatura não encontrada.'
-                    );
-                }
+            amount:
+                Decimal::money(
+                    $invoice->total
+                ),
 
-                if (
-                    $invoice->status
-                    !== Invoice::STATUS_OPEN
-                ) {
-                    throw new DomainException(
-                        'Somente fatura aberta pode gerar cobrança.'
-                    );
-                }
+            currency:
+                $invoice->currency,
 
-                $idempotencyKey = sprintf(
-                    'invoice:%s:provider:%s:method:%s',
-                    $invoice->public_id,
-                    $this->provider->key(),
-                    $method
-                );
+            dueOn:
+                $invoice->due_on
+                    ->toDateString(),
 
-                $existing = Charge::query()
-                    ->where(
-                        'idempotency_key',
-                        $idempotencyKey
-                    )
-                    ->first();
+            payerName:
+                $invoice
+                    ->client_legal_name_snapshot,
 
-                if ($existing) {
-                    return $existing;
-                }
+            payerDocument:
+                $invoice
+                    ->client_document_snapshot,
 
-                $request = new PaymentChargeRequest(
-                    invoicePublicId:
-                        $invoice->public_id,
+            payerEmail:
+                $invoice
+                    ->billing_email_snapshot,
 
-                    idempotencyKey:
-                        $idempotencyKey,
+            payerPhone:
+                $invoice
+                    ->client_phone_snapshot,
 
-                    method:
-                        $method,
+            payerPostalCode:
+                $invoice
+                    ->client_postal_code_snapshot,
 
-                    amount:
-                        Decimal::money(
-                            $invoice->total
-                        ),
+            payerStreet:
+                $invoice
+                    ->client_street_snapshot,
 
-                    currency:
-                        $invoice->currency,
+            payerAddressNumber:
+                $invoice
+                    ->client_address_number_snapshot,
 
-                    dueOn:
-                        $invoice->due_on
-                            ->toDateString(),
+            payerAddressComplement:
+                $invoice
+                    ->client_address_complement_snapshot,
 
-                    payerName:
-                        $invoice
-                            ->client_legal_name_snapshot,
+            payerDistrict:
+                $invoice
+                    ->client_district_snapshot,
 
-                    payerDocument:
-                        $invoice
-                            ->client_document_snapshot,
+            payerCity:
+                $invoice
+                    ->client_city_snapshot,
 
-                    payerEmail:
-                        $invoice->billing_email_snapshot,
+            payerState:
+                $invoice
+                    ->client_state_snapshot,
 
-                    payerPhone:
-                        $invoice->client_phone_snapshot,
-
-                    payerPostalCode:
-                        $invoice->client_postal_code_snapshot,
-
-                    payerStreet:
-                        $invoice->client_street_snapshot,
-
-                    payerAddressNumber:
-                        $invoice->client_address_number_snapshot,
-
-                    payerAddressComplement:
-                        $invoice
-                            ->client_address_complement_snapshot,
-
-                    payerDistrict:
-                        $invoice->client_district_snapshot,
-
-                    payerCity:
-                        $invoice->client_city_snapshot,
-
-                    payerState:
-                        $invoice->client_state_snapshot,
-
-                    payerCountry:
-                        $invoice->client_country_snapshot,
-                );
-
-                $result = $this->provider
-                    ->createCharge($request);
-
-                $charge = Charge::query()->create([
-                    'invoice_id' =>
-                        $invoice->id,
-
-                    'provider' =>
-                        $this->provider->key(),
-
-                    'method' => $method,
-
-                    'status' =>
-                        $result->status,
-
-                    'idempotency_key' =>
-                        $idempotencyKey,
-
-                    'provider_charge_id' =>
-                        $result->providerChargeId,
-
-                    'amount' =>
-                        Decimal::money(
-                            $invoice->total
-                        ),
-
-                    'currency' =>
-                        $invoice->currency,
-
-                    'due_on' =>
-                        $invoice->due_on
-                            ->toDateString(),
-
-                    'provider_checkout_url' =>
-                        $result->checkoutUrl,
-
-                    'provider_pix_copy_paste' =>
-                        $result->pixCopyPaste,
-
-                    'provider_created_at' =>
-                        now(),
-
-                    'last_synced_at' =>
-                        now(),
-                ]);
-
-                $this->audit->record(
-                    module: 'finance',
-                    action: 'charge.created',
-                    actorUserId: $actorUserId,
-                    entityType: 'charge',
-                    entityId: $charge->id,
-                    metadata: [
-                        'public_id' =>
-                            $charge->public_id,
-
-                        'invoice_id' =>
-                            $invoice->id,
-
-                        'provider' =>
-                            $charge->provider,
-
-                        'method' =>
-                            $charge->method,
-
-                        'status' =>
-                            $charge->status,
-
-                        'amount' =>
-                            $charge->amount,
-                    ],
-                );
-
-                return $charge;
-            });
+            payerCountry:
+                $invoice
+                    ->client_country_snapshot,
+        );
     }
 }

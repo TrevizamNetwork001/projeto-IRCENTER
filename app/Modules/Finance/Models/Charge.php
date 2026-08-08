@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 final class Charge extends Model
 {
     public const STATUS_PENDING = 'pending';
+    public const STATUS_SUBMITTING = 'submitting';
+    public const STATUS_SUBMISSION_UNKNOWN = 'submission_unknown';
     public const STATUS_CREATED = 'created';
     public const STATUS_OPEN = 'open';
     public const STATUS_PAID = 'paid';
