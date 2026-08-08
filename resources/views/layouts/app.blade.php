@@ -73,6 +73,20 @@
                 </a>
 
                 <a
+                    href="{{ route('finance.dashboard') }}"
+                    class="sidebar-link {{
+                        request()->routeIs('finance.*')
+                            ? 'is-active'
+                            : ''
+                    }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="report"/>
+                    </span>
+                    <span>Financeiro</span>
+                </a>
+
+                <a
                     href="{{ route('autonomous-systems.index') }}"
                     class="sidebar-link {{ request()->routeIs('autonomous-systems.*') ? 'is-active' : '' }}"
                 >

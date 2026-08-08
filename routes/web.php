@@ -7,6 +7,8 @@ use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExternalIntegrationController;
+use App\Http\Controllers\BillingContractController;
+use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
@@ -75,6 +77,48 @@ Route::middleware([
         ->except([
             'destroy',
         ]);
+
+
+    Route::get(
+        '/finance',
+        FinanceDashboardController::class
+    )->name('finance.dashboard');
+
+    Route::get(
+        '/finance/contracts',
+        [BillingContractController::class, 'index']
+    )->name('finance.contracts.index');
+
+    Route::get(
+        '/finance/contracts/create',
+        [BillingContractController::class, 'create']
+    )->name('finance.contracts.create');
+
+    Route::post(
+        '/finance/contracts',
+        [BillingContractController::class, 'store']
+    )->name('finance.contracts.store');
+
+    Route::get(
+        '/finance/contracts/{billingContract}',
+        [BillingContractController::class, 'show']
+    )
+        ->whereNumber('billingContract')
+        ->name('finance.contracts.show');
+
+    Route::post(
+        '/finance/contracts/{billingContract}/activate',
+        [BillingContractController::class, 'activate']
+    )
+        ->whereNumber('billingContract')
+        ->name('finance.contracts.activate');
+
+    Route::post(
+        '/finance/contracts/{billingContract}/suspend',
+        [BillingContractController::class, 'suspend']
+    )
+        ->whereNumber('billingContract')
+        ->name('finance.contracts.suspend');
 
     Route::get(
         '/reports',
