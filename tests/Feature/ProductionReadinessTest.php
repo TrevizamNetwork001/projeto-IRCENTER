@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Redis;
+use Mockery;
 use Tests\TestCase;
 
 class ProductionReadinessTest extends TestCase
@@ -12,6 +14,10 @@ class ProductionReadinessTest extends TestCase
 
     public function test_readiness_endpoint_is_available(): void
     {
+        $connection = Mockery::mock();
+        $connection->shouldReceive('ping')->once()->andReturn('PONG');
+        Redis::shouldReceive('connection')->once()->andReturn($connection);
+
         $this->getJson(route('health.ready'))
             ->assertOk()
             ->assertJsonPath('status', 'ready')
