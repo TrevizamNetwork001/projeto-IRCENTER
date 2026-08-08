@@ -249,6 +249,57 @@ class EfiPaymentProviderTest extends TestCase
         Http::assertNothingSent();
     }
 
+    #[DataProvider('moneyValues')]
+    public function test_payload_uses_exact_integer_cents(
+        string $amount,
+        int $expected,
+    ): void {
+        $this->fakeSuccessfulCharge();
+
+        app(EfiPaymentProvider::class)->createCharge(
+            $this->request(amount: $amount)
+        );
+
+        Http::assertSent(
+            fn (Request $request): bool =>
+                $request->url() === 'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step'
+                && $request['items'][0]['value'] === $expected
+        );
+    }
+
+    public function test_preflight_rejects_unsupported_method_without_oauth(): void
+    {
+        Http::fake();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        try {
+            app(EfiPaymentProvider::class)->preflightCharge(
+                $this->request(method: 'pix')
+            );
+        } finally {
+            Http::assertNothingSent();
+        }
+    }
+
+    public function test_unsafe_remote_link_is_not_exposed(): void
+    {
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' =>
+                Http::response(['access_token' => 'token-test']),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step' =>
+                Http::response(['data' => [
+                    'charge_id' => 7,
+                    'status' => 'waiting',
+                    'link' => 'javascript:alert(1)',
+                ]]),
+        ]);
+
+        $result = app(EfiPaymentProvider::class)->createCharge($this->request());
+
+        $this->assertNull($result->checkoutUrl);
+    }
+
     public function test_unpaid_remains_open_and_expired_is_overdue(): void
     {
         Http::fake([
@@ -564,6 +615,15 @@ class EfiPaymentProviderTest extends TestCase
         ];
     }
 
+    public static function moneyValues(): array
+    {
+        return [
+            'um real' => ['1.00', 100],
+            'cinquenta e nove e noventa' => ['59.90', 5990],
+            'cem e um centavo' => ['100.01', 10001],
+        ];
+    }
+
     private function fakeSuccessfulCharge(): void
     {
         Http::fake([
@@ -585,6 +645,8 @@ class EfiPaymentProviderTest extends TestCase
 
     private function request(
         string $payerPhone = '(11) 3333-4444',
+        string $amount = '850.00',
+        string $method = 'boleto_pix',
     ): PaymentChargeRequest
     {
         return new PaymentChargeRequest(
@@ -595,10 +657,10 @@ class EfiPaymentProviderTest extends TestCase
                 'invoice:test:provider:efi',
 
             method:
-                'boleto_pix',
+                $method,
 
             amount:
-                '850.00',
+                $amount,
 
             currency:
                 'BRL',

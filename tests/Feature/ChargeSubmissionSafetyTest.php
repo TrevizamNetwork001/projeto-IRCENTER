@@ -12,10 +12,12 @@ use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -296,6 +298,49 @@ class ChargeSubmissionSafetyTest extends TestCase
             1,
             $provider->calls
         );
+    }
+
+    public function test_efi_preflight_failure_creates_no_charge_or_http_request(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+
+        config()->set('finance_fiscal.providers.efi.environment', 'homologation');
+        config()->set('finance_fiscal.providers.efi.notification_url', null);
+
+        $invoice = $this->invoice();
+        $invoice->update(['client_phone_snapshot' => '+1 202 555 01234']);
+
+        $action = new CreateChargeForInvoice(
+            app(EfiPaymentProvider::class),
+            app(DomainAudit::class),
+        );
+
+        try {
+            $action->handle($invoice->id, Charge::METHOD_BOLETO);
+            $this->fail('O preflight inválido deveria falhar.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertSame(
+                'Telefone do pagador é inválido.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('charges', 0, 'finance_fiscal');
+        Http::assertNothingSent();
+    }
+
+    public function test_domain_blocks_different_method_when_charge_is_operational(): void
+    {
+        $invoice = $this->invoice();
+        $provider = app(PaymentProvider::class);
+        $action = new CreateChargeForInvoice($provider, app(DomainAudit::class));
+
+        $first = $action->handle($invoice->id, Charge::METHOD_BOLETO);
+        $second = $action->handle($invoice->id, Charge::METHOD_BOLETO_PIX);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('charges', 1, 'finance_fiscal');
     }
 
     private function invoice(): Invoice

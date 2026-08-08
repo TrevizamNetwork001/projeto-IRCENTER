@@ -22,6 +22,19 @@ final class Charge extends Model
     public const METHOD_PIX = 'pix';
     public const METHOD_BOLETO_PIX = 'boleto_pix';
 
+    /** @return list<string> */
+    public static function blockingStatuses(): array
+    {
+        return [
+            self::STATUS_SUBMITTING,
+            self::STATUS_SUBMISSION_UNKNOWN,
+            self::STATUS_CREATED,
+            self::STATUS_OPEN,
+            self::STATUS_PAID,
+            self::STATUS_OVERDUE,
+        ];
+    }
+
     protected $connection = 'finance_fiscal';
 
     protected $table = 'charges';

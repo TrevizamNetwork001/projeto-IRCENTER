@@ -4,6 +4,7 @@ namespace App\Modules\Finance\Infrastructure;
 
 use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
 use App\Modules\Finance\Contracts\PaymentProvider;
+use App\Modules\Finance\Contracts\PreflightsPaymentCharges;
 use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
@@ -14,7 +15,7 @@ use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
 
-final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentProvider
+final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentProvider, PreflightsPaymentCharges
 {
     public function key(): string
     {
@@ -42,6 +43,30 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
     ): PaymentChargeResult {
         $this->assertOperationAllowed();
 
+        $payload = $this->chargePayload($request);
+
+        $response = $this->authorizedRequest()
+            ->post($this->baseUrl().'/v1/charge/one-step', $payload);
+
+        $response->throw();
+        $data = $response->json('data');
+
+        if (! is_array($data)) {
+            throw new RuntimeException('Resposta inválida da Efí.');
+        }
+
+        return $this->resultFromData($data);
+    }
+
+    public function preflightCharge(PaymentChargeRequest $request): void
+    {
+        $this->chargePayload($request);
+    }
+
+    /** @return array<string, mixed> */
+    private function chargePayload(PaymentChargeRequest $request): array
+    {
+
         if (
             ! in_array(
                 $request->method,
@@ -54,6 +79,20 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             );
         }
 
+        if ($request->currency !== 'BRL') {
+            throw new InvalidArgumentException('A moeda da cobrança Efí deve ser BRL.');
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $request->dueOn) !== 1) {
+            throw new InvalidArgumentException('Vencimento da cobrança Efí é inválido.');
+        }
+
+        $valueCents = Decimal::moneyToCents($request->amount);
+
+        if ($valueCents < 1) {
+            throw new InvalidArgumentException('Valor da cobrança Efí deve ser positivo.');
+        }
+
         $payload = [
             'items' => [
                 [
@@ -61,9 +100,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                         'Fatura '.$request->invoicePublicId,
 
                     'value' =>
-                        Decimal::moneyToCents(
-                            $request->amount
-                        ),
+                        $valueCents,
 
                     'amount' => 1,
                 ],
@@ -112,24 +149,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 = $notificationUrl;
         }
 
-        $response = $this->authorizedRequest()
-            ->post(
-                $this->baseUrl()
-                    .'/v1/charge/one-step',
-                $payload
-            );
-
-        $response->throw();
-
-        $data = $response->json('data');
-
-        if (! is_array($data)) {
-            throw new RuntimeException(
-                'Resposta inválida da Efí.'
-            );
-        }
-
-        return $this->resultFromData($data);
+        return $payload;
     }
 
     public function findCharge(
@@ -798,6 +818,10 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             );
         }
 
+        if (trim((string) $chargeId) === '') {
+            throw new RuntimeException('charge_id Efí inválido.');
+        }
+
         $status = (string) (
             $data['status'] ?? ''
         );
@@ -810,11 +834,13 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 $this->mapStatus($status),
 
             checkoutUrl:
-                $data['link']
-                ?? $data['billet_link']
-                ?? data_get(
+                $this->safeArtifactUrl(
+                    $data['link']
+                    ?? $data['billet_link']
+                    ?? data_get(
                     $data,
                     'payment.banking_billet.link'
+                    )
                 ),
 
             pixCopyPaste:
@@ -828,6 +854,20 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                     .'pix.qrcode'
                 ),
         );
+    }
+
+    private function safeArtifactUrl(mixed $url): ?string
+    {
+        if (! is_string($url)) {
+            return null;
+        }
+
+        $url = trim($url);
+
+        return filter_var($url, FILTER_VALIDATE_URL)
+            && str_starts_with(strtolower($url), 'https://')
+                ? $url
+                : null;
     }
 
     private function mapStatus(

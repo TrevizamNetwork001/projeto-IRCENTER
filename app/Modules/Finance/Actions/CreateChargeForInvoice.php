@@ -3,6 +3,7 @@
 namespace App\Modules\Finance\Actions;
 
 use App\Modules\Finance\Contracts\PaymentProvider;
+use App\Modules\Finance\Contracts\PreflightsPaymentCharges;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
@@ -29,6 +30,19 @@ final class CreateChargeForInvoice
         $this->assertFinanceEnabled();
         $this->assertMethodSupported($method);
         $this->assertLiveAllowed();
+
+        $preflightInvoice = Invoice::query()->whereKey($invoiceId)->first();
+
+        if (! $preflightInvoice) {
+            throw new DomainException('Fatura não encontrada.');
+        }
+
+        $idempotencyKey = $this->idempotencyKey($preflightInvoice, $method);
+        $preflightRequest = $this->makeRequest($preflightInvoice, $idempotencyKey, $method);
+
+        if ($this->provider instanceof PreflightsPaymentCharges) {
+            $this->provider->preflightCharge($preflightRequest);
+        }
 
         /*
          * FASE 1:
@@ -68,12 +82,17 @@ final class CreateChargeForInvoice
                             );
                         }
 
-                        $idempotencyKey = sprintf(
-                            'invoice:%s:provider:%s:method:%s',
-                            $invoice->public_id,
-                            $this->provider->key(),
-                            $method,
-                        );
+                        $idempotencyKey = $this->idempotencyKey($invoice, $method);
+
+                        $blocking = Charge::query()
+                            ->where('invoice_id', $invoice->id)
+                            ->whereIn('status', Charge::blockingStatuses())
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($blocking) {
+                            return ['charge' => $blocking, 'request' => null, 'submit' => false];
+                        }
 
                         $existing = Charge::query()
                             ->where(
@@ -536,6 +555,16 @@ final class CreateChargeForInvoice
             payerCountry:
                 $invoice
                     ->client_country_snapshot,
+        );
+    }
+
+    private function idempotencyKey(Invoice $invoice, string $method): string
+    {
+        return sprintf(
+            'invoice:%s:provider:%s:method:%s',
+            $invoice->public_id,
+            $this->provider->key(),
+            $method,
         );
     }
 }

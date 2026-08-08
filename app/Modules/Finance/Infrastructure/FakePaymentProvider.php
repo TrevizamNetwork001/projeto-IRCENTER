@@ -4,12 +4,13 @@ namespace App\Modules\Finance\Infrastructure;
 
 use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
 use App\Modules\Finance\Contracts\PaymentProvider;
+use App\Modules\Finance\Contracts\PreflightsPaymentCharges;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class FakePaymentProvider implements PaymentProvider, CorrelatablePaymentProvider
+final class FakePaymentProvider implements PaymentProvider, CorrelatablePaymentProvider, PreflightsPaymentCharges
 {
     /**
      * @var array<string, PaymentChargeResult>
@@ -77,6 +78,13 @@ final class FakePaymentProvider implements PaymentProvider, CorrelatablePaymentP
         ] = $result;
 
         return $result;
+    }
+
+    public function preflightCharge(PaymentChargeRequest $request): void
+    {
+        if (! in_array($request->method, $this->capabilities(), true)) {
+            throw new InvalidArgumentException('Método não suportado pelo provider fake.');
+        }
     }
 
     public function findCharge(
