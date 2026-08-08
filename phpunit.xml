@@ -29,6 +29,17 @@
         <env name="FINANCE_FISCAL_DB_CONNECTION" value="sqlite"/>
         <env name="FINANCE_FISCAL_DB_DATABASE" value=":memory:"/>
         <env name="FINANCE_FISCAL_DB_URL" value=""/>
+        <env name="FINANCE_ENABLED" value="false"/>
+        <env name="FINANCE_AUTOMATION_ENABLED" value="false"/>
+        <env name="PAYMENT_PROVIDER" value="fake"/>
+        <env name="PAYMENT_LIVE_ENABLED" value="false"/>
+        <env name="PAYMENT_WEBHOOKS_ENABLED" value="false"/>
+        <env name="FINANCE_GENERAL_EMAIL_FALLBACK" value="false"/>
+        <env name="FISCAL_ENABLED" value="false"/>
+        <env name="NFSE_PROVIDER" value="fake"/>
+        <env name="NFSE_TRANSMISSION_ENABLED" value="false"/>
+        <env name="NFSE_LIVE_ENABLED" value="false"/>
+        <env name="EFI_ENVIRONMENT" value="homologation"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
