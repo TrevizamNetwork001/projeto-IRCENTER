@@ -35,6 +35,7 @@
 </head>
 
 <body class="auth-body">
+    <a class="skip-link" href="#auth-main">Ir para o formulário de acesso</a>
     {{ $slot }}
 
     <script nonce="{{ request()->attributes->get('csp_nonce') }}">

@@ -1,5 +1,5 @@
 <x-layouts.auth title="Login — IRCENTER">
-    <main class="auth-shell">
+    <main id="auth-main" class="auth-shell" tabindex="-1">
         <x-auth.login-hero/>
         <x-auth.login-form/>
     </main>

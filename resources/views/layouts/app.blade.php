@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}">
 </head>
 <body class="app-body">
+    <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <div class="app-shell">
         <aside class="sidebar">
             <div class="sidebar-brand">
@@ -33,8 +34,20 @@
                     <div class="brand-name">IRCENTER</div>
                     <div class="brand-description">Internet Resource Center</div>
                 </div>
+
+                <button
+                    id="mobile-menu-toggle"
+                    class="mobile-menu-toggle"
+                    type="button"
+                    aria-label="Abrir menu principal"
+                    aria-controls="sidebar-navigation"
+                    aria-expanded="false"
+                >
+                    <span aria-hidden="true">☰</span>
+                </button>
             </div>
 
+            <div id="sidebar-navigation">
             <div class="sidebar-section-label">Operação</div>
 
             <nav class="sidebar-nav" aria-label="Navegação principal">
@@ -229,6 +242,7 @@
                         <span>Serviços principais online</span>
                     </div>
                 </div>
+            </div>
             </div>
         </aside>
 
@@ -459,11 +473,27 @@
                 </div>
             </header>
 
-            <main class="page-content">
+            <main id="main-content" class="page-content" tabindex="-1">
                 @yield('content')
             </main>
         </div>
     </div>
+
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
+        (() => {
+            const toggle = document.getElementById('mobile-menu-toggle');
+            const navigation = document.getElementById('sidebar-navigation');
+
+            toggle?.addEventListener('click', () => {
+                const expanded = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                toggle.setAttribute('aria-label', expanded
+                    ? 'Abrir menu principal'
+                    : 'Fechar menu principal');
+                navigation?.classList.toggle('is-open', ! expanded);
+            });
+        })();
+    </script>
 
     <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {

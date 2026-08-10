@@ -44,7 +44,7 @@
                 >
             </div>
 
-            <select class="filter-select" name="status">
+            <select class="filter-select" name="status" aria-label="Filtrar por status">
                 <option value="all" @selected($status === 'all')>Todos os status</option>
                 <option value="active" @selected($status === 'active')>Ativos</option>
                 <option value="inactive" @selected($status === 'inactive')>Inativos</option>
