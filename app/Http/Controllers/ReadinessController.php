@@ -11,20 +11,10 @@ class ReadinessController extends Controller
 {
     public function __invoke(): JsonResponse
     {
-        $checks = [
-            'application' => true,
-            'database' => $this->databaseReady(),
-            'redis' => $this->redisReady(),
-        ];
-
-        $ready = ! in_array(false, $checks, true);
+        $ready = $this->databaseReady() && $this->redisReady();
 
         return response()->json(
-            [
-                'status' => $ready ? 'ready' : 'unavailable',
-                'checks' => $checks,
-                'timestamp' => now()->toIso8601String(),
-            ],
+            ['status' => $ready ? 'ready' : 'unavailable'],
             $ready ? 200 : 503
         );
     }

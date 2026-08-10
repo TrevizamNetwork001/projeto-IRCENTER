@@ -4,26 +4,93 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class ProductionReadinessTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_readiness_endpoint_is_available(): void
+    public function test_readiness_endpoint_is_minimal_and_stateless(): void
     {
         $connection = Mockery::mock();
         $connection->shouldReceive('ping')->once()->andReturn('PONG');
         Redis::shouldReceive('connection')->once()->andReturn($connection);
 
-        $this->getJson(route('health.ready'))
+        $response = $this->getJson(route('health.ready'));
+
+        $response
             ->assertOk()
-            ->assertJsonPath('status', 'ready')
-            ->assertJsonPath('checks.application', true)
-            ->assertJsonPath('checks.database', true)
-            ->assertJsonPath('checks.redis', true);
+            ->assertExactJson(['status' => 'ready'])
+            ->assertHeaderMissing('Set-Cookie');
+
+        $this->assertStringNotContainsString(
+            'XSRF-TOKEN',
+            implode(';', $response->headers->getCookies())
+        );
+        $this->assertStringNotContainsString(
+            'laravel_session',
+            implode(';', $response->headers->getCookies())
+        );
+    }
+
+    public function test_readiness_route_does_not_use_web_or_auth_middleware(): void
+    {
+        $middleware = app('router')
+            ->getRoutes()
+            ->getByName('health.ready')
+            ?->gatherMiddleware() ?? [];
+
+        $this->assertSame(['api'], $middleware);
+    }
+
+    public function test_readiness_is_unavailable_when_database_fails(): void
+    {
+        DB::shouldReceive('select')
+            ->once()
+            ->with('select 1')
+            ->andThrow(new RuntimeException('database detail'));
+        Redis::shouldReceive('connection')->never();
+
+        $this->getJson(route('health.ready'))
+            ->assertStatus(503)
+            ->assertExactJson(['status' => 'unavailable'])
+            ->assertHeaderMissing('Set-Cookie')
+            ->assertDontSee('database detail');
+    }
+
+    public function test_readiness_is_unavailable_when_redis_fails(): void
+    {
+        $connection = Mockery::mock();
+        $connection->shouldReceive('ping')
+            ->once()
+            ->andThrow(new RuntimeException('redis detail'));
+        Redis::shouldReceive('connection')->once()->andReturn($connection);
+
+        $this->getJson(route('health.ready'))
+            ->assertStatus(503)
+            ->assertExactJson(['status' => 'unavailable'])
+            ->assertHeaderMissing('Set-Cookie')
+            ->assertDontSee('redis detail');
+    }
+
+    public function test_readiness_only_accepts_get_and_head(): void
+    {
+        $this->postJson('/health/ready')->assertMethodNotAllowed();
+    }
+
+    public function test_liveness_endpoint_is_available(): void
+    {
+        $this->get('/up')->assertOk();
+    }
+
+    public function test_guest_cannot_access_diagnostic(): void
+    {
+        $this->get(route('system-diagnostic.index'))
+            ->assertRedirect(route('login'));
     }
 
     public function test_security_headers_are_applied(): void

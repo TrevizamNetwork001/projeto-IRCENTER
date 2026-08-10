@@ -31,7 +31,10 @@ Confirma:
 - Redis disponível
 
 Retorna HTTP 200 quando todos os serviços estão disponíveis e HTTP 503
-quando algum serviço essencial está indisponível.
+quando algum serviço essencial está indisponível. A resposta pública é
+agregada e contém somente `{"status":"ready"}` ou
+`{"status":"unavailable"}`; detalhes das dependências ficam restritos ao
+diagnóstico administrativo.
 
 ## Diagnóstico administrativo
 
