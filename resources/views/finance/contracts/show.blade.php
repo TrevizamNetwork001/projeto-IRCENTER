@@ -266,11 +266,9 @@
                         value="{{
                             old(
                                 'competence',
-                                now(
-                                    config(
-                                        'finance_fiscal.timezone'
-                                    )
-                                )->format('Y-m')
+                                app(\App\Support\BusinessClock::class)
+                                    ->now()
+                                    ->format('Y-m')
                             )
                         }}"
                         required

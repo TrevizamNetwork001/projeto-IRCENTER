@@ -9,7 +9,7 @@ use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Support\Decimal;
-use Carbon\CarbonImmutable;
+use App\Support\BusinessClock;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -18,6 +18,11 @@ use RuntimeException;
 
 final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentProvider, PreflightsPaymentCharges
 {
+    public function __construct(
+        private readonly BusinessClock $clock,
+    ) {
+    }
+
     public function key(): string
     {
         return 'efi';
@@ -89,9 +94,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         }
 
         if (
-            $request->dueOn <= CarbonImmutable::now(
-                config('finance_fiscal.timezone', 'America/Sao_Paulo')
-            )->toDateString()
+            $request->dueOn <= $this->clock->today()->toDateString()
         ) {
             throw new InvalidArgumentException(
                 'Vencimento da cobrança Efí deve ser futuro.'

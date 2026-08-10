@@ -8,6 +8,7 @@ use App\Modules\Finance\Support\Decimal;
 use App\Modules\Shared\Contracts\ClientDirectory;
 use App\Modules\Shared\Services\DomainAudit;
 use App\Modules\Finance\Services\BillingRecipientResolver;
+use App\Support\BusinessClock;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ final class GenerateInvoiceForContract
         private readonly ClientDirectory $clients,
         private readonly BillingRecipientResolver $recipients,
         private readonly DomainAudit $audit,
+        private readonly BusinessClock $clock,
     ) {
     }
 
@@ -38,15 +40,10 @@ final class GenerateInvoiceForContract
             );
         }
 
-        $timezone = config(
-            'finance_fiscal.timezone',
-            'America/Sao_Paulo'
-        );
-
         $month = CarbonImmutable::createFromFormat(
             '!Y-m',
             $competence,
-            $timezone
+            $this->clock->timezone()
         );
 
         return DB::connection('finance_fiscal')
@@ -54,7 +51,6 @@ final class GenerateInvoiceForContract
                 $contractId,
                 $competence,
                 $actorUserId,
-                $timezone,
                 $month,
             ): Invoice {
                 $contract = BillingContract::query()
@@ -236,9 +232,7 @@ final class GenerateInvoiceForContract
                         $generationKey,
 
                     'issued_on' =>
-                        CarbonImmutable::now(
-                            $timezone
-                        )->toDateString(),
+                        $this->clock->today()->toDateString(),
 
                     'due_on' => $dueOn,
 

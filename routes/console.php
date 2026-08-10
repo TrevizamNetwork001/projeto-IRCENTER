@@ -14,5 +14,6 @@ Schedule::command(
 )
     ->name('ircenter-sync-operational-notifications')
     ->everyFiveMinutes()
+    ->timezone(config('app.timezone'))
     ->withoutOverlapping(10)
     ->onOneServer();

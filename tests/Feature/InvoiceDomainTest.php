@@ -9,6 +9,7 @@ use App\Modules\Finance\Actions\GenerateInvoiceForContract;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Shared\Models\DomainAuditEvent;
+use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -28,6 +29,12 @@ class InvoiceDomainTest extends TestCase
             '--path' => 'database/migrations/finance_fiscal',
             '--force' => true,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+        parent::tearDown();
     }
 
     public function test_contract_activation_is_explicit_and_audited(): void
@@ -148,6 +155,23 @@ class InvoiceDomainTest extends TestCase
                 )
                 ->count()
         );
+    }
+
+    public function test_competence_is_idempotent_across_utc_local_midnight(): void
+    {
+        [, $contract] = $this->createActiveContract();
+        $action = app(GenerateInvoiceForContract::class);
+
+        CarbonImmutable::setTestNow('2026-09-01 02:59:59 UTC');
+        $first = $action->handle($contract->id, '2026-08');
+
+        CarbonImmutable::setTestNow('2026-09-01 03:00:00 UTC');
+        $second = $action->handle($contract->id, '2026-08');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame('2026-08-01', $second->competence_month->toDateString());
+        $this->assertSame('2026-08-31', $second->issued_on->toDateString());
+        $this->assertSame(1, Invoice::query()->count());
     }
 
     public function test_different_competences_create_different_invoices(): void
