@@ -17,7 +17,7 @@ img-src 'self' data:; font-src 'self';
 connect-src 'self' https://viacep.com.br;
 script-src 'self' 'nonce-<por-resposta>'; script-src-attr 'none';
 style-src 'self' 'nonce-<por-resposta>';
-style-src-attr 'unsafe-inline'; media-src 'self'; worker-src 'self';
+style-src-attr 'none'; media-src 'self'; worker-src 'self';
 manifest-src 'self';
 ```
 
@@ -49,11 +49,10 @@ Os scripts de tema, senha, menus, clientes, IRR e workflows usam esse nonce.
 O handler `onclick` da página de erro foi convertido para listener com nonce.
 O CSS inline de fallback da página `welcome` também usa nonce.
 
-Resta um atributo `style`, no gráfico do dashboard, que injeta uma custom
-property com gradiente calculado no servidor. Por isso apenas `style-src-attr`
-contém temporariamente `'unsafe-inline'`; `style-src` continua restritivo. A
-remoção exige transformar o valor dinâmico em classes ou em folha de estilo
-gerada de modo seguro e deve ocorrer antes do enforcement.
+O gradiente calculado no servidor para o gráfico do dashboard é declarado em
+um bloco `<style>` protegido pelo nonce da resposta. Não restam atributos
+`style` nas views da aplicação e `style-src-attr` permanece definido como
+`'none'`.
 
 ## Observação e validação manual
 
@@ -75,8 +74,8 @@ Fluxo: **Report-Only → observação → correção das violações → testes 
 enforcement**.
 
 Antes de trocar o nome do header, é obrigatório observar uma janela definida
-em homologação/produção, eliminar violações legítimas (especialmente atributos
-de estilo), executar a futura suíte E2E, validar todos os itens do checklist e
+em homologação/produção, eliminar violações legítimas, executar a futura suíte
+E2E, validar todos os itens do checklist e
 revisar novamente as origens. A `documentation-app` deve receber patch e commit
 próprios depois que seu trabalho pendente estiver separado; ela não foi
 alterada na H5 atual.

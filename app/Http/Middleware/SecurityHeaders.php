@@ -31,7 +31,7 @@ class SecurityHeaders
             "script-src 'self' 'nonce-{$nonce}'",
             "script-src-attr 'none'",
             "style-src 'self' 'nonce-{$nonce}'",
-            "style-src-attr 'unsafe-inline'",
+            "style-src-attr 'none'",
             "media-src 'self'",
             "worker-src 'self'",
             "manifest-src 'self'",

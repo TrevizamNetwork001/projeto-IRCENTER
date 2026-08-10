@@ -3,6 +3,12 @@
 @section('title', 'Dashboard — IRCENTER')
 
 @section('content')
+    <style nonce="{{ request()->attributes->get('csp_nonce') }}">
+        .resource-chart-ring {
+            --resource-chart: {{ $distributionGradient }};
+        }
+    </style>
+
     <section class="page-heading">
         <div>
             <div class="page-eyebrow">
@@ -63,10 +69,7 @@
 
             <div class="resource-overview">
                 <div class="resource-chart">
-                    <div
-                        class="resource-chart-ring"
-                        style="--resource-chart: {{ $distributionGradient }}"
-                    >
+                    <div class="resource-chart-ring">
                         <div>
                             <strong>{{ $totalResources }}</strong>
                             <span>Recursos</span>

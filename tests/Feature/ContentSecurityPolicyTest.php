@@ -24,6 +24,11 @@ class ContentSecurityPolicyTest extends TestCase
         $this->assertStringContainsString("default-src 'self'", $policy);
         $this->assertStringContainsString("object-src 'none'", $policy);
         $this->assertStringContainsString("frame-ancestors 'none'", $policy);
+        $this->assertStringContainsString("style-src-attr 'none'", $policy);
+        $this->assertStringNotContainsString(
+            "style-src-attr 'unsafe-inline'",
+            $policy
+        );
         $this->assertStringNotContainsString("'unsafe-eval'", $policy);
         $this->assertDoesNotMatchRegularExpression(
             '/(?:^|[;\s])\*(?:[;\s]|$)/',
@@ -64,6 +69,10 @@ class ContentSecurityPolicyTest extends TestCase
 
         $response->assertOk();
         $this->assertInlineElementsUseNonce($response->getContent(), $nonce);
+        $this->assertDoesNotMatchRegularExpression(
+            '/\sstyle\s*=/i',
+            $response->getContent()
+        );
     }
 
     public function test_health_and_error_responses_keep_security_headers(): void
