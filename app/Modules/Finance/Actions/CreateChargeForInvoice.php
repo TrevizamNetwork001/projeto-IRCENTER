@@ -316,12 +316,16 @@ final class CreateChargeForInvoice
                             Log::warning(
                                 'Falha ao submeter cobrança ao provider.',
                                 [
-                                    'charge_public_id' =>
-                                        $locked->public_id,
+                                    'operation' =>
+                                        'finance.charge.submit',
 
-                                    'invoice_public_id' =>
-                                        $locked->invoice
-                                            ->public_id,
+                                    'module' => 'finance',
+
+                                    'charge_id' =>
+                                        $locked->id,
+
+                                    'invoice_id' =>
+                                        $locked->invoice_id,
 
                                     'provider' =>
                                         $locked->provider,
@@ -329,9 +333,7 @@ final class CreateChargeForInvoice
                                     'method' =>
                                         $locked->method,
 
-                                    'correlation_id' =>
-                                        $locked
-                                            ->idempotency_key,
+                                    'status' => 'unknown',
 
                                     ...$diagnostics,
                                 ],

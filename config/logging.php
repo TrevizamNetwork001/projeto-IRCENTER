@@ -5,6 +5,9 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
 
+$secureTap = [App\Logging\ConfigureSecureLogging::class];
+$environment = env('APP_ENV', 'production');
+
 return [
 
     /*
@@ -18,7 +21,10 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => env(
+        'LOG_CHANNEL',
+        $environment === 'testing' ? 'testing' : 'stack'
+    ),
 
     /*
     |--------------------------------------------------------------------------
@@ -54,7 +60,12 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env(
+                'LOG_STACK',
+                $environment === 'production'
+                    ? 'stderr,daily'
+                    : 'single'
+            )),
             'ignore_exceptions' => false,
         ],
 
@@ -63,14 +74,16 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => $secureTap,
         ],
 
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'days' => env('LOG_DAILY_DAYS', 14),
+            'days' => env('LOG_DAILY_DAYS', 30),
             'replace_placeholders' => true,
+            'tap' => $secureTap,
         ],
 
         'slack' => [
@@ -80,6 +93,7 @@ return [
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,
+            'tap' => $secureTap,
         ],
 
         'papertrail' => [
@@ -92,6 +106,7 @@ return [
                 'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
             ],
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => $secureTap,
         ],
 
         'stderr' => [
@@ -103,6 +118,18 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => $secureTap,
+        ],
+
+        'testing' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'processors' => [PsrLogMessageProcessor::class],
+            'tap' => $secureTap,
         ],
 
         'syslog' => [
@@ -110,12 +137,14 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'tap' => $secureTap,
         ],
 
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => $secureTap,
         ],
 
         'null' => [
