@@ -374,7 +374,7 @@
         </form>
     </section>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const clientField = document.getElementById('client_id');
             const asnField = document.getElementById('autonomous_system_id');

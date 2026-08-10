@@ -9,7 +9,7 @@
 
     <title>Definir nova senha — IRCENTER</title>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             try {
                 const savedTheme =

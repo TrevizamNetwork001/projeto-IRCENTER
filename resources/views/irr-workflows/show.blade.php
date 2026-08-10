@@ -483,7 +483,7 @@
         </div>
     </section>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const refreshPrefixMode = (field) => {
                 const group = document.querySelector(

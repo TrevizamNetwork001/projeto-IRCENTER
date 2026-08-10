@@ -14,7 +14,7 @@
 
     <title>{{ $title }}</title>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             try {
                 const savedTheme =
@@ -37,7 +37,7 @@
 <body class="auth-body">
     {{ $slot }}
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const themeButton =
                 document.getElementById('auth-theme-toggle');

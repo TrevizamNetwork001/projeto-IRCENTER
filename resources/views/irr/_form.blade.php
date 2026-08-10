@@ -275,7 +275,7 @@
     </button>
 </div>
 
-<script>
+<script nonce="{{ request()->attributes->get('csp_nonce') }}">
     (() => {
         const typeField = document.getElementById('object_type');
         const keyField = document.getElementById('object_key');

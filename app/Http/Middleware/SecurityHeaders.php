@@ -12,7 +12,35 @@ class SecurityHeaders
         Request $request,
         Closure $next
     ): Response {
+        $nonce = base64_encode(random_bytes(18));
+
+        $request->attributes->set('csp_nonce', $nonce);
+
         $response = $next($request);
+
+        $policy = implode('; ', [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "frame-src 'none'",
+            "form-action 'self'",
+            "img-src 'self' data:",
+            "font-src 'self'",
+            "connect-src 'self' https://viacep.com.br",
+            "script-src 'self' 'nonce-{$nonce}'",
+            "script-src-attr 'none'",
+            "style-src 'self' 'nonce-{$nonce}'",
+            "style-src-attr 'unsafe-inline'",
+            "media-src 'self'",
+            "worker-src 'self'",
+            "manifest-src 'self'",
+        ]).';';
+
+        $response->headers->set(
+            'Content-Security-Policy-Report-Only',
+            $policy
+        );
 
         $response->headers->set(
             'X-Content-Type-Options',

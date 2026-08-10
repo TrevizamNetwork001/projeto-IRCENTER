@@ -7,7 +7,7 @@
 
     <title>@yield('title', 'IRCENTER')</title>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             try {
                 const savedTheme = localStorage.getItem('ircenter-theme');
@@ -465,7 +465,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const button = document.getElementById('theme-toggle');
 
@@ -491,7 +491,7 @@
         })();
     </script>
 
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const toggle = document.getElementById(
                 'account-menu-toggle'
@@ -552,7 +552,7 @@
                 });
         })();
     </script>
-    <script>
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
             const toggle = document.getElementById(
                 'notification-menu-toggle'

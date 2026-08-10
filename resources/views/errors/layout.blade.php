@@ -35,14 +35,20 @@
                 </a>
 
                 <button
+                    id="history-back"
                     class="button button-secondary"
                     type="button"
-                    onclick="history.back()"
                 >
                     Voltar
                 </button>
             </div>
         </section>
     </main>
+
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
+        document
+            .getElementById('history-back')
+            ?.addEventListener('click', () => history.back());
+    </script>
 </body>
 </html>
