@@ -86,10 +86,37 @@ class ExternalEndpointGuard
         ];
     }
 
+    /** @param array{host: string, ip: string} $target */
+    public function connectionOptions(array $target): array
+    {
+        if (! defined('CURLOPT_RESOLVE')) {
+            throw new InvalidArgumentException(
+                'O transporte HTTP seguro requer ext-curl.'
+            );
+        }
+
+        $ip = str_contains($target['ip'], ':')
+            ? '['.$target['ip'].']'
+            : $target['ip'];
+
+        return [
+            'allow_redirects' => false,
+            'http_errors' => false,
+            'verify' => true,
+            'curl' => [
+                CURLOPT_RESOLVE => [sprintf(
+                    '%s:443:%s',
+                    $target['host'],
+                    $ip
+                )],
+            ],
+        ];
+    }
+
     /**
      * @return array<int, string>
      */
-    private function resolve(string $host): array
+    protected function resolve(string $host): array
     {
         if (filter_var($host, FILTER_VALIDATE_IP)) {
             return [$host];
@@ -119,11 +146,38 @@ class ExternalEndpointGuard
 
     private function isPublicIp(string $ip): bool
     {
+        $mappedIpv4 = $this->mappedIpv4($ip);
+
+        if ($mappedIpv4 !== null) {
+            return $this->isPublicIp($mappedIpv4);
+        }
+
         return filter_var(
             $ip,
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE
                 | FILTER_FLAG_NO_RES_RANGE
         ) !== false;
+    }
+
+    private function mappedIpv4(string $ip): ?string
+    {
+        if (! str_starts_with(strtolower($ip), '::ffff:')) {
+            return null;
+        }
+
+        $candidate = substr($ip, 7);
+
+        if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $candidate;
+        }
+
+        $packed = @inet_pton($ip);
+
+        if ($packed === false || strlen($packed) !== 16) {
+            return null;
+        }
+
+        return inet_ntop(substr($packed, 12)) ?: null;
     }
 }

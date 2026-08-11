@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Prefix;
 use App\Models\RoutingIncident;
 use App\Services\AuditService;
+use App\Support\CsvCellSanitizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -110,6 +111,7 @@ class ReportController extends Controller
         return response()->streamDownload(
             function () use ($headers, $rows): void {
                 $output = fopen('php://output', 'wb');
+                $sanitizer = app(CsvCellSanitizer::class);
 
                 if ($output === false) {
                     return;
@@ -119,7 +121,7 @@ class ReportController extends Controller
                 fputcsv($output, $headers, ';');
 
                 foreach ($rows as $row) {
-                    fputcsv($output, $row, ';');
+                    fputcsv($output, $sanitizer->sanitizeRow($row), ';');
                 }
 
                 fclose($output);

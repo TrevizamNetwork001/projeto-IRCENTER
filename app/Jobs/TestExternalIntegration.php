@@ -50,11 +50,7 @@ class TestExternalIntegration implements ShouldQueue
                     min(5, $integration->timeout_seconds)
                 )
                 ->retry(0, 0, throw: false)
-                ->withOptions([
-                    'allow_redirects' => false,
-                    'http_errors' => false,
-                    'verify' => true,
-                ]);
+                ->withOptions($guard->connectionOptions($target));
 
             if (
                 $integration->authentication_type

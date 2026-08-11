@@ -79,6 +79,29 @@ class ReportTest extends TestCase
         ]);
     }
 
+    public function test_export_neutralizes_every_dangerous_text_cell(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        Client::factory()->create([
+            'legal_name' => '=SUM(A1:A2)',
+            'trade_name' => "\t+cmd",
+            'email' => 'safe@example.net',
+        ]);
+
+        $content = $this->actingAs($user)
+            ->get(route('reports.export', ['report' => 'clients']))
+            ->streamedContent();
+
+        $this->assertStringContainsString("'=SUM(A1:A2)", $content);
+        $this->assertStringContainsString("'\t+cmd", $content);
+        $this->assertStringNotContainsString(";=SUM(A1:A2)", $content);
+    }
+
     public function test_incident_report_respects_severity_filter(): void
     {
         $user = User::factory()->create([

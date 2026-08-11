@@ -10,15 +10,15 @@ class ContentSecurityPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_report_only_policy_is_restrictive_and_not_enforced(): void
+    public function test_policy_is_restrictive_and_enforced(): void
     {
         $response = $this->get(route('login'));
         $policy = $response->headers->get(
-            'Content-Security-Policy-Report-Only'
+            'Content-Security-Policy'
         );
 
         $response->assertOk()
-            ->assertHeaderMissing('Content-Security-Policy');
+            ->assertHeaderMissing('Content-Security-Policy-Report-Only');
 
         $this->assertNotNull($policy);
         $this->assertStringContainsString("default-src 'self'", $policy);
@@ -42,10 +42,10 @@ class ContentSecurityPolicyTest extends TestCase
         $second = $this->get(route('login'));
 
         $firstNonce = $this->nonceFromPolicy($first->headers->get(
-            'Content-Security-Policy-Report-Only'
+            'Content-Security-Policy'
         ));
         $secondNonce = $this->nonceFromPolicy($second->headers->get(
-            'Content-Security-Policy-Report-Only'
+            'Content-Security-Policy'
         ));
 
         $this->assertNotSame($firstNonce, $secondNonce);
@@ -64,7 +64,7 @@ class ContentSecurityPolicyTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('dashboard'));
         $nonce = $this->nonceFromPolicy($response->headers->get(
-            'Content-Security-Policy-Report-Only'
+            'Content-Security-Policy'
         ));
 
         $response->assertOk();
@@ -83,8 +83,8 @@ class ContentSecurityPolicyTest extends TestCase
             $response
                 ->assertHeader('X-Content-Type-Options', 'nosniff')
                 ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-                ->assertHeader('Content-Security-Policy-Report-Only')
-                ->assertHeaderMissing('Content-Security-Policy');
+                ->assertHeader('Content-Security-Policy')
+                ->assertHeaderMissing('Content-Security-Policy-Report-Only');
         }
     }
 

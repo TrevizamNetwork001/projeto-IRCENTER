@@ -51,6 +51,12 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 ## Security Vulnerabilities
 
+### Controles de segurança da aplicação
+
+- Testes de integrações externas aceitam somente HTTPS público, desabilitam redirects e fixam a conexão no IP previamente validado, preservando hostname, SNI e validação TLS.
+- Toda célula textual dos relatórios CSV é neutralizada quando começa, inclusive após controles/espaços, com um operador de fórmula de planilha.
+- A CSP homologada é aplicada em modo enforcement com nonce por requisição. Em caso de regressão real, o rollback controlado consiste em retornar temporariamente o header para `Content-Security-Policy-Report-Only`, investigar a violação e restaurar enforcement; não se deve afrouxar diretivas.
+
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
 ## License
