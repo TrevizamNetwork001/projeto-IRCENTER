@@ -38,6 +38,11 @@ class Client extends Model
         return $this->hasMany(AutonomousSystem::class);
     }
 
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(ClientContact::class);
+    }
+
     public function routingIncidents(): HasMany
     {
         return $this->hasMany(RoutingIncident::class);

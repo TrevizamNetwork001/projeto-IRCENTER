@@ -57,8 +57,8 @@ final class BillingRecipientResolver
             ->where('client_id', $clientId)
             ->where('type', $type)
             ->where('active', true)
+            ->where('is_primary', true)
             ->whereNotNull('email')
-            ->orderByDesc('is_primary')
             ->orderBy('id')
             ->get();
 

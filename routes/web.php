@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AutonomousSystemController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\BillingContractController;
@@ -240,6 +241,36 @@ Route::middleware([
         '/clients/{client}/toggle-active',
         [ClientController::class, 'toggleActive']
     )->name('clients.toggle-active');
+
+    Route::get(
+        '/clients/{client}/contacts/create',
+        [ClientContactController::class, 'create']
+    )->name('clients.contacts.create');
+
+    Route::post(
+        '/clients/{client}/contacts',
+        [ClientContactController::class, 'store']
+    )->name('clients.contacts.store');
+
+    Route::get(
+        '/clients/{client}/contacts/{contact}/edit',
+        [ClientContactController::class, 'edit']
+    )->name('clients.contacts.edit');
+
+    Route::put(
+        '/clients/{client}/contacts/{contact}',
+        [ClientContactController::class, 'update']
+    )->name('clients.contacts.update');
+
+    Route::patch(
+        '/clients/{client}/contacts/{contact}/toggle-active',
+        [ClientContactController::class, 'toggleActive']
+    )->name('clients.contacts.toggle-active');
+
+    Route::patch(
+        '/clients/{client}/contacts/{contact}/toggle-primary',
+        [ClientContactController::class, 'togglePrimary']
+    )->name('clients.contacts.toggle-primary');
 
     Route::resource('clients', ClientController::class);
 

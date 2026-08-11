@@ -105,7 +105,13 @@ class ClientController extends Controller
     public function show(Client $client): View
     {
         return view('clients.show', [
-            'client' => $client,
+            'client' => $client->load([
+                'contacts' => fn ($query) => $query
+                    ->orderBy('type')
+                    ->orderByDesc('active')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('name'),
+            ]),
         ]);
     }
 

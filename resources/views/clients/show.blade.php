@@ -48,6 +48,10 @@
         </div>
     @endif
 
+    @if ($errors->any())
+        <div class="alert-error">{{ $errors->first() }}</div>
+    @endif
+
     <section class="details-grid">
         <article class="panel details-card">
             <header class="panel-header">
@@ -183,6 +187,66 @@
                     </dd>
                 </div>
             </dl>
+        </article>
+
+        <article class="panel details-card details-card-wide client-contacts-card">
+            <header class="panel-header">
+                <div>
+                    <span class="panel-eyebrow">Relacionamento</span>
+                    <h2>CONTATOS DO CLIENTE</h2>
+                </div>
+                @if (auth()->user()->isAdministrator())
+                    <a class="button button-secondary" href="{{ route('clients.contacts.create', $client) }}">+ Adicionar contato</a>
+                @endif
+            </header>
+
+            @if ($client->contacts->isEmpty())
+                <div class="client-contacts-empty">
+                    <p>Nenhum contato estruturado cadastrado.</p>
+                    @if (auth()->user()->isAdministrator())
+                        <a class="inline-link" href="{{ route('clients.contacts.create', $client) }}">+ Adicionar contato</a>
+                    @endif
+                </div>
+            @else
+                <div class="client-contact-list">
+                    @foreach ($client->contacts as $contact)
+                        <section class="client-contact-item">
+                            <div class="client-contact-main">
+                                <div class="client-contact-heading">
+                                    <strong>{{ $contact->typeLabel() }}</strong>
+                                    <span class="status-pill {{ $contact->active ? 'is-active' : 'is-inactive' }}">{{ $contact->active ? 'Ativo' : 'Inativo' }}</span>
+                                    @if ($contact->is_primary)
+                                        <span class="contact-primary-pill">Principal</span>
+                                    @endif
+                                </div>
+                                <div class="client-contact-name">{{ $contact->name }}</div>
+                                <a class="inline-link" href="mailto:{{ $contact->email }}">{{ $contact->email }}</a>
+                                @if ($contact->phone)
+                                    <span class="table-secondary-text">{{ $contact->formattedPhone() }}</span>
+                                @endif
+                            </div>
+
+                            @if (auth()->user()->isAdministrator())
+                                <div class="client-contact-actions">
+                                    <a class="button button-secondary" href="{{ route('clients.contacts.edit', [$client, $contact]) }}">Editar</a>
+                                    <form method="POST" action="{{ route('clients.contacts.toggle-active', [$client, $contact]) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button class="button button-secondary" type="submit">{{ $contact->active ? 'Desativar' : 'Ativar' }}</button>
+                                    </form>
+                                    @if ($contact->active)
+                                        <form method="POST" action="{{ route('clients.contacts.toggle-primary', [$client, $contact]) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class="button button-secondary" type="submit">{{ $contact->is_primary ? 'Desmarcar principal' : 'Marcar principal' }}</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endif
+                        </section>
+                    @endforeach
+                </div>
+            @endif
         </article>
 
         <article class="panel details-card details-card-wide">
