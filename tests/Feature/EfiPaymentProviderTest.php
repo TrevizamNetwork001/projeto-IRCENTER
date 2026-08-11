@@ -257,11 +257,17 @@ class EfiPaymentProviderTest extends TestCase
             '*/v1/charge/45002412/metadata' => Http::response(['code' => 200]),
         ]);
 
-        app(EfiPaymentProvider::class)->updateNotificationMetadata(
+        $result = app(EfiPaymentProvider::class)->updateNotificationMetadata(
             '45002412',
             'https://ircenter.example.test/api/v1/webhooks/payments/efi',
             'invoice_01KZS3B07TQ0Q100ZEN6J7RRD3_provider_efi_method_boleto_pix',
         );
+
+        $this->assertSame([
+            'http_status' => 200,
+            'code' => 200,
+            'message' => null,
+        ], $result);
 
         Http::assertSent(fn (Request $request): bool =>
             $request->method() === 'PUT'

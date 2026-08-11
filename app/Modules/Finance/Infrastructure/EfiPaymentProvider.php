@@ -328,11 +328,12 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         );
     }
 
+    /** @return array{http_status: int, code: int|string|null, message: string|null} */
     public function updateNotificationMetadata(
         string $providerChargeId,
         string $notificationUrl,
         string $customId,
-    ): void {
+    ): array {
         $providerChargeId = trim($providerChargeId);
         $notificationUrl = trim($notificationUrl);
         $customId = trim($customId);
@@ -372,6 +373,14 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         );
 
         $response->throw();
+
+        $message = $response->json('data');
+
+        return [
+            'http_status' => $response->status(),
+            'code' => $response->json('code'),
+            'message' => is_string($message) ? mb_substr($message, 0, 500) : null,
+        ];
     }
 
     /**
