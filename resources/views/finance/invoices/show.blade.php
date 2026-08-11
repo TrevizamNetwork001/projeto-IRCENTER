@@ -7,10 +7,10 @@
     @php
         $statusLabel = match ($invoice->status) {
             'draft' => 'Rascunho',
-            'open' => 'Aberta',
+            'open' => 'Aguardando pagamento',
             'partially_paid' => 'Parcialmente paga',
-            'paid' => 'Paga',
-            'canceled' => 'Cancelada',
+            'paid' => 'Pago',
+            'canceled' => 'Cancelado',
             default => $invoice->status,
         };
     @endphp
@@ -29,9 +29,7 @@
                 }}
             </h1>
 
-            <p class="table-mono">
-                {{ $invoice->public_id }}
-            </p>
+            <p>Fatura #{{ $invoice->id }}</p>
         </div>
 
         <a
@@ -100,8 +98,8 @@
                         <td>
                             {{
                                 $invoice->source === 'recurring'
-                                    ? 'Contrato recorrente'
-                                    : 'Avulsa'
+                                    ? 'Cobrança recorrente'
+                                    : 'Cobrança avulsa'
                             }}
                         </td>
                     </tr>
@@ -155,7 +153,7 @@
 
                     @if ($contract)
                         <tr>
-                            <th>Contrato financeiro</th>
+                            <th>Cobrança recorrente</th>
                             <td>
                                 <a
                                     class="table-primary-link"
@@ -166,7 +164,7 @@
                                         )
                                     }}"
                                 >
-                                    Abrir contrato
+                                    Ver cobrança recorrente
                                 </a>
                             </td>
                         </tr>
@@ -176,10 +174,13 @@
         </div>
     </section>
 
-    <section class="panel">
+    @if(auth()->user()->isAdministrator())
+    <details class="panel finance-technical">
+        <summary>Detalhes técnicos</summary>
+    <section>
         <div class="page-heading">
             <div>
-                <h2>Pagador congelado na emissão</h2>
+                <h2>Dados preservados na emissão</h2>
 
                 <p>
                     Estes dados não mudam se o cadastro
@@ -258,6 +259,9 @@
             </table>
         </div>
     </section>
+    <dl class="details-list"><div><dt>Referência interna</dt><dd class="table-mono">{{ $invoice->public_id }}</dd></div></dl>
+    </details>
+    @endif
 
     <section class="panel">
         <div class="page-heading">
@@ -937,10 +941,10 @@
         @endif
     </section>
 
-    <section class="panel">
+    <section id="historico" class="panel">
         <div class="page-heading">
             <div>
-                <h2>Timeline financeira</h2>
+            <h2>Histórico</h2>
                 <p>Eventos auditáveis da fatura, cobranças e pagamentos.</p>
             </div>
         </div>
@@ -963,16 +967,17 @@
                         @foreach ($timeline as $event)
                             @php
                                 $eventLabel = match ($event->action) {
-                                    'invoice.generated' => 'Invoice gerada',
+                                    'invoice.generated' => 'Fatura gerada',
+                                    'invoice.one_off_created' => 'Fatura avulsa criada',
                                     'charge.reserved' => 'Cobrança reservada',
                                     'charge.submission_unknown' => 'Envio com resultado desconhecido',
                                     'charge.reconciled' => 'Cobrança reconciliada',
-                                    'charge.synced' => 'Cobrança atualizada pelo provider',
+                                    'charge.synced' => 'Cobrança atualizada',
                                     'payment_webhook.received' => 'Webhook recebido',
                                     'payment_webhook.processed' => 'Webhook processado',
                                     'charge.paid' => 'Pagamento confirmado',
                                     'payment.created' => 'Pagamento registrado',
-                                    'invoice.paid' => 'Invoice paga',
+                                    'invoice.paid' => 'Fatura paga',
                                     default => $event->action,
                                 };
                             @endphp

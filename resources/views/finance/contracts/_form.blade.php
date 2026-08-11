@@ -1,5 +1,9 @@
 @csrf
 
+@if($returnToClient ?? false)
+    <input type="hidden" name="return_to_client" value="1">
+@endif
+
 @if ($errors->has('finance'))
     <div class="field-error">
         {{ $errors->first('finance') }}
@@ -244,6 +248,12 @@
     </div>
 </div>
 
+<label class="checkbox-row">
+    <input type="hidden" name="active" value="0">
+    <input type="checkbox" name="active" value="1" @checked(old('active', true))>
+    <span>Ativar cobrança recorrente ao salvar</span>
+</label>
+
 @if(isset($billingItems))
 <script nonce="{{ request()->attributes->get('csp_nonce') }}">document.getElementById('billing_item_id').addEventListener('change',function(){const o=this.options[this.selectedIndex];if(o.dataset.amount)document.getElementById('unit_amount').value=o.dataset.amount;});</script>
 @endif
@@ -251,12 +261,12 @@
 <div class="form-actions">
     <a
         class="button button-secondary"
-        href="{{ route('finance.contracts.index') }}"
+        href="{{ ($returnToClient ?? false) && ($selectedClientId ?? 0) ? route('finance.clients.show', $selectedClientId) : route('finance.contracts.index') }}"
     >
         Cancelar
     </a>
 
     <button class="button button-primary" type="submit">
-        Criar contrato
+        Salvar configuração
     </button>
 </div>

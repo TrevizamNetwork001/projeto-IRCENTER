@@ -14,6 +14,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use App\Modules\Shared\Services\DomainAudit;
+use Illuminate\Support\Facades\DB;
 
 final class BillingContractController extends Controller
 {
@@ -41,8 +43,6 @@ final class BillingContractController extends Controller
         }
 
         $contracts = BillingContract::query()
-            ->with(['items' => fn ($query) => $query->where('active', true)])
-            ->with(['items' => fn ($query) => $query->where('active', true)])
             ->with(['items' => fn ($query) => $query->where('active', true)])
             ->withCount('items')
             ->when(
@@ -118,12 +118,14 @@ final class BillingContractController extends Controller
             'billingItems' => BillingItem::query()
                 ->where('active', true)->orderBy('name')->get(),
             'selectedClientId' => (int) request()->query('client_id', 0),
+            'returnToClient' => request()->boolean('return_to_client'),
         ]);
     }
 
     public function store(
         Request $request,
         CreateBillingContract $action,
+        ActivateBillingContract $activate,
     ): RedirectResponse {
         $this->authorizeWrite();
 
@@ -195,6 +197,10 @@ final class BillingContractController extends Controller
             'billing_item_id' => [
                 'nullable', 'integer',
             ],
+
+            'return_to_client' => ['nullable', 'boolean'],
+
+            'active' => ['nullable', 'boolean'],
 
             'description' => [
                 'nullable',
@@ -290,14 +296,25 @@ final class BillingContractController extends Controller
                 ]);
         }
 
+        if ($request->boolean('active')) {
+            $contract = $activate->handle(
+                $contract->id,
+                auth()->id(),
+            );
+        }
+
         return redirect()
             ->route(
-                'finance.contracts.show',
-                $contract
+                ! empty($data['return_to_client'])
+                    ? 'finance.clients.show'
+                    : 'finance.contracts.show',
+                ! empty($data['return_to_client'])
+                    ? $contract->core_client_id
+                    : $contract
             )
             ->with(
                 'success',
-                'Contrato financeiro criado com sucesso.'
+                'Cobrança recorrente configurada com sucesso.'
             );
     }
 
@@ -321,6 +338,81 @@ final class BillingContractController extends Controller
             'financeEnabled' =>
                 $this->financeEnabled(),
         ]);
+    }
+
+    public function edit(BillingContract $billingContract): View
+    {
+        $this->authorizeWrite();
+        $billingContract->load('items');
+
+        return view('finance.contracts.edit', [
+            'contract' => $billingContract,
+            'billingItems' => BillingItem::query()
+                ->where(function ($query) use ($billingContract): void {
+                    $query->where('active', true);
+
+                    $currentItemId = $billingContract->items
+                        ->firstWhere('active', true)?->billing_item_id;
+
+                    if ($currentItemId) {
+                        $query->orWhereKey($currentItemId);
+                    }
+                })
+                ->orderBy('name')
+                ->get(),
+        ]);
+    }
+
+    public function update(Request $request, BillingContract $billingContract, DomainAudit $audit): RedirectResponse
+    {
+        $this->authorizeWrite();
+        $request->merge([
+            'quantity' => str_replace(',', '.', trim((string) $request->input('quantity'))),
+            'unit_amount' => str_replace(',', '.', trim((string) $request->input('unit_amount'))),
+        ]);
+        $data = $request->validate([
+            'billing_item_id' => ['required', 'integer'],
+            'quantity' => ['required', 'regex:/^\d{1,10}(\.\d{1,4})?$/'],
+            'unit_amount' => ['required', 'regex:/^\d{1,12}(\.\d{1,2})?$/'],
+            'generation_day' => ['required', 'integer', 'min:1', 'max:31'],
+            'due_day' => ['required', 'integer', 'min:1', 'max:31'],
+            'billing_email_override' => ['nullable', 'email', 'max:255'],
+            'active' => ['nullable', 'boolean'],
+        ]);
+        $catalogItem = BillingItem::query()->whereKey($data['billing_item_id'])
+            ->where('active', true)->first();
+        if (! $catalogItem) {
+            return back()->withInput()->withErrors(['billing_item_id' => 'Selecione um item ativo.']);
+        }
+
+        DB::connection('finance_fiscal')->transaction(function () use ($billingContract, $catalogItem, $data, $request, $audit): void {
+            $billingContract->update([
+                'generation_day' => $data['generation_day'],
+                'due_day' => $data['due_day'],
+                'billing_email_override' => $data['billing_email_override'] ?? null,
+                'status' => $request->boolean('active')
+                    ? BillingContract::STATUS_ACTIVE
+                    : BillingContract::STATUS_SUSPENDED,
+            ]);
+            $item = $billingContract->items()->where('active', true)->first();
+            $values = [
+                'billing_item_id' => $catalogItem->id,
+                'service_code' => 'CAT-'.$catalogItem->id,
+                'description' => $catalogItem->name,
+                'quantity' => $data['quantity'],
+                'unit_amount' => $data['unit_amount'],
+                'active' => true,
+            ];
+            $item ? $item->update($values) : $billingContract->items()->create($values);
+            $audit->record('finance', 'recurring_configuration.updated', auth()->id(), 'billing_contract', $billingContract->id, [
+                'billing_item_id' => $catalogItem->id,
+                'generation_day' => $data['generation_day'],
+                'due_day' => $data['due_day'],
+            ]);
+        });
+
+        return redirect()->route('finance.clients.show', $billingContract->core_client_id)
+            ->with('success', 'Cobrança recorrente atualizada.');
     }
 
     public function activate(

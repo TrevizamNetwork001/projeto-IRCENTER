@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Finance\Actions\CreateBillingContract;
 use App\Modules\Finance\Actions\CreateOneOffInvoice;
 use App\Modules\Finance\Models\BillingItem;
+use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Invoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -106,6 +107,128 @@ class FinanceUxTest extends TestCase
         $viewer = $this->user(User::ROLE_VIEWER);
         $this->actingAs($viewer)->get(route('finance.items.index'))->assertOk()->assertSee('Itens de cobrança');
         $this->actingAs($viewer)->get(route('finance.invoices.index', ['charge' => 'without']))->assertOk()->assertSee('Faturas / Cobranças')->assertSee('Aguardando pagamento');
+    }
+
+    public function test_finance_clients_lists_one_row_per_client_and_highlights_active_configuration(): void
+    {
+        $viewer = $this->user(User::ROLE_VIEWER);
+        $client = Client::factory()->create([
+            'legal_name' => 'Cliente recorrente único',
+            'trade_name' => null,
+            'active' => true,
+        ]);
+        $item = BillingItem::query()->create([
+            'name' => 'Consultoria mensal',
+            'default_amount' => '500.00',
+            'active' => true,
+        ]);
+
+        $historical = $this->contract($client, $item, '100.00');
+        $historical->update(['status' => BillingContract::STATUS_SUSPENDED]);
+        $current = $this->contract($client, $item, '500.00');
+        $current->update(['status' => BillingContract::STATUS_ACTIVE]);
+
+        $response = $this->actingAs($viewer)
+            ->get(route('finance.clients.index'))
+            ->assertOk()
+            ->assertSee('Consultoria mensal')
+            ->assertSee('1 ativa(s) + 1 histórica(s)')
+            ->assertSee('R$ 500,00');
+
+        $this->assertSame(
+            1,
+            substr_count($response->getContent(), 'Cliente recorrente único')
+        );
+    }
+
+    public function test_finance_client_detail_hides_previous_configurations_and_uses_operational_language(): void
+    {
+        $viewer = $this->user(User::ROLE_VIEWER);
+        $client = Client::factory()->create(['active' => true]);
+        $item = BillingItem::query()->create([
+            'name' => 'Link mensal',
+            'default_amount' => '250.00',
+            'active' => true,
+        ]);
+        $old = $this->contract($client, $item, '100.00');
+        $old->update(['status' => BillingContract::STATUS_SUSPENDED]);
+        $current = $this->contract($client, $item, '250.00');
+        $current->update(['status' => BillingContract::STATUS_ACTIVE]);
+
+        $this->actingAs($viewer)
+            ->get(route('finance.clients.show', $client))
+            ->assertOk()
+            ->assertSee('Cobrança recorrente')
+            ->assertSee('Automação de geração')
+            ->assertSee('Desligada')
+            ->assertSee('<details class="panel finance-history">', false)
+            ->assertSee('Configurações anteriores (1)')
+            ->assertDontSee('Detalhes técnicos');
+    }
+
+    public function test_client_without_recurrence_can_configure_it_and_start_one_off_invoice_preselected(): void
+    {
+        $admin = $this->user(User::ROLE_ADMIN);
+        $client = Client::factory()->create(['active' => true]);
+
+        $this->actingAs($admin)
+            ->get(route('finance.clients.show', $client))
+            ->assertOk()
+            ->assertSee('Sem cobrança recorrente')
+            ->assertSee('Configurar cobrança recorrente');
+
+        $this->actingAs($admin)
+            ->get(route('finance.invoices.create', ['client_id' => $client->id]))
+            ->assertOk()
+            ->assertSee('value="'.$client->id.'" selected', false);
+    }
+
+    public function test_dashboard_uses_client_language_and_human_statuses(): void
+    {
+        $viewer = $this->user(User::ROLE_VIEWER);
+
+        $this->actingAs($viewer)
+            ->get(route('finance.dashboard'))
+            ->assertOk()
+            ->assertSee('Clientes com recorrência')
+            ->assertSee('Próximas cobranças')
+            ->assertSee('Ver clientes')
+            ->assertDontSee('Ver contratos')
+            ->assertDontSee('Configuração operacional')
+            ->assertDontSee('Provider:');
+    }
+
+    public function test_viewer_cannot_edit_recurring_configuration(): void
+    {
+        $viewer = $this->user(User::ROLE_VIEWER);
+        $client = Client::factory()->create(['active' => true]);
+        $item = BillingItem::query()->create([
+            'name' => 'Suporte',
+            'default_amount' => '50.00',
+            'active' => true,
+        ]);
+        $contract = $this->contract($client, $item, '50.00');
+
+        $this->actingAs($viewer)
+            ->get(route('finance.contracts.edit', $contract))
+            ->assertForbidden();
+        $this->actingAs($viewer)
+            ->put(route('finance.contracts.update', $contract), [])
+            ->assertForbidden();
+    }
+
+    private function contract(Client $client, BillingItem $item, string $amount): BillingContract
+    {
+        return app(CreateBillingContract::class)->handle(
+            $client->id,
+            ['generation_day' => 5, 'due_day' => 20],
+            [[
+                'billing_item_id' => $item->id,
+                'description' => $item->name,
+                'quantity' => '1',
+                'unit_amount' => $amount,
+            ]]
+        );
     }
 
     private function user(string $role): User

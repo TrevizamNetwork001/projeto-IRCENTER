@@ -16,6 +16,11 @@ final class FinanceDashboardController extends Controller
             ->where('status', Invoice::STATUS_OPEN)
             ->sum('total');
 
+        $activeConfigurations = BillingContract::query()
+            ->where('status', BillingContract::STATUS_ACTIVE)
+            ->with(['items' => fn ($query) => $query->where('active', true)])
+            ->latest('id')->get()->unique('core_client_id')->values();
+
         return view('finance.dashboard', [
             'financeEnabled' =>
                 (bool) config(
@@ -35,43 +40,8 @@ final class FinanceDashboardController extends Controller
                     'homologation'
                 ),
 
-            'contractsTotal' =>
-                BillingContract::query()->count(),
-
-            'contractsActive' =>
-                BillingContract::query()
-                    ->where(
-                        'status',
-                        BillingContract::STATUS_ACTIVE
-                    )
-                    ->count(),
-
-            'invoicesOpen' =>
-                Invoice::query()
-                    ->where(
-                        'status',
-                        Invoice::STATUS_OPEN
-                    )
-                    ->count(),
-
             'openInvoiceTotal' =>
                 $openInvoiceTotal,
-
-            'chargesOpen' =>
-                Charge::query()
-                    ->where(
-                        'status',
-                        Charge::STATUS_OPEN
-                    )
-                    ->count(),
-
-            'chargesUnknown' =>
-                Charge::query()
-                    ->where(
-                        'status',
-                        Charge::STATUS_SUBMISSION_UNKNOWN
-                    )
-                    ->count(),
 
             'overdueTotal' => Invoice::query()
                 ->where('status', Invoice::STATUS_OPEN)
@@ -83,14 +53,16 @@ final class FinanceDashboardController extends Controller
                 ->whereDate('updated_at', '>=', $clock->today()->startOfMonth()->toDateString())
                 ->sum('total'),
 
-            'recentContracts' =>
-                BillingContract::query()
-                    ->latest('id')
-                    ->limit(5)
-                    ->get(),
+            'clientsRecurring' => $activeConfigurations->count(),
+            'upcomingConfigurations' => $activeConfigurations,
+            'attentionCount' => Charge::query()->whereIn('status', [
+                Charge::STATUS_SUBMISSION_UNKNOWN,
+                Charge::STATUS_FAILED,
+                Charge::STATUS_SUBMITTING,
+            ])->count(),
 
             'recentInvoices' =>
-                Invoice::query()
+                Invoice::query()->with(['charges' => fn ($query) => $query->latest('id')])
                     ->latest('id')
                     ->limit(5)
                     ->get(),

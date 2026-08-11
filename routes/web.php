@@ -12,6 +12,7 @@ use App\Http\Controllers\BillingContractController;
 use App\Http\Controllers\BillingItemController;
 use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\FinanceDashboardController;
+use App\Http\Controllers\FinanceClientController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
@@ -80,6 +81,11 @@ Route::middleware([
         FinanceDashboardController::class
     )->name('finance.dashboard');
 
+    Route::get('/finance/clients', [FinanceClientController::class, 'index'])
+        ->name('finance.clients.index');
+    Route::get('/finance/clients/{client}', [FinanceClientController::class, 'show'])
+        ->whereNumber('client')->name('finance.clients.show');
+
     Route::get('/finance/items', [BillingItemController::class, 'index'])
         ->name('finance.items.index');
     Route::post('/finance/items', [BillingItemController::class, 'store'])
@@ -143,6 +149,11 @@ Route::middleware([
         '/finance/contracts',
         [BillingContractController::class, 'store']
     )->name('finance.contracts.store');
+
+    Route::get('/finance/contracts/{billingContract}/edit', [BillingContractController::class, 'edit'])
+        ->whereNumber('billingContract')->name('finance.contracts.edit');
+    Route::put('/finance/contracts/{billingContract}', [BillingContractController::class, 'update'])
+        ->whereNumber('billingContract')->name('finance.contracts.update');
 
     Route::get(
         '/finance/contracts/{billingContract}',

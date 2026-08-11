@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Novo contrato financeiro — IRCENTER')
+@section('title', 'Configurar cobrança recorrente — IRCENTER')
 
 @section('content')
     @include('finance._nav')
@@ -11,11 +11,10 @@
                 Financeiro
             </div>
 
-            <h1>Novo contrato financeiro</h1>
+            <h1>Configurar cobrança recorrente</h1>
 
             <p>
-                Cadastre um contrato recorrente para um cliente
-                ativo do IRCENTER.
+                Defina item, valor, geração e vencimento mensal do cliente.
             </p>
         </div>
     </section>

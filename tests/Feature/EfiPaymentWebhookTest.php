@@ -604,9 +604,9 @@ class EfiPaymentWebhookTest extends TestCase
             ->assertSee('Valor recebido')
             ->assertSee('850,00')
             ->assertSee('EFI')
-            ->assertSee('Timeline financeira')
+            ->assertSee('Histórico')
             ->assertSee('Pagamento registrado')
-            ->assertSee('Invoice paga')
+            ->assertSee('Fatura paga')
             ->assertDontSee('Gerar cobrança');
     }
 
