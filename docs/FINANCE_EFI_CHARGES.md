@@ -146,6 +146,13 @@ maior gera `payment.amount_mismatch`; o recebimento confirmado é preservado,
 mas a Invoice não é baixada automaticamente. Pagamento parcial não é inferido
 nesta fase.
 
+Exceção explícita: a baixa manual Efí `settled` não informa `value` no
+histórico. Como essa operação confirma integralmente a própria cobrança, o
+Payment usa seu valor nominal persistido. A exceção não se aplica a eventos
+bancários `paid` sem valor, que continuam bloqueados. O reprocessamento de um
+evento `settled` já visto pode concluir um Payment ausente e permanece
+idempotente pelas constraints de Charge e referência remota.
+
 Eventos auditáveis incluem recebimento/processamento do webhook,
 sincronização ou descarte de transição, confirmação da Charge, criação do
 Payment, divergência e baixa da Invoice. A tela da Invoice exibe pagamentos e
