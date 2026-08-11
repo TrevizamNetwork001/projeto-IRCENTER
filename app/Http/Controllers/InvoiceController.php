@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Modules\Finance\Actions\GenerateInvoiceForContract;
+use App\Modules\Finance\Actions\CreateOneOffInvoice;
+use App\Models\Client;
+use App\Modules\Finance\Models\BillingItem;
 use App\Modules\Finance\Contracts\CorrelatablePaymentProvider;
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Models\BillingContract;
@@ -37,6 +40,11 @@ final class InvoiceController extends Controller
         $competence = trim(
             (string) $request->query('competence', '')
         );
+        $issuedFrom = trim((string) $request->query('issued_from', ''));
+        $issuedTo = trim((string) $request->query('issued_to', ''));
+        $dueFrom = trim((string) $request->query('due_from', ''));
+        $dueTo = trim((string) $request->query('due_to', ''));
+        $chargeFilter = (string) $request->query('charge', 'all');
 
         $allowedStatuses = [
             'all',
@@ -62,7 +70,7 @@ final class InvoiceController extends Controller
         }
 
         $invoices = Invoice::query()
-            ->withCount('items')
+            ->with(['charges' => fn ($query) => $query->latest('id')])->withCount('items')
             ->when(
                 $search !== '',
                 function ($query) use ($search): void {
@@ -93,7 +101,8 @@ final class InvoiceController extends Controller
                                     'public_id',
                                     'like',
                                     "%{$search}%"
-                                );
+                                )->orWhereHas('charges', fn ($charge) =>
+                                    $charge->where('provider_charge_id', 'like', "%{$search}%"));
                         }
                     );
                 }
@@ -111,6 +120,12 @@ final class InvoiceController extends Controller
                         $competence.'-01'
                     )
             )
+            ->when($issuedFrom !== '', fn ($query) => $query->whereDate('issued_on', '>=', $issuedFrom))
+            ->when($issuedTo !== '', fn ($query) => $query->whereDate('issued_on', '<=', $issuedTo))
+            ->when($dueFrom !== '', fn ($query) => $query->whereDate('due_on', '>=', $dueFrom))
+            ->when($dueTo !== '', fn ($query) => $query->whereDate('due_on', '<=', $dueTo))
+            ->when($chargeFilter === 'with', fn ($query) => $query->whereHas('charges'))
+            ->when($chargeFilter === 'without', fn ($query) => $query->whereDoesntHave('charges'))
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
@@ -120,9 +135,44 @@ final class InvoiceController extends Controller
             'search' => $search,
             'status' => $status,
             'competence' => $competence,
+            'issuedFrom' => $issuedFrom, 'issuedTo' => $issuedTo,
+            'dueFrom' => $dueFrom, 'dueTo' => $dueTo,
+            'chargeFilter' => $chargeFilter,
             'financeEnabled' =>
                 $this->financeEnabled(),
         ]);
+    }
+
+    public function create(Request $request): View
+    {
+        $this->authorizeWrite();
+        return view('finance.invoices.create', [
+            'clients' => Client::query()->where('active', true)->orderBy('legal_name')->get(),
+            'items' => BillingItem::query()->where('active', true)->orderBy('name')->get(),
+            'selectedClientId' => (int) $request->query('client_id', 0),
+        ]);
+    }
+
+    public function store(Request $request, CreateOneOffInvoice $action): RedirectResponse
+    {
+        $this->authorizeWrite();
+        $request->merge([
+            'quantity' => str_replace(',', '.', trim((string) $request->input('quantity'))),
+            'unit_amount' => str_replace(',', '.', trim((string) $request->input('unit_amount'))),
+        ]);
+        $data = $request->validate([
+            'client_id' => ['required', 'integer', 'exists:clients,id'],
+            'billing_item_id' => ['required', 'integer'],
+            'quantity' => ['required', 'regex:/^\d{1,10}(\.\d{1,4})?$/'],
+            'unit_amount' => ['required', 'regex:/^\d{1,12}(\.\d{1,2})?$/'],
+            'due_on' => ['required', 'date', 'after_or_equal:today'],
+        ]);
+        try {
+            $invoice = $action->handle((int) $data['client_id'], (int) $data['billing_item_id'], $data['quantity'], $data['unit_amount'], $data['due_on'], auth()->id());
+        } catch (DomainException|InvalidArgumentException $exception) {
+            return back()->withInput()->withErrors(['finance' => $exception->getMessage()]);
+        }
+        return redirect()->route('finance.invoices.show', $invoice)->with('success', 'Fatura avulsa criada. A emissão da cobrança é uma etapa separada.');
     }
 
     public function show(

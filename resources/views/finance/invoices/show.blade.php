@@ -3,6 +3,7 @@
 @section('title', 'Fatura — IRCENTER')
 
 @section('content')
+    @include('finance._nav')
     @php
         $statusLabel = match ($invoice->status) {
             'draft' => 'Rascunho',

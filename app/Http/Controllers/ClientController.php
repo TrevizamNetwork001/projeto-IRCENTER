@@ -104,6 +104,16 @@ class ClientController extends Controller
 
     public function show(Client $client): View
     {
+        $financeSchema = \Illuminate\Support\Facades\Schema::connection('finance_fiscal');
+        $contracts = $financeSchema->hasTable('billing_contracts')
+            ? \App\Modules\Finance\Models\BillingContract::query()
+                ->where('core_client_id', $client->id)->with('items')->latest('id')->get()
+            : collect();
+        $invoices = $financeSchema->hasTable('invoices')
+            ? \App\Modules\Finance\Models\Invoice::query()
+                ->where('core_client_id', $client->id)->with('payments')->latest('id')->limit(8)->get()
+            : collect();
+
         return view('clients.show', [
             'client' => $client->load([
                 'contacts' => fn ($query) => $query
@@ -112,6 +122,9 @@ class ClientController extends Controller
                     ->orderByDesc('is_primary')
                     ->orderBy('name'),
             ]),
+            'financeContracts' => $contracts,
+            'financeInvoices' => $invoices,
+            'financeOpenTotal' => $invoices->where('status', 'open')->sum('total'),
         ]);
     }
 

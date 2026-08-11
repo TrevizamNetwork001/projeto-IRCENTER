@@ -6,10 +6,11 @@ use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
 use Illuminate\View\View;
+use App\Support\BusinessClock;
 
 final class FinanceDashboardController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(BusinessClock $clock): View
     {
         $openInvoiceTotal = Invoice::query()
             ->where('status', Invoice::STATUS_OPEN)
@@ -71,6 +72,16 @@ final class FinanceDashboardController extends Controller
                         Charge::STATUS_SUBMISSION_UNKNOWN
                     )
                     ->count(),
+
+            'overdueTotal' => Invoice::query()
+                ->where('status', Invoice::STATUS_OPEN)
+                ->whereDate('due_on', '<', $clock->today()->toDateString())
+                ->sum('total'),
+
+            'paidInPeriod' => Invoice::query()
+                ->where('status', Invoice::STATUS_PAID)
+                ->whereDate('updated_at', '>=', $clock->today()->startOfMonth()->toDateString())
+                ->sum('total'),
 
             'recentContracts' =>
                 BillingContract::query()

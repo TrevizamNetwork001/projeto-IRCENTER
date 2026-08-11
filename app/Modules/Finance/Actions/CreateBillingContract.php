@@ -3,6 +3,7 @@
 namespace App\Modules\Finance\Actions;
 
 use App\Modules\Finance\Models\BillingContract;
+use App\Modules\Finance\Models\BillingItem;
 use App\Modules\Finance\Support\Decimal;
 use App\Modules\Shared\Contracts\ClientDirectory;
 use App\Modules\Shared\Services\DomainAudit;
@@ -102,8 +103,28 @@ final class CreateBillingContract
         $normalizedItems = [];
 
         foreach ($items as $position => $item) {
+            $billingItemId = $item['billing_item_id'] ?? null;
+            $catalogItem = null;
+
+            if ($billingItemId !== null) {
+                $catalogItem = BillingItem::query()
+                    ->whereKey($billingItemId)
+                    ->where('active', true)
+                    ->first();
+
+                if (! $catalogItem) {
+                    throw new InvalidArgumentException(
+                        'Item de cobrança precisa estar ativo.'
+                    );
+                }
+            }
+
             $description = trim(
-                (string) ($item['description'] ?? '')
+                (string) (
+                    $catalogItem?->name
+                    ?? $item['description']
+                    ?? ''
+                )
             );
 
             if ($description === '') {
@@ -113,6 +134,8 @@ final class CreateBillingContract
             }
 
             $normalizedItems[] = [
+                'billing_item_id' =>
+                    $catalogItem?->id,
                 'service_code' =>
                     $item['service_code'] ?? null,
 

@@ -3,6 +3,7 @@
 @section('title', 'Financeiro — IRCENTER')
 
 @section('content')
+    @include('finance._nav')
     <section class="page-heading">
         <div>
             <div class="page-eyebrow">
@@ -18,6 +19,10 @@
         </div>
 
         <div class="page-actions">
+            @if($financeEnabled && auth()->user()->isAdministrator())
+            <a class="button button-secondary" href="{{ route('finance.items.index') }}">Novo item</a>
+            <a class="button button-primary" href="{{ route('finance.invoices.create') }}">Nova cobrança avulsa</a>
+            @endif
             <a
                 class="button button-secondary"
                 href="{{ route('finance.contracts.index') }}"
@@ -97,6 +102,8 @@
                         <td>Submissões incertas</td>
                         <td>{{ $chargesUnknown }}</td>
                     </tr>
+                    <tr><td>Pago no período</td><td>R$ {{ number_format((float)$paidInPeriod,2,',','.') }}</td></tr>
+                    <tr><td>Vencido</td><td>R$ {{ number_format((float)$overdueTotal,2,',','.') }}</td></tr>
                 </tbody>
             </table>
         </div>

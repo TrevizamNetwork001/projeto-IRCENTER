@@ -52,6 +52,11 @@
         <div class="alert-error">{{ $errors->first() }}</div>
     @endif
 
+    <section class="panel finance-client-summary">
+        <header class="panel-header"><div><span class="panel-eyebrow">Cliente</span><h2>Financeiro</h2></div>@if(auth()->user()->isAdministrator())<a class="button button-primary" href="{{ route('finance.invoices.create',['client_id'=>$client->id]) }}">Gerar cobrança avulsa</a>@endif</header>
+        <div class="finance-metrics"><div><span>Contratos ativos</span><strong>{{ $financeContracts->where('status','active')->count() }}</strong></div><div><span>Total em aberto</span><strong>R$ {{ number_format((float)$financeOpenTotal,2,',','.') }}</strong></div><div><span>Faturas recentes</span><strong>{{ $financeInvoices->count() }}</strong></div><div><span>Próxima cobrança</span><strong>{{ ($next=$financeContracts->where('status','active')->sortBy('generation_day')->first()) ? 'Dia '.$next->generation_day : '—' }}</strong></div></div>
+        <div class="page-actions"><a class="button button-secondary" href="{{ route('finance.contracts.index',['search'=>$client->client_code]) }}">Ver contratos</a><a class="button button-secondary" href="{{ route('finance.invoices.index',['search'=>$client->client_code]) }}">Ver faturas e pagamentos</a>@if(auth()->user()->isAdministrator())<a class="button button-secondary" href="{{ route('finance.contracts.create',['client_id'=>$client->id]) }}">Novo contrato</a>@endif</div>
+    </section>
     <section class="details-grid">
         <article class="panel details-card">
             <header class="panel-header">

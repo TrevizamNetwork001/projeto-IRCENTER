@@ -86,4 +86,9 @@ final class Invoice extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function charges(): HasMany
+    {
+        return $this->hasMany(Charge::class, 'invoice_id');
+    }
 }

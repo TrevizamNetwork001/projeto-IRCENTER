@@ -12,6 +12,7 @@ final class BillingContractItem extends Model
     protected $table = 'billing_contract_items';
 
     protected $fillable = [
+        'billing_item_id',
         'service_code',
         'description',
         'quantity',
@@ -23,6 +24,7 @@ final class BillingContractItem extends Model
     protected function casts(): array
     {
         return [
+            'billing_item_id' => 'integer',
             'quantity' => 'decimal:4',
             'unit_amount' => 'decimal:2',
             'active' => 'boolean',

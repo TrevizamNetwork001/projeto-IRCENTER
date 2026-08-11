@@ -24,7 +24,7 @@
                 <option
                     value="{{ $client->id }}"
                     @selected(
-                        (string) old('client_id')
+                        (string) old('client_id', $selectedClientId ?? '')
                         === (string) $client->id
                     )
                 >
@@ -142,10 +142,24 @@
     </div>
 
     <div class="field-group field-span-2">
-        <h3>Primeiro item do contrato</h3>
+        <h3>Passo 2 — Item e valor do contrato</h3>
+        <p class="field-help">O valor salvo é um snapshot. Alterações futuras no catálogo não mudam este contrato.</p>
     </div>
 
-    <div class="field-group">
+    @if(isset($billingItems))
+    <div class="field-group field-span-2">
+        <label for="billing_item_id">Item de cobrança <span>*</span></label>
+        <select id="billing_item_id" class="form-control" name="billing_item_id" required>
+            <option value="">Selecione...</option>
+            @foreach($billingItems as $billingItem)
+                <option value="{{ $billingItem->id }}" data-name="{{ $billingItem->name }}" data-amount="{{ $billingItem->default_amount }}" @selected((int)old('billing_item_id')===$billingItem->id)>{{ $billingItem->name }} — R$ {{ number_format((float)$billingItem->default_amount,2,',','.') }}</option>
+            @endforeach
+        </select>
+        @error('billing_item_id')<div class="field-error">{{ $message }}</div>@enderror
+    </div>
+    @endif
+
+    <div class="field-group" @if(isset($billingItems)) hidden @endif>
         <label for="service_code">
             Código do serviço
         </label>
@@ -184,7 +198,7 @@
         @enderror
     </div>
 
-    <div class="field-group field-span-2">
+    <div class="field-group field-span-2" @if(isset($billingItems)) hidden @endif>
         <label for="description">
             Descrição <span>*</span>
         </label>
@@ -196,7 +210,7 @@
             type="text"
             maxlength="255"
             value="{{ old('description') }}"
-            required
+            @unless(isset($billingItems)) required @endunless
         >
 
         @error('description')
@@ -229,6 +243,10 @@
         @enderror
     </div>
 </div>
+
+@if(isset($billingItems))
+<script nonce="{{ request()->attributes->get('csp_nonce') }}">document.getElementById('billing_item_id').addEventListener('change',function(){const o=this.options[this.selectedIndex];if(o.dataset.amount)document.getElementById('unit_amount').value=o.dataset.amount;});</script>
+@endif
 
 <div class="form-actions">
     <a

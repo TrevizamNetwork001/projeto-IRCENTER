@@ -3,6 +3,7 @@
 @section('title', 'Contrato financeiro — IRCENTER')
 
 @section('content')
+    @include('finance._nav')
     @php
         $statusLabel = match ($contract->status) {
             'draft' => 'Rascunho',

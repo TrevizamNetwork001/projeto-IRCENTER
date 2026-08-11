@@ -9,6 +9,7 @@ use App\Http\Controllers\ClientContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\BillingContractController;
+use App\Http\Controllers\BillingItemController;
 use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\InvoiceController;
@@ -78,6 +79,20 @@ Route::middleware([
         '/finance',
         FinanceDashboardController::class
     )->name('finance.dashboard');
+
+    Route::get('/finance/items', [BillingItemController::class, 'index'])
+        ->name('finance.items.index');
+    Route::post('/finance/items', [BillingItemController::class, 'store'])
+        ->name('finance.items.store');
+    Route::put('/finance/items/{billingItem}', [BillingItemController::class, 'update'])
+        ->whereNumber('billingItem')->name('finance.items.update');
+    Route::patch('/finance/items/{billingItem}/toggle', [BillingItemController::class, 'toggle'])
+        ->whereNumber('billingItem')->name('finance.items.toggle');
+
+    Route::get('/finance/invoices/create', [InvoiceController::class, 'create'])
+        ->name('finance.invoices.create');
+    Route::post('/finance/invoices', [InvoiceController::class, 'store'])
+        ->name('finance.invoices.store');
 
 
 

@@ -8,6 +8,7 @@ use App\Modules\Finance\Actions\CreateBillingContract;
 use App\Modules\Finance\Actions\SuspendBillingContract;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\BillingItem;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,9 @@ final class BillingContractController extends Controller
         }
 
         $contracts = BillingContract::query()
+            ->with(['items' => fn ($query) => $query->where('active', true)])
+            ->with(['items' => fn ($query) => $query->where('active', true)])
+            ->with(['items' => fn ($query) => $query->where('active', true)])
             ->withCount('items')
             ->when(
                 $search !== '',
@@ -111,6 +115,9 @@ final class BillingContractController extends Controller
 
         return view('finance.contracts.create', [
             'clients' => $clients,
+            'billingItems' => BillingItem::query()
+                ->where('active', true)->orderBy('name')->get(),
+            'selectedClientId' => (int) request()->query('client_id', 0),
         ]);
     }
 
@@ -185,8 +192,13 @@ final class BillingContractController extends Controller
                 'max:100',
             ],
 
+            'billing_item_id' => [
+                'nullable', 'integer',
+            ],
+
             'description' => [
-                'required',
+                'nullable',
+                'required_without:billing_item_id',
                 'string',
                 'max:255',
             ],
@@ -207,6 +219,20 @@ final class BillingContractController extends Controller
             'unit_amount.regex' =>
                 'Valor unitário deve ser um número com até 2 casas decimais.',
         ]);
+
+        $catalogItem = null;
+        if (! empty($data['billing_item_id'])) {
+            $catalogItem = BillingItem::query()
+                ->whereKey($data['billing_item_id'])
+                ->where('active', true)->first();
+            if (! $catalogItem) {
+                return back()->withInput()->withErrors([
+                    'billing_item_id' => 'Selecione um item de cobrança ativo.',
+                ]);
+            }
+            $data['description'] = $catalogItem->name;
+            $data['service_code'] = 'CAT-'.$catalogItem->id;
+        }
 
         try {
             $contract = $action->handle(
@@ -234,6 +260,8 @@ final class BillingContractController extends Controller
 
                 items: [
                     [
+                        'billing_item_id' =>
+                            $catalogItem?->id,
                         'service_code' =>
                             $data['service_code'] ?? null,
 

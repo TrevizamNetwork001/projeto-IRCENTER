@@ -3,6 +3,7 @@
 @section('title', 'Novo contrato financeiro — IRCENTER')
 
 @section('content')
+    @include('finance._nav')
     <section class="page-heading">
         <div>
             <div class="page-eyebrow">

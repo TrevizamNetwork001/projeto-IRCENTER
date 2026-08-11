@@ -3,6 +3,7 @@
 @section('title', 'Contratos financeiros — IRCENTER')
 
 @section('content')
+    @include('finance._nav')
     <section class="page-heading">
         <div>
             <div class="page-eyebrow">
@@ -122,7 +123,7 @@
                     <thead>
                         <tr>
                             <th>Cliente</th>
-                            <th>Itens</th>
+                            <th>Serviço principal</th><th>Valor total</th>
                             <th>Geração</th>
                             <th>Vencimento</th>
                             <th>Status</th>
@@ -175,7 +176,8 @@
                                     </span>
                                 </td>
 
-                                <td>{{ $contract->items_count }}</td>
+                                <td>{{ $contract->items->first()?->description ?: 'Requer configuração' }}<span class="table-secondary-text">{{ $contract->items_count }} item(ns)</span></td>
+                                <td>R$ {{ number_format($contract->items->sum(fn($item)=>(float)$item->quantity*(float)$item->unit_amount),2,',','.') }}</td>
 
                                 <td>
                                     Dia {{ $contract->generation_day }}
