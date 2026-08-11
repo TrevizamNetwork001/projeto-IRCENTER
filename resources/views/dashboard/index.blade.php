@@ -26,7 +26,11 @@
 
         <div class="page-heading-status">
             <span>Última atualização</span>
-            <strong>{{ now()->format('d/m/Y H:i') }}</strong>
+            <strong>{{
+                app(\App\Support\BusinessClock::class)
+                    ->now()
+                    ->format('d/m/Y H:i')
+            }}</strong>
         </div>
     </section>
 

@@ -7,12 +7,34 @@ use App\Models\AutonomousSystem;
 use App\Models\Client;
 use App\Models\Prefix;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DashboardMetricsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+        parent::tearDown();
+    }
+
+    public function test_dashboard_displays_update_time_in_business_timezone(): void
+    {
+        CarbonImmutable::setTestNow('2026-08-11T17:16:00Z');
+
+        $user = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('11/08/2026 14:16');
+    }
 
     public function test_dashboard_displays_real_resource_totals(): void
     {
