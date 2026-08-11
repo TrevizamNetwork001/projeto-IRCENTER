@@ -24,6 +24,7 @@ class LoggingObservabilityTest extends TestCase
     public function test_production_rotation_policy_is_explicit(): void
     {
         $this->assertSame('daily', config('logging.channels.daily.driver'));
+        $this->assertSame(0640, config('logging.channels.daily.permission'));
         $this->assertSame(30, config('logging.channels.daily.days'));
         $this->assertContains(
             ConfigureSecureLogging::class,
@@ -33,6 +34,27 @@ class LoggingObservabilityTest extends TestCase
             ConfigureSecureLogging::class,
             config('logging.channels.stderr.tap')
         );
+    }
+
+    public function test_daily_channel_creates_new_log_with_private_group_mode(): void
+    {
+        $basePath = storage_path('framework/testing/h9-mode-probe.log');
+        $datedPath = storage_path(
+            'framework/testing/h9-mode-probe-'.now()->format('Y-m-d').'.log'
+        );
+
+        @unlink($datedPath);
+        config()->set('logging.channels.daily.path', $basePath);
+        Log::forgetChannel('daily');
+
+        Log::channel('daily')->warning('mode probe');
+        Log::forgetChannel('daily');
+        clearstatcache(true, $datedPath);
+
+        $this->assertFileExists($datedPath);
+        $this->assertSame(0640, fileperms($datedPath) & 0777);
+
+        @unlink($datedPath);
     }
 
     public function test_configured_channel_removes_sensitive_markers(): void
