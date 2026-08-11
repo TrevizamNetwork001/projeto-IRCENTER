@@ -328,6 +328,52 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         );
     }
 
+    public function updateNotificationMetadata(
+        string $providerChargeId,
+        string $notificationUrl,
+        string $customId,
+    ): void {
+        $providerChargeId = trim($providerChargeId);
+        $notificationUrl = trim($notificationUrl);
+        $customId = trim($customId);
+
+        if (preg_match('/^\d{1,30}$/D', $providerChargeId) !== 1) {
+            throw new InvalidArgumentException('ID da cobrança Efí inválido.');
+        }
+
+        if (
+            ! filter_var($notificationUrl, FILTER_VALIDATE_URL)
+            || ! str_starts_with(strtolower($notificationUrl), 'https://')
+            || strlen($notificationUrl) > 255
+        ) {
+            throw new InvalidArgumentException('notification_url Efí deve usar HTTPS.');
+        }
+
+        if (
+            $customId === ''
+            || strlen($customId) > 255
+            || str_contains($customId, ':')
+            || preg_match('/^[A-Za-z0-9_-]+$/D', $customId) !== 1
+        ) {
+            throw new InvalidArgumentException('custom_id Efí inválido.');
+        }
+
+        $this->assertOperationAllowed();
+
+        $response = $this->authorizedRequest()->put(
+            $this->baseUrl()
+                .'/v1/charge/'
+                .rawurlencode($providerChargeId)
+                .'/metadata',
+            [
+                'notification_url' => $notificationUrl,
+                'custom_id' => $customId,
+            ],
+        );
+
+        $response->throw();
+    }
+
     /**
      * @return list<EfiNotificationEvent>
      */

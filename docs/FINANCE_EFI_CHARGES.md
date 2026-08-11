@@ -75,10 +75,11 @@ portanto 4xx após o POST também permanece incerto. Mensagens brutas não chega
 A reconciliação executa OAuth e GETs: usa ID remoto quando disponível ou busca
 por `custom_id` exato em janela da criação. Zero resultados mantém incerteza,
 um atualiza idempotentemente e múltiplos bloqueiam como ambiguidade. Nunca faz
-POST, cancelamento ou retry. Produção/live, webhook e automação seguem
-bloqueados pelas flags e pela trava adicional da Web.
+POST, cancelamento ou retry. Produção/live e automação seguem bloqueados pelas
+flags e pela trava adicional da Web. O webhook pode ser habilitado
+separadamente em homologação sem liberar criação live.
 
-## Runbook do próximo smoke controlado (não executar nesta fase)
+## Emissão homologada
 
 1. Obter autorização explícita para uma única emissão real em homologação.
 2. Confirmar flags: Finance ligado; automação, live e webhooks desligados;
@@ -98,13 +99,13 @@ bloqueados pelas flags e pela trava adicional da Web.
 9. Se o resultado ficar incerto, não repetir; executar somente reconciliação
    read-only e preservar evidências.
 
-Incidente histórico: a Charge id=2 foi criada pela arquitetura anterior, que
-reservava antes da validação do telefone. Ela deve permanecer
-`submission_unknown`, sem ID remoto, sem alteração manual e sem retry.
+As Charges históricas 3 e 4 permanecem `submission_unknown`, sem ID remoto e
+sem retry. A Charge 5 (`provider_charge_id=45002412`) comprovou emissão,
+artefatos e recuperação após perda de resposta, sem segundo POST.
 
 ## Webhook e confirmação de pagamento
 
-O endpoint futuro é `POST /api/v1/webhooks/payments/efi`. Ele não usa sessão
+O endpoint é `POST /api/v1/webhooks/payments/efi`. Ele não usa sessão
 Web nem CSRF, aceita somente form/JSON/multipart, limita o body a 4096 bytes e
 fica oculto com 404 enquanto `PAYMENT_WEBHOOKS_ENABLED=false`. O callback Efí
 contém apenas o identificador `notification`; nunca é suficiente para mudar o
@@ -161,13 +162,15 @@ Payment é o efeito financeiro único. O fluxo é `POST token → atualizar rece
 → GET /notification/token → eventos ainda não vistos → SyncChargeFromProvider
 → Payment/Invoice`.
 
-### Runbook do webhook real futuro
+### Runbook do webhook em homologação
 
-1. Aplicar a migration financeira pendente após backup e janela autorizada.
+1. Confirmar que a migration financeira de Payment/webhook foi aplicada após
+   backup verificável.
 2. Confirmar endpoint HTTPS público, limites e TLS.
 3. Manter produção/live e automação bloqueadas.
 4. Ativar `PAYMENT_WEBHOOKS_ENABLED` somente em janela explícita.
-5. Registrar a URL na Efí apenas com autorização separada.
+5. Atualizar somente `notification_url` e `custom_id` da Charge existente pelo
+   método restrito `updateNotificationMetadata`, após autorização separada.
 6. Enviar callback controlado e confirmar receipt agregado, GET autenticado,
    evento normalizado e nenhuma criação de cobrança.
 7. Repetir o mesmo token, confirmar novo GET e provar idempotência pelos IDs dos

@@ -250,6 +250,47 @@ class EfiPaymentProviderTest extends TestCase
         );
     }
 
+    public function test_update_notification_metadata_sends_only_allowed_fields(): void
+    {
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/charge/45002412/metadata' => Http::response(['code' => 200]),
+        ]);
+
+        app(EfiPaymentProvider::class)->updateNotificationMetadata(
+            '45002412',
+            'https://ircenter.example.test/api/v1/webhooks/payments/efi',
+            'invoice_01KZS3B07TQ0Q100ZEN6J7RRD3_provider_efi_method_boleto_pix',
+        );
+
+        Http::assertSent(fn (Request $request): bool =>
+            $request->method() === 'PUT'
+            && $request->url() === 'https://cobrancas-h.api.efipay.com.br/v1/charge/45002412/metadata'
+            && $request->data() === [
+                'notification_url' => 'https://ircenter.example.test/api/v1/webhooks/payments/efi',
+                'custom_id' => 'invoice_01KZS3B07TQ0Q100ZEN6J7RRD3_provider_efi_method_boleto_pix',
+            ]
+        );
+    }
+
+    public function test_update_notification_metadata_rejects_unsafe_inputs_before_http(): void
+    {
+        foreach ([
+            ['x', 'https://valid.test/hook', 'valid_id'],
+            ['45002412', 'http://invalid.test/hook', 'valid_id'],
+            ['45002412', 'https://valid.test/hook', 'invoice:unsafe'],
+        ] as $arguments) {
+            try {
+                app(EfiPaymentProvider::class)->updateNotificationMetadata(...$arguments);
+                $this->fail('Metadata insegura deveria ser rejeitada.');
+            } catch (InvalidArgumentException) {
+                // Esperado antes de OAuth ou PUT.
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
     public function test_payload_uses_cnpj_address_and_integer_cents(): void
     {
         Http::fake([

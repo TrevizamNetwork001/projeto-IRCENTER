@@ -8,6 +8,7 @@ use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\PaymentProviderEvent;
 use App\Modules\Shared\Models\DomainAuditEvent;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
@@ -140,10 +141,15 @@ final class InvoiceController extends Controller
 
         $paymentIds = $invoice->payments->pluck('id');
         $chargeIds = $charges->pluck('id');
+        $receiptIds = PaymentProviderEvent::query()
+            ->whereIn('charge_id', $chargeIds)
+            ->whereNotNull('webhook_receipt_id')
+            ->pluck('webhook_receipt_id')
+            ->unique();
 
         $timeline = DomainAuditEvent::query()
             ->where('module', 'finance')
-            ->where(function ($query) use ($invoice, $chargeIds, $paymentIds): void {
+            ->where(function ($query) use ($invoice, $chargeIds, $paymentIds, $receiptIds): void {
                 $query->where(function ($query) use ($invoice): void {
                     $query->where('entity_type', 'invoice')
                         ->where('entity_id', (string) $invoice->id);
@@ -160,6 +166,13 @@ final class InvoiceController extends Controller
                     $query->orWhere(function ($query) use ($paymentIds): void {
                         $query->where('entity_type', 'payment')
                             ->whereIn('entity_id', $paymentIds->map(fn ($id) => (string) $id));
+                    });
+                }
+
+                if ($receiptIds->isNotEmpty()) {
+                    $query->orWhere(function ($query) use ($receiptIds): void {
+                        $query->where('entity_type', 'payment_webhook_receipt')
+                            ->whereIn('entity_id', $receiptIds->map(fn ($id) => (string) $id));
                     });
                 }
             })

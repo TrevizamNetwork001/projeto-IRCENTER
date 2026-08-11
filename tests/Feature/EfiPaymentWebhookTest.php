@@ -158,6 +158,44 @@ class EfiPaymentWebhookTest extends TestCase
         );
     }
 
+    public function test_webhook_accepts_real_form_urlencoded_and_json(): void
+    {
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        $token = '09027955-5e06-4ff0-a9c7-46b47b8f1b27';
+
+        $this->call(
+            'POST', '/api/v1/webhooks/payments/efi', [], [], [],
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            'notification='.rawurlencode($token),
+        )->assertOk();
+
+        $this->postJson('/api/v1/webhooks/payments/efi', [
+            'notification' => $token,
+        ])->assertOk()->assertJson(['duplicate_token' => true]);
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 1, 'finance_fiscal');
+        $this->assertSame(2, PaymentWebhookReceipt::query()->firstOrFail()->receive_count);
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 2);
+    }
+
+    public function test_webhook_rejects_missing_empty_and_non_scalar_tokens(): void
+    {
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+
+        foreach ([
+            [],
+            ['notification' => ''],
+            ['notification' => []],
+            ['notification' => ['token' => 'value']],
+        ] as $payload) {
+            $this->postJson('/api/v1/webhooks/payments/efi', $payload)
+                ->assertUnprocessable();
+        }
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+    }
+
     public function test_job_consumes_history_and_updates_charge(): void
     {
         $charge = $this->efiCharge();
@@ -552,8 +590,8 @@ class EfiPaymentWebhookTest extends TestCase
             ->assertSee('850,00')
             ->assertSee('EFI')
             ->assertSee('Timeline financeira')
-            ->assertSee('payment.created')
-            ->assertSee('invoice.paid')
+            ->assertSee('Pagamento registrado')
+            ->assertSee('Invoice paga')
             ->assertDontSee('Gerar cobrança');
     }
 

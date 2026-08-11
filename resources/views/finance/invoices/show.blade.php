@@ -960,9 +960,24 @@
                     </thead>
                     <tbody>
                         @foreach ($timeline as $event)
+                            @php
+                                $eventLabel = match ($event->action) {
+                                    'invoice.generated' => 'Invoice gerada',
+                                    'charge.reserved' => 'Cobrança reservada',
+                                    'charge.submission_unknown' => 'Envio com resultado desconhecido',
+                                    'charge.reconciled' => 'Cobrança reconciliada',
+                                    'charge.synced' => 'Cobrança atualizada pelo provider',
+                                    'payment_webhook.received' => 'Webhook recebido',
+                                    'payment_webhook.processed' => 'Webhook processado',
+                                    'charge.paid' => 'Pagamento confirmado',
+                                    'payment.created' => 'Pagamento registrado',
+                                    'invoice.paid' => 'Invoice paga',
+                                    default => $event->action,
+                                };
+                            @endphp
                             <tr>
                                 <td>{{ $event->created_at?->format('d/m/Y H:i:s') }}</td>
-                                <td class="table-mono">{{ $event->action }}</td>
+                                <td>{{ $eventLabel }}</td>
                                 <td>{{ $event->entity_type }} #{{ $event->entity_id }}</td>
                             </tr>
                         @endforeach
