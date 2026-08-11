@@ -587,6 +587,43 @@ class ChargeSubmissionSafetyTest extends TestCase
         ];
     }
 
+    public function test_invalid_efi_custom_id_fails_before_reservation_and_http(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+
+        $invoice = $this->efiInvoice();
+        $invoice->forceFill([
+            'public_id' => str_pad('01.TEST', 26, 'X'),
+        ])->save();
+
+        try {
+            $this->efiAction()->handle(
+                $invoice->id,
+                Charge::METHOD_BOLETO_PIX
+            );
+            $this->fail('Custom ID inválido deveria falhar localmente.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertStringContainsString(
+                'caractere não suportado',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('charges', 0, 'finance_fiscal');
+        $this->assertDatabaseMissing(
+            'domain_audit_events',
+            ['action' => 'charge.submission_reserved'],
+            'finance_fiscal'
+        );
+        $this->assertDatabaseMissing(
+            'domain_audit_events',
+            ['action' => 'charge.submission_unknown'],
+            'finance_fiscal'
+        );
+        Http::assertNothingSent();
+    }
+
     private function efiAction(): CreateChargeForInvoice
     {
         config()->set('finance_fiscal.providers.efi.environment', 'homologation');

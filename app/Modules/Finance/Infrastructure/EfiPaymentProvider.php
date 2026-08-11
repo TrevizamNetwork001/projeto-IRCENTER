@@ -9,6 +9,7 @@ use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Support\Decimal;
+use App\Modules\Finance\Support\EfiCustomId;
 use App\Support\BusinessClock;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -47,9 +48,9 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
     public function createCharge(
         PaymentChargeRequest $request,
     ): PaymentChargeResult {
-        $this->assertOperationAllowed();
-
         $payload = $this->chargePayload($request);
+
+        $this->assertOperationAllowed();
 
         $response = $this->authorizedRequest()
             ->post($this->baseUrl().'/v1/charge/one-step', $payload);
@@ -122,7 +123,9 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
 
             'metadata' => [
                 'custom_id' =>
-                    $request->idempotencyKey,
+                    EfiCustomId::fromCorrelationId(
+                        $request->idempotencyKey
+                    ),
             ],
 
             'payment' => [
@@ -182,6 +185,11 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         string $beginDate,
         string $endDate,
     ): ?PaymentChargeResult {
+        $remoteCustomId =
+            EfiCustomId::fromCorrelationId(
+                $correlationId
+            );
+
         $this->assertOperationAllowed();
 
         $correlationId = trim(
@@ -213,7 +221,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 .'/v1/charges',
             [
                 'charge_type' => 'billet',
-                'custom_id' => $correlationId,
+                'custom_id' => $remoteCustomId,
                 'begin_date' => $beginDate,
                 'end_date' => $endDate,
                 'limit' => 100,
@@ -241,7 +249,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 static function (
                     mixed $item
                 ) use (
-                    $correlationId
+                    $remoteCustomId
                 ): bool {
                     return is_array($item)
                         && isset(
@@ -249,7 +257,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                         )
                         && (string) $item[
                             'custom_id'
-                        ] === $correlationId;
+                        ] === $remoteCustomId;
                 }
             )
         );
@@ -886,6 +894,11 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
     private function resultFromData(
         array $data,
     ): PaymentChargeResult {
+        /*
+         * pix.qrcode_image é deliberadamente ignorado.
+         * O SVG/base64 pode ser grande e o Pix copia-e-cola
+         * já atende o fluxo operacional sem persistir blob.
+         */
         $chargeId = $data['charge_id']
             ?? $data['id']
             ?? null;
@@ -934,7 +947,88 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                     'payment.banking_billet.'
                     .'pix.qrcode'
                 ),
+
+            billetUrl:
+                $this->safeArtifactUrl(
+                    $data['billet_link']
+                    ?? null
+                ),
+
+            billetPdfUrl:
+                $this->safeArtifactUrl(
+                    data_get(
+                        $data,
+                        'pdf.charge'
+                    )
+                ),
+
+            barcode:
+                $this->safeBarcode(
+                    $data['barcode']
+                    ?? null
+                ),
+
+            amountCents:
+                $this->safeAmountCents(
+                    $data['total']
+                    ?? null
+                ),
+
+            dueOn:
+                $this->safeDate(
+                    $data['expire_at']
+                    ?? null
+                ),
         );
+    }
+
+    private function safeAmountCents(mixed $amount): ?int
+    {
+        if (is_int($amount) && $amount >= 0) {
+            return $amount;
+        }
+
+        if (
+            is_string($amount)
+            && preg_match('/^\d+$/D', $amount) === 1
+        ) {
+            return (int) $amount;
+        }
+
+        return null;
+    }
+
+    private function safeDate(mixed $date): ?string
+    {
+        if (
+            ! is_string($date)
+            || preg_match(
+                '/^\d{4}-\d{2}-\d{2}$/D',
+                $date
+            ) !== 1
+        ) {
+            return null;
+        }
+
+        return $date;
+    }
+
+    private function safeBarcode(mixed $barcode): ?string
+    {
+        if (! is_string($barcode)) {
+            return null;
+        }
+
+        $barcode = trim($barcode);
+
+        if (
+            $barcode === ''
+            || strlen($barcode) > 255
+        ) {
+            return null;
+        }
+
+        return $barcode;
     }
 
     private function safeArtifactUrl(mixed $url): ?string

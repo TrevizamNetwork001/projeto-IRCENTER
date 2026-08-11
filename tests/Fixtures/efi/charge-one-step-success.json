@@ -1,0 +1,20 @@
+{
+    "code": 200,
+    "data": {
+        "barcode": "00190000090286000000600000000000000000000000",
+        "pix": {
+            "qrcode": "000201010212SANITIZED-PIX-COPY-PASTE",
+            "qrcode_image": "data:image/svg+xml;base64,PHN2Zy8+"
+        },
+        "link": "https://payments.example.test/charge",
+        "billet_link": "https://payments.example.test/billet",
+        "pdf": {
+            "charge": "https://payments.example.test/billet.pdf?sandbox=true"
+        },
+        "expire_at": "2026-08-18",
+        "charge_id": 45000789,
+        "status": "waiting",
+        "total": 5990,
+        "payment": "banking_billet"
+    }
+}

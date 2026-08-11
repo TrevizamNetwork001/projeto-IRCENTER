@@ -745,6 +745,72 @@
 
                                     @if (
                                         $charge
+                                            ->provider_billet_url
+                                        && filter_var(
+                                            $charge
+                                                ->provider_billet_url,
+                                            FILTER_VALIDATE_URL
+                                        )
+                                        && str_starts_with(
+                                            strtolower(
+                                                $charge
+                                                    ->provider_billet_url
+                                            ),
+                                            'https://'
+                                        )
+                                    )
+                                        <a
+                                            class="table-primary-link"
+                                            href="{{ $charge->provider_billet_url }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Abrir boleto
+                                        </a>
+                                    @endif
+
+                                    @if (
+                                        $charge
+                                            ->provider_billet_pdf_url
+                                        && filter_var(
+                                            $charge
+                                                ->provider_billet_pdf_url,
+                                            FILTER_VALIDATE_URL
+                                        )
+                                        && str_starts_with(
+                                            strtolower(
+                                                $charge
+                                                    ->provider_billet_pdf_url
+                                            ),
+                                            'https://'
+                                        )
+                                    )
+                                        <a
+                                            class="table-primary-link"
+                                            href="{{ $charge->provider_billet_pdf_url }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            Baixar PDF
+                                        </a>
+                                    @endif
+
+                                    @if ($charge->provider_barcode)
+                                        <div class="field-group">
+                                            <label>
+                                                Código/linha retornada
+                                            </label>
+
+                                            <textarea
+                                                class="form-control table-mono"
+                                                rows="2"
+                                                readonly
+                                            >{{ $charge->provider_barcode }}</textarea>
+                                        </div>
+                                    @endif
+
+                                    @if (
+                                        $charge
                                             ->provider_pix_copy_paste
                                     )
                                         <div
@@ -763,6 +829,12 @@
                                     @elseif (
                                         ! $charge
                                             ->provider_checkout_url
+                                        && ! $charge
+                                            ->provider_billet_url
+                                        && ! $charge
+                                            ->provider_billet_pdf_url
+                                        && ! $charge
+                                            ->provider_barcode
                                     )
                                         —
                                     @endif

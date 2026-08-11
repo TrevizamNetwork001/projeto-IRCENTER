@@ -257,6 +257,15 @@ final class ReconcileChargeSubmission
                     'provider_checkout_url' =>
                         $result->checkoutUrl,
 
+                    'provider_billet_url' =>
+                        $result->billetUrl,
+
+                    'provider_billet_pdf_url' =>
+                        $result->billetPdfUrl,
+
+                    'provider_barcode' =>
+                        $result->barcode,
+
                     'provider_pix_copy_paste' =>
                         $result->pixCopyPaste,
 

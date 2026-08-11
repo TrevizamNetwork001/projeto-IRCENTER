@@ -155,6 +155,15 @@ final class CreateChargeForInvoice
                                 'provider_checkout_url' =>
                                     null,
 
+                                'provider_billet_url' =>
+                                    null,
+
+                                'provider_billet_pdf_url' =>
+                                    null,
+
+                                'provider_barcode' =>
+                                    null,
+
                                 'provider_pix_copy_paste' =>
                                     null,
 
@@ -393,6 +402,18 @@ final class CreateChargeForInvoice
                         'provider_checkout_url' =>
                             $result
                                 ->checkoutUrl,
+
+                        'provider_billet_url' =>
+                            $result
+                                ->billetUrl,
+
+                        'provider_billet_pdf_url' =>
+                            $result
+                                ->billetPdfUrl,
+
+                        'provider_barcode' =>
+                            $result
+                                ->barcode,
 
                         'provider_pix_copy_paste' =>
                             $result

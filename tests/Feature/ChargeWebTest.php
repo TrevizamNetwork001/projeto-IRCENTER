@@ -576,9 +576,36 @@ class ChargeWebTest extends TestCase
         );
 
         $this->assertSame(
+            'invoice:'.$invoice->public_id
+                .':provider:efi:method:boleto_pix',
+            $charge->idempotency_key
+        );
+
+        $this->assertSame(
             '000201EFI-HOMOLOGACAO',
             $charge->provider_pix_copy_paste
         );
+
+        $this->assertSame(
+            'https://example.test/billet/1',
+            $charge->provider_billet_url
+        );
+        $this->assertSame(
+            'https://example.test/billet/1.pdf',
+            $charge->provider_billet_pdf_url
+        );
+        $this->assertSame(
+            '001900000900000000001',
+            $charge->provider_barcode
+        );
+
+        $this->actingAs($admin)
+            ->get(route('finance.invoices.show', $invoice))
+            ->assertOk()
+            ->assertSee('Abrir boleto')
+            ->assertSee('Baixar PDF')
+            ->assertSee('Código/linha retornada')
+            ->assertSee('Pix copia e cola');
     }
 
     public function test_efi_non_homologation_environment_is_hard_blocked_by_web(): void
@@ -808,6 +835,15 @@ class ChargeWebTest extends TestCase
 
                     pixCopyPaste:
                         '000201EFI-HOMOLOGACAO',
+
+                    billetUrl:
+                        'https://example.test/billet/1',
+
+                    billetPdfUrl:
+                        'https://example.test/billet/1.pdf',
+
+                    barcode:
+                        '001900000900000000001',
                 );
             }
 

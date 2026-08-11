@@ -135,6 +135,66 @@ class EfiPaymentProviderTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_real_success_shape_maps_supported_artifacts(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(
+                base_path(
+                    'tests/Fixtures/efi/'
+                    .'charge-one-step-success.json'
+                )
+            ),
+            true,
+            flags: JSON_THROW_ON_ERROR
+        );
+
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' => 'token-test',
+                ]),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/one-step'
+                => Http::response($fixture),
+        ]);
+
+        $result = app(EfiPaymentProvider::class)
+            ->createCharge($this->request(amount: '59.90'));
+
+        $this->assertSame('45000789', $result->providerChargeId);
+        $this->assertSame('open', $result->status);
+        $this->assertSame(
+            'https://payments.example.test/charge',
+            $result->checkoutUrl
+        );
+        $this->assertSame(
+            'https://payments.example.test/billet',
+            $result->billetUrl
+        );
+        $this->assertSame(
+            'https://payments.example.test/billet.pdf?sandbox=true',
+            $result->billetPdfUrl
+        );
+        $this->assertSame(
+            '00190000090286000000600000000000000000000000',
+            $result->barcode
+        );
+        $this->assertSame(
+            '000201010212SANITIZED-PIX-COPY-PASTE',
+            $result->pixCopyPaste
+        );
+        $this->assertSame(5990, $result->amountCents);
+        $this->assertSame('2026-08-18', $result->dueOn);
+
+        /*
+         * qrcode_image é deliberadamente ignorado:
+         * não persistimos SVG/base64 na Charge.
+         */
+        $this->assertObjectNotHasProperty(
+            'pixQrCodeImage',
+            $result
+        );
+    }
+
     public function test_payload_uses_cnpj_address_and_integer_cents(): void
     {
         Http::fake([
@@ -175,6 +235,10 @@ class EfiPaymentProviderTest extends TestCase
                     && $request[
                         'items'
                     ][0]['amount'] === 1
+                    && $request[
+                        'metadata'
+                    ]['custom_id']
+                    === 'invoice_test_provider_efi'
                     && $request[
                         'payment'
                     ][
@@ -386,12 +450,18 @@ class EfiPaymentProviderTest extends TestCase
                     'charge_id' => 7,
                     'status' => 'waiting',
                     'link' => 'javascript:alert(1)',
+                    'billet_link' => 'file:///tmp/billet',
+                    'pdf' => [
+                        'charge' => 'data:text/html,unsafe',
+                    ],
                 ]]),
         ]);
 
         $result = app(EfiPaymentProvider::class)->createCharge($this->request());
 
         $this->assertNull($result->checkoutUrl);
+        $this->assertNull($result->billetUrl);
+        $this->assertNull($result->billetPdfUrl);
     }
 
     public function test_unpaid_remains_open_and_expired_is_overdue(): void
@@ -460,7 +530,7 @@ class EfiPaymentProviderTest extends TestCase
                         [
                             'id' => 321,
                             'custom_id' =>
-                                'invoice:test:provider:efi',
+                                'invoice_test_provider_efi',
                         ],
                     ],
                 ]),
@@ -544,7 +614,7 @@ class EfiPaymentProviderTest extends TestCase
                         $query['custom_id']
                         ?? null
                     ) ===
-                        'invoice:test:provider:efi'
+                        'invoice_test_provider_efi'
                     && (
                         $query['begin_date']
                         ?? null
@@ -575,7 +645,13 @@ class EfiPaymentProviderTest extends TestCase
             'https://cobrancas-h.api.efipay.com.br/v1/charges*'
                 => Http::response([
                     'code' => 200,
-                    'data' => [],
+                    'data' => [
+                        [
+                            'id' => 999,
+                            'custom_id' =>
+                                'invoice:test:provider:efi',
+                        ],
+                    ],
                 ]),
         ]);
 
@@ -610,12 +686,12 @@ class EfiPaymentProviderTest extends TestCase
                         [
                             'id' => 321,
                             'custom_id' =>
-                                'invoice:test:provider:efi',
+                                'invoice_test_provider_efi',
                         ],
                         [
                             'id' => 322,
                             'custom_id' =>
-                                'invoice:test:provider:efi',
+                                'invoice_test_provider_efi',
                         ],
                     ],
                 ]),
