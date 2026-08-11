@@ -10,6 +10,7 @@ use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
 use App\Modules\Finance\Support\Decimal;
 use App\Modules\Finance\Support\EfiCustomId;
+use App\Modules\Finance\Support\EfiStatusMapper;
 use App\Support\BusinessClock;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -436,10 +437,8 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                             ? $previous
                             : null,
 
-                    normalizedStatus:
-                        $this->mapStatus(
-                            $current
-                        ),
+                        normalizedStatus:
+                            EfiStatusMapper::toLocal($current),
 
                     valueCents:
                         $valueCents,
@@ -925,7 +924,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 (string) $chargeId,
 
             status:
-                $this->mapStatus($status),
+                EfiStatusMapper::toLocal($status),
 
             checkoutUrl:
                 $this->safeArtifactUrl(
@@ -1056,30 +1055,6 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             && str_starts_with(strtolower($url), 'https://')
                 ? $url
                 : null;
-    }
-
-    private function mapStatus(
-        string $status,
-    ): string {
-        return match ($status) {
-            'new',
-            'waiting',
-            'identified',
-            'approved',
-            'unpaid' => 'open',
-
-            'paid',
-            'settled' => 'paid',
-
-            'expired' => 'overdue',
-
-            'canceled' => 'canceled',
-
-            'refunded',
-            'contested' => 'failed',
-
-            default => 'failed',
-        };
     }
 
     private function assertOperationAllowed(): void

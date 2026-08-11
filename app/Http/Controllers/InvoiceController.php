@@ -8,6 +8,7 @@ use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Models\BillingContract;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Shared\Models\DomainAuditEvent;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,14 +127,44 @@ final class InvoiceController extends Controller
     public function show(
         Invoice $invoice,
     ): View {
-        $invoice->load('items');
+        $invoice->load(['items', 'payments']);
 
         $charges = Charge::query()
             ->where(
                 'invoice_id',
                 $invoice->id
             )
+            ->with('payment')
             ->latest('id')
+            ->get();
+
+        $paymentIds = $invoice->payments->pluck('id');
+        $chargeIds = $charges->pluck('id');
+
+        $timeline = DomainAuditEvent::query()
+            ->where('module', 'finance')
+            ->where(function ($query) use ($invoice, $chargeIds, $paymentIds): void {
+                $query->where(function ($query) use ($invoice): void {
+                    $query->where('entity_type', 'invoice')
+                        ->where('entity_id', (string) $invoice->id);
+                });
+
+                if ($chargeIds->isNotEmpty()) {
+                    $query->orWhere(function ($query) use ($chargeIds): void {
+                        $query->where('entity_type', 'charge')
+                            ->whereIn('entity_id', $chargeIds->map(fn ($id) => (string) $id));
+                    });
+                }
+
+                if ($paymentIds->isNotEmpty()) {
+                    $query->orWhere(function ($query) use ($paymentIds): void {
+                        $query->where('entity_type', 'payment')
+                            ->whereIn('entity_id', $paymentIds->map(fn ($id) => (string) $id));
+                    });
+                }
+            })
+            ->latest('id')
+            ->limit(50)
             ->get();
 
         $contract = null;
@@ -149,6 +180,8 @@ final class InvoiceController extends Controller
             'invoice' => $invoice,
             'charges' => $charges,
             'contract' => $contract,
+            'payments' => $invoice->payments,
+            'timeline' => $timeline,
             'financeEnabled' =>
                 $this->financeEnabled(),
 

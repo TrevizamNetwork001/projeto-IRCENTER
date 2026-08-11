@@ -81,4 +81,9 @@ final class Invoice extends Model
             'invoice_id'
         )->orderBy('sort_order');
     }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

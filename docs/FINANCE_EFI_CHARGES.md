@@ -32,11 +32,12 @@ social, CPF/CNPJ, e-mail, telefone brasileiro, CEP, logradouro, número, bairro,
 cidade e UF. O telefone remove DDI 55 somente para entradas de 12/13 dígitos
 que começam por 55. O snapshot da Invoice e o cadastro Core não são alterados.
 
-O payload mantém `metadata.custom_id` igual à chave de idempotência estável.
-O resultado persiste o ID Efí, status normalizado, link HTTPS comprovado e Pix
-copia-e-cola (`pix.qrcode`) quando presentes. Respostas parciais são aceitas.
-Não há fixture comprovando PDF ou linha digitável separados nesta versão; por
-isso não existem colunas especulativas nem persistência do JSON remoto.
+O payload deriva `metadata.custom_id` da chave de idempotência estável,
+substituindo somente `:` por `_` e rejeitando qualquer outro caractere não
+suportado antes de OAuth/HTTP. O resultado persiste o ID Efí, status
+normalizado, links HTTPS de checkout/boleto/PDF, barcode textual e Pix
+copia-e-cola quando presentes. O SVG/base64 de `pix.qrcode_image` não é
+persistido. Fixtures sanitizadas cobrem os formatos reais de create e detail.
 
 Status Efí: `new`, `waiting`, `identified`, `approved` e `unpaid` viram `open`;
 `paid`/`settled`, `paid`; `expired`, `overdue`; `canceled`, `canceled`;
@@ -100,3 +101,54 @@ bloqueados pelas flags e pela trava adicional da Web.
 Incidente histórico: a Charge id=2 foi criada pela arquitetura anterior, que
 reservava antes da validação do telefone. Ela deve permanecer
 `submission_unknown`, sem ID remoto, sem alteração manual e sem retry.
+
+## Webhook e confirmação de pagamento
+
+O endpoint futuro é `POST /api/v1/webhooks/payments/efi`. Ele não usa sessão
+Web nem CSRF, aceita somente form/JSON/multipart, limita o body a 4096 bytes e
+fica oculto com 404 enquanto `PAYMENT_WEBHOOKS_ENABLED=false`. O callback Efí
+contém apenas o identificador `notification`; nunca é suficiente para mudar o
+domínio financeiro.
+
+O token é validado sintaticamente, criptografado com `APP_KEY` e identificado
+por SHA-256. A combinação provider + hash é única: replays retornam sucesso
+idempotente, geram auditoria de duplicidade e não enfileiram novo trabalho. O
+token puro, credenciais, Authorization e payload HTTP bruto não são gravados.
+
+O Job usa OAuth e `GET /v1/notification/{token}`. Somente o histórico obtido
+por esse GET autenticado produz `payment_provider_events`. Eventos são únicos
+globalmente por provider + ID remoto, e `payload_json` permanece nulo: são
+guardados apenas campos normalizados necessários. Falhas HTTP/timeout deixam o
+receipt em `failed`, sem alterar Charge, Payment ou Invoice, permitindo retry
+controlado pela fila.
+
+`SyncChargeFromProvider` centraliza transições e baixa. Eventos antigos ou
+`waiting` posterior a `paid` não regridem o estado. `expired` vira `overdue`
+sem cancelar a Invoice; `canceled` não cria nova cobrança; `refunded`,
+`contested` e desconhecidos ficam `failed`/revisão. Um status pago confirmado
+cria no máximo um Payment por Charge. Como a Efí não fornece ID de liquidação
+separado nesse histórico, o `provider_event_id` pago é a referência remota do
+Payment. A constraint adicional provider + referência protege replay.
+
+O Payment registra valor, moeda e data bancária. Se o valor for exatamente o
+total da Invoice, ela muda uma única vez para `paid`. Valor ausente, menor ou
+maior gera `payment.amount_mismatch`; o recebimento confirmado é preservado,
+mas a Invoice não é baixada automaticamente. Pagamento parcial não é inferido
+nesta fase.
+
+Eventos auditáveis incluem recebimento/duplicidade/processamento do webhook,
+sincronização ou descarte de transição, confirmação da Charge, criação do
+Payment, divergência e baixa da Invoice. A tela da Invoice exibe pagamentos e
+uma timeline compacta sem payloads ou segredos.
+
+### Runbook do webhook real futuro
+
+1. Aplicar a migration financeira pendente após backup e janela autorizada.
+2. Confirmar endpoint HTTPS público, limites e TLS.
+3. Manter produção/live e automação bloqueadas.
+4. Ativar `PAYMENT_WEBHOOKS_ENABLED` somente em janela explícita.
+5. Registrar a URL na Efí apenas com autorização separada.
+6. Enviar callback controlado e confirmar receipt único, GET autenticado,
+   evento normalizado e nenhuma criação de cobrança.
+7. Repetir o mesmo callback para provar idempotência.
+8. Desativar a flag se qualquer confirmação GET falhar de forma inesperada.

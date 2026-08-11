@@ -4,6 +4,7 @@ namespace App\Modules\Finance\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 final class Charge extends Model
@@ -102,5 +103,10 @@ final class Charge extends Model
             Invoice::class,
             'invoice_id'
         );
+    }
+
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
     }
 }

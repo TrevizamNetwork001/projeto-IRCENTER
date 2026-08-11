@@ -4,15 +4,20 @@ namespace Tests\Feature;
 
 use App\Jobs\ProcessEfiPaymentWebhook;
 use App\Models\Client;
+use App\Models\User;
 use App\Modules\Finance\Actions\ActivateBillingContract;
 use App\Modules\Finance\Actions\CreateBillingContract;
 use App\Modules\Finance\Actions\CreateChargeForInvoice;
 use App\Modules\Finance\Actions\GenerateInvoiceForContract;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Finance\Models\Charge;
+use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\PaymentProviderEvent;
 use App\Modules\Finance\Models\PaymentWebhookReceipt;
+use App\Modules\Finance\Models\Payment;
+use App\Modules\Finance\Actions\SyncChargeFromProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -234,9 +239,8 @@ class EfiPaymentWebhookTest extends TestCase
 
         $job->handle(
             app(EfiPaymentProvider::class),
-            app(
-                \App\Modules\Shared\Services\DomainAudit::class
-            ),
+            app(SyncChargeFromProvider::class),
+            app(\App\Modules\Shared\Services\DomainAudit::class),
         );
 
         $charge->refresh();
@@ -276,6 +280,14 @@ class EfiPaymentWebhookTest extends TestCase
                 STATUS_PROCESSED,
             $receipt->status
         );
+
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+
+        $payment = Payment::query()->firstOrFail();
+
+        $this->assertSame('850.00', $payment->amount);
+        $this->assertSame('3', $payment->provider_payment_id);
+        $this->assertSame('paid', $charge->invoice()->firstOrFail()->status);
     }
 
     public function test_replay_does_not_duplicate_events(): void
@@ -313,8 +325,9 @@ class EfiPaymentWebhookTest extends TestCase
                 ]),
         ]);
 
+        $receipt = $this->receipt();
+
         foreach ([1, 2] as $_) {
-            $receipt = $this->receipt();
 
             (new ProcessEfiPaymentWebhook(
                 $receipt->id
@@ -322,9 +335,8 @@ class EfiPaymentWebhookTest extends TestCase
                 app(
                     EfiPaymentProvider::class
                 ),
-                app(
-                    \App\Modules\Shared\Services\DomainAudit::class
-                ),
+                app(SyncChargeFromProvider::class),
+                app(\App\Modules\Shared\Services\DomainAudit::class),
             );
         }
 
@@ -342,11 +354,237 @@ class EfiPaymentWebhookTest extends TestCase
         );
     }
 
-    private function receipt(): PaymentWebhookReceipt
+    public function test_same_webhook_replayed_ten_times_creates_one_receipt_and_job(): void
     {
-        $token =
-            '09027955-5e06-4ff0-a9c7-46b47b8f1b27';
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
 
+        $payload = [
+            'notification' => '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
+        ];
+
+        foreach (range(1, 10) as $_) {
+            $this->post('/api/v1/webhooks/payments/efi', $payload)->assertOk();
+        }
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 1, 'finance_fiscal');
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 1);
+    }
+
+    public function test_paid_followed_by_newer_waiting_does_not_regress_or_duplicate_payment(): void
+    {
+        $charge = $this->efiCharge();
+        $this->runEvents($this->receipt(), [
+            $this->event(10, 'paid', 85000),
+            $this->event(11, 'waiting'),
+            $this->event(12, 'paid', 85000),
+        ]);
+
+        $this->assertSame(Charge::STATUS_PAID, $charge->refresh()->status);
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+        $this->assertSame(Invoice::STATUS_PAID, $charge->invoice()->firstOrFail()->status);
+    }
+
+    public function test_paid_amount_mismatch_records_payment_but_does_not_pay_invoice(): void
+    {
+        $charge = $this->efiCharge();
+        $this->runEvents($this->receipt(), [
+            $this->event(20, 'paid', 84999),
+        ]);
+
+        $this->assertSame(Charge::STATUS_PAID, $charge->refresh()->status);
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+        $this->assertSame(Invoice::STATUS_OPEN, $charge->invoice()->firstOrFail()->status);
+        $this->assertDatabaseHas('domain_audit_events', [
+            'action' => 'payment.amount_mismatch',
+        ], 'finance_fiscal');
+    }
+
+    public function test_paid_invoice_web_shows_payment_and_financial_timeline(): void
+    {
+        $charge = $this->efiCharge();
+        $this->runEvents($this->receipt(), [
+            $this->event(25, 'paid', 85000),
+        ]);
+
+        $viewer = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('finance.invoices.show', $charge->invoice_id))
+            ->assertOk()
+            ->assertSee('Pago')
+            ->assertSee('Valor recebido')
+            ->assertSee('850,00')
+            ->assertSee('EFI')
+            ->assertSee('Timeline financeira')
+            ->assertSee('payment.created')
+            ->assertSee('invoice.paid')
+            ->assertDontSee('Gerar cobrança');
+    }
+
+    public function test_expired_canceled_and_unknown_statuses_are_conservative(): void
+    {
+        $expired = $this->efiCharge();
+        $canceled = $this->efiCharge();
+        $canceled->update(['provider_charge_id' => '900002']);
+        $unknown = $this->efiCharge();
+        $unknown->update(['provider_charge_id' => '900003']);
+
+        $this->runEvents($this->receipt(), [
+            $this->event(30, 'expired'),
+            $this->event(31, 'canceled', null, '900002'),
+            $this->event(32, 'future_status', null, '900003'),
+        ]);
+
+        $this->assertSame(Charge::STATUS_OVERDUE, $expired->refresh()->status);
+        $this->assertSame(Invoice::STATUS_OPEN, $expired->invoice()->firstOrFail()->status);
+        $this->assertSame(Charge::STATUS_CANCELED, $canceled->refresh()->status);
+        $this->assertSame(Charge::STATUS_FAILED, $unknown->refresh()->status);
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+    }
+
+    public function test_provider_failure_does_not_change_domain_and_marks_receipt_failed(): void
+    {
+        $charge = $this->efiCharge();
+        $receipt = $this->receipt();
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::response(['error' => 'provider failure'], 500),
+        ]);
+
+        try {
+            (new ProcessEfiPaymentWebhook($receipt->id))->handle(
+                app(EfiPaymentProvider::class),
+                app(SyncChargeFromProvider::class),
+                app(\App\Modules\Shared\Services\DomainAudit::class),
+            );
+            $this->fail('Falha do provider deveria ser propagada.');
+        } catch (\Throwable) {
+            // Esperado: a fila poderá tentar novamente.
+        }
+
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+        $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+    }
+
+    public function test_provider_timeout_does_not_mark_charge_paid(): void
+    {
+        $charge = $this->efiCharge();
+        $receipt = $this->receipt();
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => fn () => throw new ConnectionException('timeout'),
+        ]);
+
+        try {
+            (new ProcessEfiPaymentWebhook($receipt->id))->handle(
+                app(EfiPaymentProvider::class),
+                app(SyncChargeFromProvider::class),
+                app(\App\Modules\Shared\Services\DomainAudit::class),
+            );
+            $this->fail('Timeout deveria ser propagado.');
+        } catch (ConnectionException) {
+            // Esperado: sem alteração financeira.
+        }
+
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+        $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+    }
+
+    public function test_invalid_json_and_unknown_provider_are_rejected(): void
+    {
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+
+        $this->call(
+            'POST',
+            '/api/v1/webhooks/payments/efi',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            '{invalid'
+        )->assertUnprocessable();
+
+        $this->post('/api/v1/webhooks/payments/unknown', [
+            'notification' => '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
+        ])->assertNotFound();
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+    }
+
+    public function test_webhook_rejects_unsupported_content_type_and_large_body(): void
+    {
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+
+        $this->call(
+            'POST',
+            '/api/v1/webhooks/payments/efi',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'text/plain'],
+            'notification=test'
+        )->assertStatus(415);
+
+        $this->call(
+            'POST',
+            '/api/v1/webhooks/payments/efi',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/x-www-form-urlencoded'],
+            'notification='.str_repeat('a', 4097)
+        )->assertStatus(413);
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+    }
+
+    private function runEvents(PaymentWebhookReceipt $receipt, array $events): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::response(['code' => 200, 'data' => $events]),
+        ]);
+
+        (new ProcessEfiPaymentWebhook($receipt->id))->handle(
+            app(EfiPaymentProvider::class),
+            app(SyncChargeFromProvider::class),
+            app(\App\Modules\Shared\Services\DomainAudit::class),
+        );
+    }
+
+    private function event(
+        int $id,
+        string $status,
+        ?int $value = null,
+        string $chargeId = '900001',
+    ): array {
+        return [
+            'id' => $id,
+            'type' => 'charge',
+            'identifiers' => ['charge_id' => $chargeId],
+            'status' => ['current' => $status, 'previous' => null],
+            'value' => $value,
+            'received_by_bank_at' => $status === 'paid' ? '2026-08-07' : null,
+            'created_at' => '2026-08-07 18:10:00',
+        ];
+    }
+
+    private function receipt(
+        string $token = '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
+    ): PaymentWebhookReceipt
+    {
         return PaymentWebhookReceipt::query()
             ->create([
                 'provider' => 'efi',
@@ -411,7 +649,7 @@ class EfiPaymentWebhookTest extends TestCase
         $charge->update([
             'provider' => 'efi',
             'provider_charge_id' =>
-                '900001',
+                (string) (900000 + $charge->id),
         ]);
 
         return $charge->refresh();

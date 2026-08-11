@@ -889,4 +889,86 @@
             </div>
         @endif
     </section>
+
+    <section class="panel">
+        <div class="page-heading">
+            <div>
+                <h2>Pagamentos</h2>
+                <p>Recebimentos confirmados pelo provider.</p>
+            </div>
+        </div>
+
+        @if ($payments->isEmpty())
+            <div class="empty-state">
+                <div>
+                    <strong>Nenhum pagamento confirmado</strong>
+                </div>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Valor recebido</th>
+                            <th>Data do pagamento</th>
+                            <th>Provider</th>
+                            <th>Referência</th>
+                            <th>Charge</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($payments as $payment)
+                            <tr>
+                                <td>Pago</td>
+                                <td>
+                                    R$ {{ number_format((float) $payment->amount, 2, ',', '.') }}
+                                </td>
+                                <td>{{ $payment->paid_at?->format('d/m/Y H:i') }}</td>
+                                <td>{{ strtoupper($payment->provider) }}</td>
+                                <td class="table-mono">{{ $payment->provider_payment_id }}</td>
+                                <td class="table-mono">{{ $payment->charge_id }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    <section class="panel">
+        <div class="page-heading">
+            <div>
+                <h2>Timeline financeira</h2>
+                <p>Eventos auditáveis da fatura, cobranças e pagamentos.</p>
+            </div>
+        </div>
+
+        @if ($timeline->isEmpty())
+            <div class="empty-state">
+                <div><strong>Nenhum evento financeiro</strong></div>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Quando</th>
+                            <th>Evento</th>
+                            <th>Entidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($timeline as $event)
+                            <tr>
+                                <td>{{ $event->created_at?->format('d/m/Y H:i:s') }}</td>
+                                <td class="table-mono">{{ $event->action }}</td>
+                                <td>{{ $event->entity_type }} #{{ $event->entity_id }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
 @endsection
