@@ -460,13 +460,25 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
 
         usort(
             $events,
-            fn (
+            static function (
                 EfiNotificationEvent $left,
                 EfiNotificationEvent $right
-            ): int =>
-                (int) $left->eventId
-                <=>
-                (int) $right->eventId
+            ): int {
+                $createdComparison = strcmp(
+                    $left->providerCreatedAtRaw ?? '',
+                    $right->providerCreatedAtRaw ?? ''
+                );
+
+                if ($createdComparison !== 0) {
+                    return $createdComparison;
+                }
+
+                if (ctype_digit($left->eventId) && ctype_digit($right->eventId)) {
+                    return (int) $left->eventId <=> (int) $right->eventId;
+                }
+
+                return strcmp($left->eventId, $right->eventId);
+            }
         );
 
         return $events;

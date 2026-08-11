@@ -24,6 +24,8 @@ final class PaymentWebhookReceipt extends Model
         'status',
         'attempt_count',
         'received_at',
+        'last_received_at',
+        'receive_count',
         'processing_started_at',
         'processed_at',
         'last_error',
@@ -33,7 +35,9 @@ final class PaymentWebhookReceipt extends Model
     {
         return [
             'attempt_count' => 'integer',
+            'receive_count' => 'integer',
             'received_at' => 'immutable_datetime',
+            'last_received_at' => 'immutable_datetime',
             'processing_started_at' =>
                 'immutable_datetime',
             'processed_at' =>

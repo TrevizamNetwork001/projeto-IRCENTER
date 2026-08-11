@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::connection('finance_fiscal')
             ->table('payment_webhook_receipts', function (Blueprint $table): void {
+                $table->timestampTz('last_received_at')->nullable();
+                $table->unsignedBigInteger('receive_count')->default(1);
                 $table->unique(
                     ['provider', 'token_hash'],
                     'payment_webhook_receipts_provider_token_unique'
@@ -61,6 +63,7 @@ return new class extends Migration
         Schema::connection('finance_fiscal')
             ->table('payment_webhook_receipts', function (Blueprint $table): void {
                 $table->dropUnique('payment_webhook_receipts_provider_token_unique');
+                $table->dropColumn(['last_received_at', 'receive_count']);
             });
     }
 };

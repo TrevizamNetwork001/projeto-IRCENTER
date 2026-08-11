@@ -10,6 +10,8 @@ use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class EfiPaymentWebhookController extends Controller
 {
@@ -107,42 +109,55 @@ final class EfiPaymentWebhookController extends Controller
 
         $token = $parsed['notification'];
 
-        $receipt = PaymentWebhookReceipt::query()
-                ->firstOrCreate([
-                    'provider' => 'efi',
-                    'token_hash' => hash('sha256', $token),
-                ], [
-                    'token_encrypted' =>
-                        Crypt::encryptString(
-                            $token
-                        ),
+        $tokenHash = hash('sha256', $token);
+        $receivedAt = now();
 
-                    'status' =>
-                        PaymentWebhookReceipt::
-                            STATUS_RECEIVED,
+        $receipt = DB::connection('finance_fiscal')->transaction(
+            function () use ($token, $tokenHash, $receivedAt): PaymentWebhookReceipt {
+                DB::connection('finance_fiscal')
+                    ->table('payment_webhook_receipts')
+                    ->insertOrIgnore([
+                        'public_id' => (string) Str::ulid(),
+                        'provider' => 'efi',
+                        'token_hash' => $tokenHash,
+                        'token_encrypted' => Crypt::encryptString($token),
+                        'status' => PaymentWebhookReceipt::STATUS_RECEIVED,
+                        'attempt_count' => 0,
+                        'received_at' => $receivedAt,
+                        'last_received_at' => $receivedAt,
+                        'receive_count' => 0,
+                        'created_at' => $receivedAt,
+                        'updated_at' => $receivedAt,
+                    ]);
 
-                    'received_at' => now(),
+                $receipt = PaymentWebhookReceipt::query()
+                    ->where('provider', 'efi')
+                    ->where('token_hash', $tokenHash)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $receipt->increment('receive_count', 1, [
+                    'last_received_at' => $receivedAt,
+                    'status' => PaymentWebhookReceipt::STATUS_RECEIVED,
                 ]);
 
-        if ($receipt->wasRecentlyCreated) {
-            $audit->record(
-                module: 'finance',
-                action: 'payment_webhook.received',
-                entityType: 'payment_webhook_receipt',
-                entityId: $receipt->id,
-                metadata: ['provider' => 'efi'],
-            );
+                return $receipt->refresh();
+            }
+        );
 
-            ProcessEfiPaymentWebhook::dispatch($receipt->id);
-        } else {
-            $audit->record(
-                module: 'finance',
-                action: 'payment_webhook.duplicate',
-                entityType: 'payment_webhook_receipt',
-                entityId: $receipt->id,
-                metadata: ['provider' => 'efi'],
-            );
-        }
+        $audit->record(
+            module: 'finance',
+            action: 'payment_webhook.received',
+            entityType: 'payment_webhook_receipt',
+            entityId: $receipt->id,
+            metadata: [
+                'provider' => 'efi',
+                'receive_count' => $receipt->receive_count,
+            ],
+        );
+
+        /* O mesmo token pode revelar eventos novos em cada entrega. */
+        ProcessEfiPaymentWebhook::dispatch($receipt->id);
 
         /*
          * Não consulta a Efí dentro do request.
@@ -151,7 +166,8 @@ final class EfiPaymentWebhookController extends Controller
         return response()->json(
             [
                 'accepted' => true,
-                'duplicate' => ! $receipt->wasRecentlyCreated,
+                'duplicate_token' => $receipt->receive_count > 1,
+                'processing_scheduled' => true,
             ],
             200
         );

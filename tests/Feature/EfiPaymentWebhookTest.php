@@ -354,7 +354,7 @@ class EfiPaymentWebhookTest extends TestCase
         );
     }
 
-    public function test_same_webhook_replayed_ten_times_creates_one_receipt_and_job(): void
+    public function test_same_webhook_replayed_ten_times_creates_one_receipt_and_ten_processing_opportunities(): void
     {
         Queue::fake();
         config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
@@ -368,7 +368,138 @@ class EfiPaymentWebhookTest extends TestCase
         }
 
         $this->assertDatabaseCount('payment_webhook_receipts', 1, 'finance_fiscal');
-        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 1);
+        $receipt = PaymentWebhookReceipt::query()->firstOrFail();
+        $this->assertSame(10, $receipt->receive_count);
+        $this->assertNotNull($receipt->last_received_at);
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 10);
+    }
+
+    public function test_same_token_waiting_then_paid_fetches_again_and_processes_only_new_event(): void
+    {
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        $charge = $this->efiCharge();
+        $token = '49027955-5e06-4ff0-a9c7-46b47b8f1b27';
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::sequence()
+                ->push(['code' => 200, 'data' => [$this->event(100, 'waiting')]])
+                ->push(['code' => 200, 'data' => [
+                    $this->event(100, 'waiting'),
+                    $this->event(101, 'paid', 85000),
+                ]]),
+        ]);
+
+        $this->post('/api/v1/webhooks/payments/efi', ['notification' => $token])
+            ->assertOk()
+            ->assertJson(['duplicate_token' => false, 'processing_scheduled' => true]);
+
+        $receipt = PaymentWebhookReceipt::query()->firstOrFail();
+        $this->processReceipt($receipt);
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+
+        $this->post('/api/v1/webhooks/payments/efi', ['notification' => $token])
+            ->assertOk()
+            ->assertJson(['duplicate_token' => true, 'processing_scheduled' => true]);
+        $this->processReceipt($receipt->refresh());
+
+        $this->assertSame(2, $receipt->refresh()->receive_count);
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 2);
+        $notificationGets = collect(Http::recorded())
+            ->filter(fn (array $exchange): bool => str_contains(
+                $exchange[0]->url(),
+                '/v1/notification/'
+            ));
+        $this->assertCount(2, $notificationGets);
+        $this->assertDatabaseCount('payment_provider_events', 2, 'finance_fiscal');
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+        $this->assertSame(Charge::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(Invoice::STATUS_PAID, $charge->invoice()->firstOrFail()->status);
+    }
+
+    public function test_ten_same_token_fetches_with_unchanged_history_are_domain_idempotent(): void
+    {
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        $charge = $this->efiCharge();
+        $token = '59027955-5e06-4ff0-a9c7-46b47b8f1b27';
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::response([
+                'code' => 200,
+                'data' => [$this->event(100, 'waiting')],
+            ]),
+        ]);
+
+        foreach (range(1, 10) as $_) {
+            $this->post('/api/v1/webhooks/payments/efi', ['notification' => $token])->assertOk();
+            $this->processReceipt(PaymentWebhookReceipt::query()->firstOrFail());
+        }
+
+        $this->assertSame(10, PaymentWebhookReceipt::query()->firstOrFail()->receive_count);
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 10);
+        $this->assertDatabaseCount('payment_provider_events', 1, 'finance_fiscal');
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+    }
+
+    public function test_same_token_can_retry_after_notification_get_failure(): void
+    {
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        $charge = $this->efiCharge();
+        $token = '69027955-5e06-4ff0-a9c7-46b47b8f1b27';
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::sequence()
+                ->push(['error' => 'temporary'], 500)
+                ->push(['code' => 200, 'data' => [
+                    $this->event(100, 'waiting'),
+                    $this->event(101, 'paid', 85000),
+                ]]),
+        ]);
+
+        $this->post('/api/v1/webhooks/payments/efi', ['notification' => $token])->assertOk();
+        $receipt = PaymentWebhookReceipt::query()->firstOrFail();
+
+        try {
+            $this->processReceipt($receipt);
+            $this->fail('Falha temporária deveria ser propagada.');
+        } catch (\Throwable) {
+            // O callback seguinte com o mesmo token oferece novo processamento.
+        }
+
+        $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+        $this->post('/api/v1/webhooks/payments/efi', ['notification' => $token])->assertOk();
+        $this->processReceipt($receipt->refresh());
+
+        $this->assertSame(2, $receipt->refresh()->receive_count);
+        $this->assertSame(PaymentWebhookReceipt::STATUS_PROCESSED, $receipt->status);
+        $this->assertSame(Charge::STATUS_PAID, $charge->refresh()->status);
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+    }
+
+    public function test_new_event_after_paid_is_discovered_with_same_token(): void
+    {
+        $charge = $this->efiCharge();
+        $receipt = $this->receipt();
+
+        $this->runEvents($receipt, [
+            $this->event(100, 'waiting'),
+            $this->event(101, 'paid', 85000),
+            $this->event(102, 'contested', 85000),
+        ]);
+
+        $this->assertDatabaseCount('payment_provider_events', 3, 'finance_fiscal');
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+        $this->assertSame(Charge::STATUS_FAILED, $charge->refresh()->status);
+        $this->assertSame(Invoice::STATUS_PAID, $charge->invoice()->firstOrFail()->status);
     }
 
     public function test_paid_followed_by_newer_waiting_does_not_regress_or_duplicate_payment(): void
@@ -557,6 +688,11 @@ class EfiPaymentWebhookTest extends TestCase
             '*/v1/notification/*' => Http::response(['code' => 200, 'data' => $events]),
         ]);
 
+        $this->processReceipt($receipt);
+    }
+
+    private function processReceipt(PaymentWebhookReceipt $receipt): void
+    {
         (new ProcessEfiPaymentWebhook($receipt->id))->handle(
             app(EfiPaymentProvider::class),
             app(SyncChargeFromProvider::class),

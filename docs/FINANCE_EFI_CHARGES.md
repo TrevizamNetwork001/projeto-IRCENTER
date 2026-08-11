@@ -111,16 +111,25 @@ contém apenas o identificador `notification`; nunca é suficiente para mudar o
 domínio financeiro.
 
 O token é validado sintaticamente, criptografado com `APP_KEY` e identificado
-por SHA-256. A combinação provider + hash é única: replays retornam sucesso
-idempotente, geram auditoria de duplicidade e não enfileiram novo trabalho. O
-token puro, credenciais, Authorization e payload HTTP bruto não são gravados.
+por SHA-256. A combinação provider + hash é única porque o receipt representa
+o ciclo agregado daquele token, não uma entrega isolada. `received_at` registra
+a primeira entrega; `last_received_at` e `receive_count` registram recorrência.
+O token puro, credenciais, Authorization e payload HTTP bruto não são gravados.
+
+Na Efí, o mesmo token pode ser entregue quando a transação está `waiting` e
+novamente quando passa a `paid`. Por isso, todo POST válido atualiza o receipt e
+agenda uma nova consulta, mesmo quando o token já é conhecido. Token repetido
+não significa evento duplicado. A resposta 2xx pode indicar
+`duplicate_token=true`, mas sempre confirma `processing_scheduled=true`.
 
 O Job usa OAuth e `GET /v1/notification/{token}`. Somente o histórico obtido
 por esse GET autenticado produz `payment_provider_events`. Eventos são únicos
 globalmente por provider + ID remoto, e `payload_json` permanece nulo: são
-guardados apenas campos normalizados necessários. Falhas HTTP/timeout deixam o
-receipt em `failed`, sem alterar Charge, Payment ou Invoice, permitindo retry
-controlado pela fila.
+guardados apenas campos normalizados necessários. Todo o histórico retornado é
+ordenado deterministicamente por data de criação e ID remoto; eventos já vistos
+são ignorados e eventos novos são aplicados. Consultar o mesmo histórico dez
+vezes é seguro. Falhas HTTP/timeout deixam o receipt em `failed`, sem marcar
+eventos, e um callback posterior com o mesmo token agenda nova tentativa.
 
 `SyncChargeFromProvider` centraliza transições e baixa. Eventos antigos ou
 `waiting` posterior a `paid` não regridem o estado. `expired` vira `overdue`
@@ -136,10 +145,21 @@ maior gera `payment.amount_mismatch`; o recebimento confirmado é preservado,
 mas a Invoice não é baixada automaticamente. Pagamento parcial não é inferido
 nesta fase.
 
-Eventos auditáveis incluem recebimento/duplicidade/processamento do webhook,
+Eventos auditáveis incluem recebimento/processamento do webhook,
 sincronização ou descarte de transição, confirmação da Charge, criação do
 Payment, divergência e baixa da Invoice. A tela da Invoice exibe pagamentos e
 uma timeline compacta sem payloads ou segredos.
+
+As constraints e os locks protegem callbacks concorrentes no PostgreSQL. Os
+testes SQLite cobrem interleaving e idempotência lógica, mas não reproduzem
+contenção física simultânea do PostgreSQL; essa limitação deve ser considerada
+no smoke controlado.
+
+As identidades são distintas: o notification token identifica o ciclo remoto;
+cada POST é uma entrega; cada entrada do histórico é um provider event; e o
+Payment é o efeito financeiro único. O fluxo é `POST token → atualizar receipt
+→ GET /notification/token → eventos ainda não vistos → SyncChargeFromProvider
+→ Payment/Invoice`.
 
 ### Runbook do webhook real futuro
 
@@ -148,7 +168,8 @@ uma timeline compacta sem payloads ou segredos.
 3. Manter produção/live e automação bloqueadas.
 4. Ativar `PAYMENT_WEBHOOKS_ENABLED` somente em janela explícita.
 5. Registrar a URL na Efí apenas com autorização separada.
-6. Enviar callback controlado e confirmar receipt único, GET autenticado,
+6. Enviar callback controlado e confirmar receipt agregado, GET autenticado,
    evento normalizado e nenhuma criação de cobrança.
-7. Repetir o mesmo callback para provar idempotência.
+7. Repetir o mesmo token, confirmar novo GET e provar idempotência pelos IDs dos
+   eventos e pela unicidade do Payment.
 8. Desativar a flag se qualquer confirmação GET falhar de forma inesperada.
