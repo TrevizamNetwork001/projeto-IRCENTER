@@ -932,8 +932,8 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                     $data['link']
                     ?? $data['billet_link']
                     ?? data_get(
-                    $data,
-                    'payment.banking_billet.link'
+                        $data,
+                        'payment.banking_billet.link'
                     )
                 ),
 
@@ -951,7 +951,10 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             billetUrl:
                 $this->safeArtifactUrl(
                     $data['billet_link']
-                    ?? null
+                    ?? data_get(
+                        $data,
+                        'payment.banking_billet.billet_link'
+                    )
                 ),
 
             billetPdfUrl:
@@ -960,12 +963,19 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                         $data,
                         'pdf.charge'
                     )
+                    ?? data_get(
+                        $data,
+                        'payment.banking_billet.pdf.charge'
+                    )
                 ),
 
             barcode:
                 $this->safeBarcode(
                     $data['barcode']
-                    ?? null
+                    ?? data_get(
+                        $data,
+                        'payment.banking_billet.barcode'
+                    )
                 ),
 
             amountCents:
@@ -977,7 +987,10 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             dueOn:
                 $this->safeDate(
                     $data['expire_at']
-                    ?? null
+                    ?? data_get(
+                        $data,
+                        'payment.banking_billet.expire_at'
+                    )
                 ),
         );
     }

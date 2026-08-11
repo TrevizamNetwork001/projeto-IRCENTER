@@ -1,0 +1,26 @@
+{
+    "code": 200,
+    "data": {
+        "charge_id": 45002412,
+        "total": 100,
+        "status": "waiting",
+        "custom_id": "invoice_01TEST_provider_efi_method_boleto_pix",
+        "created_at": "2026-08-11 16:28:57",
+        "payment": {
+            "method": "banking_billet",
+            "banking_billet": {
+                "barcode": "00190000090286000000600000000000000000000000",
+                "pix": {
+                    "qrcode": "SANITIZED-SANDBOX-PIX-COPY-PASTE",
+                    "qrcode_image": "data:image/svg+xml;base64,PHN2Zy8+"
+                },
+                "link": "https://payments.example.test/charge",
+                "billet_link": "https://payments.example.test/billet",
+                "pdf": {
+                    "charge": "https://payments.example.test/billet.pdf?sandbox=true"
+                },
+                "expire_at": "2026-09-21"
+            }
+        }
+    }
+}

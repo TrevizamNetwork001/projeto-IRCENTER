@@ -195,6 +195,61 @@ class EfiPaymentProviderTest extends TestCase
         );
     }
 
+    public function test_real_detail_shape_maps_nested_billet_artifacts(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(
+                base_path(
+                    'tests/Fixtures/efi/'
+                    .'charge-detail-success.json'
+                )
+            ),
+            true,
+            flags: JSON_THROW_ON_ERROR
+        );
+
+        Http::fake([
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
+                => Http::response([
+                    'access_token' => 'token-test',
+                ]),
+            'https://cobrancas-h.api.efipay.com.br/v1/charge/45002412'
+                => Http::response($fixture),
+        ]);
+
+        $result = app(EfiPaymentProvider::class)
+            ->findCharge('45002412');
+
+        $this->assertSame('45002412', $result->providerChargeId);
+        $this->assertSame('open', $result->status);
+        $this->assertSame(100, $result->amountCents);
+        $this->assertSame('2026-09-21', $result->dueOn);
+        $this->assertSame(
+            'https://payments.example.test/charge',
+            $result->checkoutUrl
+        );
+        $this->assertSame(
+            'https://payments.example.test/billet',
+            $result->billetUrl
+        );
+        $this->assertSame(
+            'https://payments.example.test/billet.pdf?sandbox=true',
+            $result->billetPdfUrl
+        );
+        $this->assertSame(
+            '00190000090286000000600000000000000000000000',
+            $result->barcode
+        );
+        $this->assertSame(
+            'SANITIZED-SANDBOX-PIX-COPY-PASTE',
+            $result->pixCopyPaste
+        );
+        $this->assertObjectNotHasProperty(
+            'pixQrCodeImage',
+            $result
+        );
+    }
+
     public function test_payload_uses_cnpj_address_and_integer_cents(): void
     {
         Http::fake([
