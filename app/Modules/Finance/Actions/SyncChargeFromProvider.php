@@ -57,7 +57,14 @@ final class SyncChargeFromProvider
             );
 
             if ($event->processed_at !== null) {
-                return $charge;
+                if (
+                    $incoming->normalizedStatus === Charge::STATUS_PAID
+                    && $charge->status === Charge::STATUS_PAID
+                ) {
+                    $this->recordPayment($charge, $incoming);
+                }
+
+                return $charge->refresh();
             }
 
             $nextStatus = $this->safeStatus($charge->status, $incoming->normalizedStatus);
@@ -145,7 +152,19 @@ final class SyncChargeFromProvider
 
     private function recordPayment(Charge $charge, EfiNotificationEvent $incoming): void
     {
-        if ($incoming->valueCents === null) {
+        $valueCents = $incoming->valueCents;
+
+        /*
+         * A baixa manual Efí (`settled`) não devolve valor no histórico.
+         * Nesse caso estrito, o operador confirmou a quitação integral da
+         * própria cobrança e usamos seu valor nominal imutável. Eventos
+         * bancários `paid` sem valor continuam bloqueados.
+         */
+        if ($valueCents === null && $incoming->currentStatus === 'settled') {
+            $valueCents = Decimal::moneyToCents($charge->amount);
+        }
+
+        if ($valueCents === null) {
             $this->recordAmountMismatch($charge, null);
             return;
         }
@@ -161,7 +180,7 @@ final class SyncChargeFromProvider
                 'invoice_id' => $invoice->id,
                 'provider' => 'efi',
                 'provider_payment_id' => $incoming->eventId,
-                'amount' => number_format($incoming->valueCents / 100, 2, '.', ''),
+                'amount' => number_format($valueCents / 100, 2, '.', ''),
                 'currency' => $charge->currency,
                 'paid_at' => $paidAt,
             ]
@@ -186,8 +205,8 @@ final class SyncChargeFromProvider
 
         $invoiceCents = Decimal::moneyToCents($invoice->total);
 
-        if ($incoming->valueCents !== $invoiceCents) {
-            $this->recordAmountMismatch($charge, $incoming->valueCents, $invoiceCents);
+        if ($valueCents !== $invoiceCents) {
+            $this->recordAmountMismatch($charge, $valueCents, $invoiceCents);
             return;
         }
 

@@ -569,6 +569,21 @@ class EfiPaymentWebhookTest extends TestCase
         ], 'finance_fiscal');
     }
 
+    public function test_manual_settlement_uses_nominal_charge_amount_idempotently(): void
+    {
+        $charge = $this->efiCharge();
+        $receipt = $this->receipt();
+        $events = [$this->event(40, 'settled')];
+
+        $this->runEvents($receipt, $events);
+        $this->runEvents($receipt->refresh(), $events);
+
+        $this->assertSame(Charge::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(Invoice::STATUS_PAID, $charge->invoice()->firstOrFail()->status);
+        $this->assertDatabaseCount('payments', 1, 'finance_fiscal');
+        $this->assertSame('850.00', Payment::query()->firstOrFail()->amount);
+    }
+
     public function test_paid_invoice_web_shows_payment_and_financial_timeline(): void
     {
         $charge = $this->efiCharge();
