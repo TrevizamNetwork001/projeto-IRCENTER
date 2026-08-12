@@ -11,7 +11,7 @@ use App\Http\Controllers\ExternalIntegrationController;
 use App\Http\Controllers\BillingContractController;
 use App\Http\Controllers\BillingItemController;
 use App\Http\Controllers\ChargeController;
-use App\Http\Controllers\FinanceWorkspaceController;
+use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\FinanceClientController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\IrrObjectController;
@@ -78,7 +78,7 @@ Route::middleware([
 
     Route::get(
         '/finance',
-        FinanceWorkspaceController::class
+        FinanceDashboardController::class
     )->name('finance.dashboard');
 
     Route::get('/finance/clients', [FinanceClientController::class, 'index'])
