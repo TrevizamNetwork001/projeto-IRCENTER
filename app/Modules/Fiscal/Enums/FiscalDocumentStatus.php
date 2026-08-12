@@ -15,8 +15,8 @@ enum FiscalDocumentStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::Draft => [self::Ready],
-            self::Ready => [self::Processing],
+            self::Draft => [self::Ready, self::Cancelled],
+            self::Ready => [self::Draft, self::Processing, self::Authorized],
             self::Processing => [self::Authorized, self::Rejected],
             self::Rejected => [self::Ready],
             self::Authorized => [self::Cancelled],

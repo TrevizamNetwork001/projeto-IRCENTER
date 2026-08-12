@@ -113,6 +113,15 @@ class ClientController extends Controller
             ? \App\Modules\Finance\Models\Invoice::query()
                 ->where('core_client_id', $client->id)->with('payments')->latest('id')->limit(8)->get()
             : collect();
+        $fiscalProfile = config('finance_fiscal.fiscal.enabled', false) && $financeSchema->hasTable('fiscal_customer_profiles')
+            ? \App\Modules\Fiscal\Models\FiscalCustomerProfile::query()->where('core_client_id', $client->id)->first()
+            : null;
+        $fiscalDocuments = config('finance_fiscal.fiscal.enabled', false) && $financeSchema->hasTable('fiscal_documents')
+            ? \App\Modules\Fiscal\Models\FiscalDocument::query()->where('core_client_id', $client->id)->latest('id')->limit(5)->get()
+            : collect();
+        $fiscalDocumentCount = config('finance_fiscal.fiscal.enabled', false) && $financeSchema->hasTable('fiscal_documents')
+            ? \App\Modules\Fiscal\Models\FiscalDocument::query()->where('core_client_id', $client->id)->count()
+            : 0;
 
         return view('clients.show', [
             'client' => $client->load([
@@ -125,6 +134,9 @@ class ClientController extends Controller
             'financeContracts' => $contracts,
             'financeInvoices' => $invoices,
             'financeOpenTotal' => $invoices->where('status', 'open')->sum('total'),
+            'fiscalProfile' => $fiscalProfile,
+            'fiscalDocuments' => $fiscalDocuments,
+            'fiscalDocumentCount' => $fiscalDocumentCount,
         ]);
     }
 

@@ -50,7 +50,7 @@ final class FiscalFoundationTest extends TestCase
     {
         config()->set('finance_fiscal.fiscal.enabled', true);
         $user = User::factory()->create(['role' => User::ROLE_ADMIN, 'must_change_password' => false]);
-        $this->actingAs($user)->get('/fiscal')->assertOk()->assertSee('Homologação')->assertSee('Nenhum documento fiscal emitido')->assertDontSee('Emitir NFS-e');
+        $this->actingAs($user)->get('/fiscal')->assertOk()->assertSee('Homologação')->assertSee('Nenhum documento fiscal')->assertDontSee('Emitir NFS-e');
     }
 
     public function test_customer_profile_requires_authorization_and_validation(): void
@@ -145,7 +145,7 @@ final class FiscalFoundationTest extends TestCase
         $client = Client::factory()->create();
         $item = BillingItem::query()->create(['name' => 'Link', 'description' => 'Link', 'default_amount' => '100.00', 'active' => true]);
         $issuer = FiscalIssuerProfile::query()->create(['legal_name' => 'Emitente LTDA', 'document' => '11222333000181', 'municipality_code' => '3550308', 'municipality' => 'São Paulo', 'state' => 'SP', 'postal_code' => '01001000', 'street' => 'Praça da Sé', 'address_number' => '1', 'district' => 'Sé', 'tax_settings' => ['regime' => 'simples'], 'active' => true]);
-        $customer = FiscalCustomerProfile::query()->create(['core_client_id' => $client->id, 'document' => '52998224725', 'legal_name' => 'Tomador Original', 'country_code' => 'BR']);
+        $customer = FiscalCustomerProfile::query()->create(['core_client_id' => $client->id, 'document' => '52998224725', 'legal_name' => 'Tomador Original', 'municipality' => 'São Paulo', 'municipality_code' => '3550308', 'state' => 'SP', 'country_code' => 'BR']);
         $service = FiscalServiceProfile::query()->create(['billing_item_id' => $item->id, 'fiscal_description' => 'Serviço Fiscal Original', 'national_service_code' => '010101', 'iss_rate' => '2.0000', 'active' => true]);
         return [$issuer, $customer, $service];
     }

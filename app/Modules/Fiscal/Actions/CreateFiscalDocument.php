@@ -55,7 +55,7 @@ final class CreateFiscalDocument
             ]);
             $document->items()->createMany($items);
             FiscalIdempotency::query()->create(['fiscal_document_id' => $document->id, 'operation' => 'create', 'idempotency_key' => $document->idempotency_key, 'provider' => $document->provider]);
-            $this->audit->record('fiscal', 'document.created', $actorUserId, FiscalDocument::class, $document->id, ['public_id' => $document->public_id, 'environment' => $document->environment->value]);
+            $this->audit->record('fiscal', 'fiscal.document.created', $actorUserId, FiscalDocument::class, $document->id, ['public_id' => $document->public_id, 'environment' => $document->environment->value]);
 
             return $document->load(['issuer', 'customer', 'items.service']);
         });

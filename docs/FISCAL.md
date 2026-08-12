@@ -53,8 +53,27 @@ A escrita do perfil fiscal exige administrador, Form Request, CSRF e route model
 
 Artefatos guardam somente tipo, disco, caminho, MIME, SHA-256 e tamanho. `FiscalArtifactStore` rejeita disco público; o padrão `local` aponta para `storage/app/private`. Conteúdo não é gravado no PostgreSQL nem registrado em logs.
 
-Certificados, senhas, tokens e chaves privadas não são tratados nesta fase. A FISCAL-2 deverá definir um mecanismo seguro e externo à tabela de emitente antes de integrar a NFS-e Nacional em homologação.
+Certificados, senhas, tokens e chaves privadas não são tratados nesta fase. Uma futura integração automática deverá definir um mecanismo seguro e externo à tabela de emitente.
 
-## Preparação para FISCAL-2
+## FISCAL-2A — Operação manual assistida
 
-A próxima fase implementará um adapter oficial isolado, schemas vigentes, DPS, autenticação, assinatura, consulta, cancelamento e download oficial. Produção continuará fora do escopo até homologação específica.
+A FISCAL-2A acrescenta criação explícita de rascunhos, avaliação centralizada de prontidão (`READY`, `WARNING` e `BLOCKED`), retorno para revisão, resumo baseado no snapshot e registro assistido de uma NFS-e que o usuário já autorizou no Portal Nacional. O modo de emissão é registrado separadamente como `manual`; o provider continua sendo outro conceito.
+
+O fluxo operacional é:
+
+```text
+Rascunho → readiness → snapshot/ready → emissão manual no Portal Nacional
+         → confirmação forte no IRCENTER → authorized → XML/PDF privados
+```
+
+O registro manual exige confirmação expressa, número e data de autorização. Guarda usuário responsável, chave/código opcionais e evento sanitizado em `domain_audit_events`. Um documento autorizado não aceita alteração silenciosa de competência, tomador, serviço, valores, metadados oficiais ou snapshots. `ready` pode voltar a `draft`; `draft` pode ser cancelado apenas internamente. Não existe cancelamento oficial nesta fase.
+
+XML bem formado e PDF com MIME/assinatura coerentes podem ser anexados a `FiscalArtifact`. Os arquivos ficam no disco privado, com nome sanitizado, tamanho e SHA-256; download e remoção passam pela aplicação e autorização. O XML não é interpretado como autoridade e não é validado contra XSD nesta fase.
+
+O link para o Portal Nacional é somente uma navegação iniciada pelo usuário. A aplicação não consulta o portal, não automatiza login ou preenchimento e não realiza qualquer HTTP fiscal. A listagem, os filtros, cards, pendências, timeline e a seção fiscal do cliente operam apenas sobre dados locais.
+
+> Registrar uma NFS-e como emitida no IRCENTER não emite nem valida a nota perante o governo.
+
+## Limites e preparação para FISCAL-2B
+
+A FISCAL-2A não implementa DPS/XML oficial, certificado, assinatura, mTLS, API SEFIN, scraping, cancelamento oficial, emissão por pagamento, jobs ou produção. A FISCAL-2B poderá substituir somente o passo manual por um provider automático, preservando documento, snapshots, idempotência, transmissões, auditoria e artefatos.

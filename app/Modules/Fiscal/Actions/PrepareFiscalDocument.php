@@ -6,15 +6,20 @@ use App\Modules\Fiscal\Enums\FiscalDocumentStatus;
 use App\Modules\Fiscal\Models\FiscalDocument;
 use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Support\Facades\DB;
+use App\Modules\Fiscal\Services\FiscalDocumentReadinessService;
 
 final class PrepareFiscalDocument
 {
-    public function __construct(private readonly DomainAudit $audit) {}
+    public function __construct(private readonly DomainAudit $audit, private readonly FiscalDocumentReadinessService $readiness) {}
 
     public function execute(FiscalDocument $document, ?int $actorUserId = null): FiscalDocument
     {
         if (! config('finance_fiscal.fiscal.enabled', false)) {
             throw new \LogicException('Módulo fiscal está desabilitado.');
+        }
+        $readiness = $this->readiness->evaluate($document);
+        if ($readiness->isBlocked()) {
+            throw new \DomainException(collect($readiness->issues)->pluck('message')->implode(' '));
         }
 
         return DB::connection('finance_fiscal')->transaction(function () use ($document, $actorUserId): FiscalDocument {
@@ -28,7 +33,7 @@ final class PrepareFiscalDocument
                 'tax_snapshot' => ['issuer' => $document->issuer->tax_settings ?? [], 'items' => $document->items->map(fn ($item) => $item->tax_snapshot ?? $item->service?->tax_settings ?? [])->all()],
                 'prepared_at' => now(),
             ])->save();
-            $this->audit->record('fiscal', 'document.ready', $actorUserId, FiscalDocument::class, $document->id, ['public_id' => $document->public_id]);
+            $this->audit->record('fiscal', 'fiscal.document.ready', $actorUserId, FiscalDocument::class, $document->id, ['public_id' => $document->public_id]);
             return $document->refresh();
         });
     }
