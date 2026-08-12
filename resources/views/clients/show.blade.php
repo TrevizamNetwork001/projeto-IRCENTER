@@ -57,6 +57,9 @@
         <div class="finance-metrics"><div><span>Contratos ativos</span><strong>{{ $financeContracts->where('status','active')->count() }}</strong></div><div><span>Total em aberto</span><strong>R$ {{ number_format((float)$financeOpenTotal,2,',','.') }}</strong></div><div><span>Faturas recentes</span><strong>{{ $financeInvoices->count() }}</strong></div><div><span>Próxima cobrança</span><strong>{{ ($next=$financeContracts->where('status','active')->sortBy('generation_day')->first()) ? 'Dia '.$next->generation_day : '—' }}</strong></div></div>
         <div class="page-actions"><a class="button button-secondary" href="{{ route('finance.contracts.index',['search'=>$client->client_code]) }}">Ver contratos</a><a class="button button-secondary" href="{{ route('finance.invoices.index',['search'=>$client->client_code]) }}">Ver faturas e pagamentos</a>@if(auth()->user()->isAdministrator())<a class="button button-secondary" href="{{ route('finance.contracts.create',['client_id'=>$client->id]) }}">Novo contrato</a>@endif</div>
     </section>
+    @if(config('finance_fiscal.fiscal.enabled', false))
+        <section class="panel"><header class="panel-header"><div><span class="panel-eyebrow">Fiscal</span><h2>Cadastro fiscal complementar</h2></div>@if(auth()->user()->isAdministrator())<a class="button button-secondary" href="{{ route('clients.fiscal.edit', $client) }}">Editar dados fiscais</a>@endif</header><p>Dados usados na preparação de documentos fiscais, separados do cadastro central.</p></section>
+    @endif
     <section class="details-grid">
         <article class="panel details-card">
             <header class="panel-header">

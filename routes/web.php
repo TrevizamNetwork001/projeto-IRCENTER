@@ -14,6 +14,8 @@ use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\FinanceClientController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\FiscalDashboardController;
+use App\Http\Controllers\FiscalCustomerProfileController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
@@ -80,6 +82,12 @@ Route::middleware([
         '/finance',
         FinanceDashboardController::class
     )->name('finance.dashboard');
+
+    Route::middleware('fiscal.enabled')->group(function (): void {
+        Route::get('/fiscal', FiscalDashboardController::class)->name('fiscal.dashboard');
+        Route::get('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'edit'])->whereNumber('client')->name('clients.fiscal.edit');
+        Route::put('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'update'])->whereNumber('client')->name('clients.fiscal.update');
+    });
 
     Route::get('/finance/clients', [FinanceClientController::class, 'index'])
         ->name('finance.clients.index');

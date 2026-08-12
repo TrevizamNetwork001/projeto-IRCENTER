@@ -36,6 +36,12 @@ return [
     'fiscal' => [
         'enabled' => env('FISCAL_ENABLED', false),
 
+        'provider' => env('FISCAL_PROVIDER', env('NFSE_PROVIDER', 'fake')),
+
+        'environment' => env('FISCAL_ENVIRONMENT', 'homologation'),
+
+        'artifact_disk' => env('FISCAL_ARTIFACT_DISK', 'local'),
+
         'nfse_provider' => env(
             'NFSE_PROVIDER',
             'fake'

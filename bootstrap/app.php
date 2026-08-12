@@ -4,6 +4,7 @@ use App\Http\Middleware\AuthenticateDocumentationApi;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\RequestLogContext;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\EnsureFiscalEnabled;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 AuthenticateDocumentationApi::class,
             'password.changed' =>
                 EnsurePasswordWasChanged::class,
+            'fiscal.enabled' => EnsureFiscalEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

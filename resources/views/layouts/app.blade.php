@@ -99,6 +99,12 @@
                     <span>Financeiro</span>
                 </a>
 
+                @if (config('finance_fiscal.fiscal.enabled', false))
+                    <a href="{{ route('fiscal.dashboard') }}" class="sidebar-link {{ request()->routeIs('fiscal.*') ? 'is-active' : '' }}">
+                        <span class="sidebar-link-icon"><x-icon name="report"/></span><span>Fiscal</span>
+                    </a>
+                @endif
+
                 <a
                     href="{{ route('autonomous-systems.index') }}"
                     class="sidebar-link {{ request()->routeIs('autonomous-systems.*') ? 'is-active' : '' }}"

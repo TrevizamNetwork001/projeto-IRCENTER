@@ -36,6 +36,9 @@
         <env name="PAYMENT_WEBHOOKS_ENABLED" value="false"/>
         <env name="FINANCE_GENERAL_EMAIL_FALLBACK" value="false"/>
         <env name="FISCAL_ENABLED" value="false"/>
+        <env name="FISCAL_PROVIDER" value="fake"/>
+        <env name="FISCAL_ENVIRONMENT" value="homologation"/>
+        <env name="FISCAL_ARTIFACT_DISK" value="local"/>
         <env name="NFSE_PROVIDER" value="fake"/>
         <env name="NFSE_TRANSMISSION_ENABLED" value="false"/>
         <env name="NFSE_LIVE_ENABLED" value="false"/>

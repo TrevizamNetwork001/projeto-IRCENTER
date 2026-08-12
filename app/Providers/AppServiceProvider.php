@@ -74,11 +74,12 @@ class AppServiceProvider extends ServiceProvider
             function () {
                 return match (
                     config(
-                        'finance_fiscal.fiscal.nfse_provider',
+                        'finance_fiscal.fiscal.provider',
                         'fake'
                     )
                 ) {
                     'fake' => new \App\Modules\Fiscal\Infrastructure\FakeNfseProvider(),
+                    'disabled' => new \App\Modules\Fiscal\Infrastructure\DisabledNfseProvider(),
                     default => throw new \LogicException(
                         'NFS-e provider não suportado.'
                     ),
