@@ -183,19 +183,34 @@ class FinanceUxTest extends TestCase
             ->assertSee('value="'.$client->id.'" selected', false);
     }
 
-    public function test_dashboard_uses_client_language_and_human_statuses(): void
+    public function test_finance_workspace_is_client_centered_and_keeps_secondary_pages_accessible(): void
     {
         $viewer = $this->user(User::ROLE_VIEWER);
+        $client = Client::factory()->create(['legal_name' => 'TREVIZAM NETWORKS', 'trade_name' => null, 'active' => true]);
+        $item = BillingItem::query()->create(['name' => 'Consultoria mensal', 'default_amount' => '500.00', 'active' => true]);
+        $old = $this->contract($client, $item, '100.00');
+        $old->update(['status' => BillingContract::STATUS_SUSPENDED]);
+        $current = $this->contract($client, $item, '500.00');
+        $current->update(['status' => BillingContract::STATUS_ACTIVE]);
 
-        $this->actingAs($viewer)
-            ->get(route('finance.dashboard'))
+        $response = $this->actingAs($viewer)
+            ->get(route('finance.dashboard', ['client' => $client->id]))
             ->assertOk()
-            ->assertSee('Clientes com recorrência')
-            ->assertSee('Próximas cobranças')
-            ->assertSee('Ver clientes')
-            ->assertDontSee('Ver contratos')
-            ->assertDontSee('Configuração operacional')
+            ->assertSee('Cliente, recorrência, cobranças e pagamentos')
+            ->assertSee('R$ 500,00 / mês')
+            ->assertSee('Cobrança recorrente')
+            ->assertSee('Configurações anteriores (1)')
+            ->assertSee('Últimas cobranças')
+            ->assertSee('Todas as cobranças')
+            ->assertSee('Itens de cobrança')
+            ->assertSee('Voltar aos clientes')
+            ->assertDontSee('BillingContract')
+            ->assertDontSee('Visão geral')
             ->assertDontSee('Provider:');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'TREVIZAM NETWORKS'));
+        $this->actingAs($viewer)->get(route('finance.invoices.index'))->assertOk();
+        $this->actingAs($viewer)->get(route('finance.items.index'))->assertOk();
     }
 
     public function test_viewer_cannot_edit_recurring_configuration(): void
