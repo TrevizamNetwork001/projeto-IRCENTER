@@ -50,7 +50,7 @@ final class FiscalFoundationTest extends TestCase
     {
         config()->set('finance_fiscal.fiscal.enabled', true);
         $user = User::factory()->create(['role' => User::ROLE_ADMIN, 'must_change_password' => false]);
-        $this->actingAs($user)->get('/fiscal')->assertOk()->assertSee('Homologação')->assertSee('Nenhum documento fiscal')->assertDontSee('Emitir NFS-e');
+        $this->actingAs($user)->get('/fiscal')->assertOk()->assertSee('Modo de emissão: Manual')->assertSee('Nenhum documento fiscal')->assertDontSee('Emitir NFS-e');
     }
 
     public function test_customer_profile_requires_authorization_and_validation(): void
