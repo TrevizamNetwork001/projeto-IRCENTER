@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\ApiCredentialService;
+use App\Services\AuditService;
 use App\Support\ApiErrorResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,7 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 class AuthenticateDocumentationApi
 {
     public function __construct(
-        private readonly ApiCredentialService $credentialService
+        private readonly ApiCredentialService $credentialService,
+        private readonly AuditService $auditService,
     ) {}
 
     public function handle(
@@ -37,15 +39,11 @@ class AuthenticateDocumentationApi
                 return $next($request);
             }
 
-            // Temporary fallback for the legacy documentation API token.
-            $legacyHash = trim(
-                (string) config('documentation.api_token_hash')
-            );
-
             if (
-                $legacyHash !== ''
-                && hash_equals($legacyHash, hash('sha256', $token))
+                (bool) config('documentation.legacy_token_enabled', false)
+                && $this->matchesLegacyToken($token)
             ) {
+                $this->auditService->recordLegacyApiTokenUsage($request);
                 $request->attributes->set('api_client', 'legacy');
 
                 return $next($request);
@@ -62,5 +60,15 @@ class AuthenticateDocumentationApi
             status: 401,
             request: $request,
         );
+    }
+
+    private function matchesLegacyToken(string $token): bool
+    {
+        $legacyHash = trim(
+            (string) config('documentation.api_token_hash')
+        );
+
+        return preg_match('/^[a-f0-9]{64}$/D', $legacyHash) === 1
+            && hash_equals($legacyHash, hash('sha256', $token));
     }
 }

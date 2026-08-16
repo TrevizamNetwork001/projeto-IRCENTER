@@ -24,6 +24,7 @@ class DocumentationApiTest extends TestCase
         parent::setUp();
 
         config([
+            'documentation.legacy_token_enabled' => false,
             'documentation.api_token_hash' => hash('sha256', self::TOKEN),
         ]);
     }
@@ -48,6 +49,8 @@ class DocumentationApiTest extends TestCase
 
     public function test_legacy_documentation_token_still_works(): void
     {
+        config(['documentation.legacy_token_enabled' => true]);
+
         $this->withToken(self::TOKEN)
             ->getJson('/api/v1/documentation/clients')
             ->assertOk();
@@ -391,7 +394,9 @@ class DocumentationApiTest extends TestCase
             'notes' => 'Anotação interna que não pode sair.',
         ]);
 
-        $this->withToken(self::TOKEN)
+        $credential = $this->createCredential('Listagem sem notas');
+
+        $this->withToken($credential['token'])
             ->getJson('/api/v1/documentation/clients')
             ->assertOk()
             ->assertJsonPath(
@@ -416,7 +421,9 @@ class DocumentationApiTest extends TestCase
             'autonomous_system_id' => $asn->id,
         ]);
 
-        $this->withToken(self::TOKEN)
+        $credential = $this->createCredential('Detalhe de cliente');
+
+        $this->withToken($credential['token'])
             ->getJson(
                 "/api/v1/documentation/clients/{$client->id}"
             )
@@ -436,7 +443,12 @@ class DocumentationApiTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->withToken(self::TOKEN)
+        $credential = $this->createCredential(
+            'Listagem de usuários',
+            [DocumentationApiScope::USERS_READ]
+        );
+
+        $response = $this->withToken($credential['token'])
             ->getJson('/api/v1/documentation/users')
             ->assertOk()
             ->assertJsonPath('data.0.id', $user->id);
@@ -458,7 +470,9 @@ class DocumentationApiTest extends TestCase
     {
         Client::factory()->count(101)->create();
 
-        $this->withToken(self::TOKEN)
+        $credential = $this->createCredential('Paginação');
+
+        $this->withToken($credential['token'])
             ->getJson(
                 '/api/v1/documentation/clients?per_page=500'
             )

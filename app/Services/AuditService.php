@@ -8,6 +8,37 @@ use Illuminate\Http\Request;
 
 class AuditService
 {
+    public function recordLegacyApiTokenUsage(Request $request): AuditLog
+    {
+        $userAgent = $request->userAgent();
+
+        if (is_string($userAgent)) {
+            $userAgent = mb_substr(
+                preg_replace('/[\x00-\x1F\x7F]/u', '', $userAgent) ?? '',
+                0,
+                500
+            );
+        }
+
+        return AuditLog::create([
+            'user_id' => null,
+            'action' => 'api_client.legacy_token_used',
+            'resource_type' => 'DocumentationApi',
+            'resource_id' => null,
+            'resource_label' => 'Legacy API token (deprecated)',
+            'old_values' => null,
+            'new_values' => [
+                'request_id' => (string) $request->attributes->get(
+                    'request_id'
+                ),
+                'method' => $request->method(),
+                'route' => '/'.$request->path(),
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $userAgent,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>|null  $oldValues
      * @param  array<string, mixed>|null  $newValues

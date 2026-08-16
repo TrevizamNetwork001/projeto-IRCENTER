@@ -4,7 +4,9 @@ A API pública de documentação usa JSON e o base path `/api/v1`. Em produção
 
 ## Autenticação e credenciais
 
-Envie a credencial individual no cabeçalho `Authorization: Bearer <credencial>`. O token é opaco, não é JWT. Credenciais são criadas e administradas pelos comandos internos próprios do IRCENTER; o valor gerado deve ser guardado pelo consumidor, pois o servidor armazena somente seu hash.
+Envie a credencial individual no cabeçalho `Authorization: Bearer <credencial>`. O token é opaco, não é JWT. Novas integrações devem obrigatoriamente obter uma credencial individual com `php artisan api-client:create`; o valor gerado deve ser guardado pelo consumidor, pois o servidor armazena somente seu hash.
+
+O mecanismo global legado está depreciado, desabilitado por padrão e existe apenas para uma transição operacional controlada. Ele não deve ser usado por novas integrações. Operadores podem consultar seu estado com `php artisan api-client:legacy-status` e o uso auditado com `php artisan api-client:legacy-usage`, sem exposição de credenciais.
 
 Scopes disponíveis:
 

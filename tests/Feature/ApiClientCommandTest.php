@@ -185,4 +185,54 @@ class ApiClientCommandTest extends TestCase
             'resource_id' => $client->id,
         ]);
     }
+
+    public function test_legacy_status_is_fail_closed_and_never_shows_hash(): void
+    {
+        $hash = hash('sha256', 'legacy-status-test');
+        config([
+            'documentation.legacy_token_enabled' => false,
+            'documentation.api_token_hash' => $hash,
+        ]);
+
+        $this->assertSame(0, Artisan::call('api-client:legacy-status'));
+        $output = Artisan::output();
+        $this->assertStringContainsString('DISABLED', $output);
+        $this->assertStringNotContainsString($hash, $output);
+
+        config(['documentation.legacy_token_enabled' => true]);
+        $this->assertSame(0, Artisan::call('api-client:legacy-status'));
+        $output = Artisan::output();
+        $this->assertStringContainsString('ENABLED', $output);
+        $this->assertStringContainsString('DEPRECATED', $output);
+        $this->assertStringNotContainsString($hash, $output);
+
+        config(['documentation.api_token_hash' => 'invalid']);
+        $this->assertSame(1, Artisan::call('api-client:legacy-status'));
+        $this->assertStringContainsString('INVALID', Artisan::output());
+        $this->assertStringNotContainsString('legacy-status-test', Artisan::output());
+    }
+
+    public function test_legacy_usage_summarizes_audit_without_secrets(): void
+    {
+        AuditLog::create([
+            'action' => 'api_client.legacy_token_used',
+            'resource_type' => 'DocumentationApi',
+            'ip_address' => '203.0.113.70',
+            'created_at' => now()->subHour(),
+        ]);
+        AuditLog::create([
+            'action' => 'api_client.legacy_token_used',
+            'resource_type' => 'DocumentationApi',
+            'ip_address' => '203.0.113.71',
+            'created_at' => now()->subDays(2),
+        ]);
+
+        $this->assertSame(0, Artisan::call('api-client:legacy-usage'));
+        $output = Artisan::output();
+
+        $this->assertStringContainsString('Utilizações nas últimas 24h', $output);
+        $this->assertStringContainsString('Utilizações nos últimos 7 dias', $output);
+        $this->assertStringNotContainsString('token_hash', $output);
+        $this->assertStringNotContainsString('Authorization', $output);
+    }
 }
