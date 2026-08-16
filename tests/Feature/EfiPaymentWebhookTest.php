@@ -9,13 +9,15 @@ use App\Modules\Finance\Actions\ActivateBillingContract;
 use App\Modules\Finance\Actions\CreateBillingContract;
 use App\Modules\Finance\Actions\CreateChargeForInvoice;
 use App\Modules\Finance\Actions\GenerateInvoiceForContract;
+use App\Modules\Finance\Actions\SyncChargeFromProvider;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\Payment;
 use App\Modules\Finance\Models\PaymentProviderEvent;
 use App\Modules\Finance\Models\PaymentWebhookReceipt;
-use App\Modules\Finance\Models\Payment;
-use App\Modules\Finance\Actions\SyncChargeFromProvider;
+use App\Modules\Shared\Models\DomainAuditEvent;
+use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Artisan;
@@ -33,11 +35,9 @@ class EfiPaymentWebhookTest extends TestCase
         parent::setUp();
 
         Artisan::call('migrate', [
-            '--database' =>
-                'finance_fiscal',
+            '--database' => 'finance_fiscal',
 
-            '--path' =>
-                'database/migrations/finance_fiscal',
+            '--path' => 'database/migrations/finance_fiscal',
 
             '--force' => true,
         ]);
@@ -65,6 +65,16 @@ class EfiPaymentWebhookTest extends TestCase
             .'payment_live_enabled',
             false
         );
+
+        config()->set(
+            'finance_fiscal.providers.efi.webhook_callback_secret',
+            str_repeat('a', 64)
+        );
+
+        config()->set(
+            'finance_fiscal.providers.efi.webhook_legacy_route_enabled',
+            true
+        );
     }
 
     public function test_webhook_is_hidden_when_disabled(): void
@@ -78,10 +88,101 @@ class EfiPaymentWebhookTest extends TestCase
         $this->post(
             '/api/v1/webhooks/payments/efi',
             [
-                'notification' =>
-                    '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
+                'notification' => '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
             ]
         )->assertNotFound();
+    }
+
+    public function test_missing_callback_configuration_fails_closed(): void
+    {
+        Queue::fake();
+        Http::preventStrayRequests();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        config()->set('finance_fiscal.providers.efi.webhook_callback_secret', null);
+        config()->set('finance_fiscal.providers.efi.webhook_legacy_route_enabled', false);
+
+        $this->post($this->protectedWebhookUrl(), [
+            'notification' => '19027955-5e06-4ff0-a9c7-46b47b8f1b27',
+        ])->assertNotFound();
+
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+    }
+
+    public function test_missing_or_invalid_callback_is_rejected_before_work(): void
+    {
+        Queue::fake();
+        Http::preventStrayRequests();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        config()->set('finance_fiscal.providers.efi.webhook_legacy_route_enabled', false);
+
+        $payload = [
+            'notification' => '29027955-5e06-4ff0-a9c7-46b47b8f1b27',
+        ];
+
+        $this->post('/api/v1/webhooks/payments/efi', $payload)
+            ->assertNotFound();
+        $response = $this->post(
+            '/api/v1/webhooks/payments/efi/'.str_repeat('b', 64),
+            $payload
+        )->assertNotFound();
+
+        $this->assertStringNotContainsString(
+            str_repeat('a', 64),
+            $response->getContent()
+        );
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+        $this->assertDatabaseCount('domain_audit_events', 0, 'finance_fiscal');
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+    }
+
+    public function test_correct_callback_secret_allows_normal_flow_without_persisting_secret(): void
+    {
+        Queue::fake();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        config()->set('finance_fiscal.providers.efi.webhook_legacy_route_enabled', false);
+
+        $response = $this->post($this->protectedWebhookUrl(), [
+            'notification' => '39027955-5e06-4ff0-a9c7-46b47b8f1b27',
+        ])->assertOk();
+
+        $secret = str_repeat('a', 64);
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertStringNotContainsString(
+            $secret,
+            PaymentWebhookReceipt::query()->firstOrFail()->toJson()
+        );
+        $this->assertStringNotContainsString(
+            $secret,
+            DomainAuditEvent::query()->firstOrFail()->toJson()
+        );
+        Queue::assertPushed(ProcessEfiPaymentWebhook::class, 1);
+    }
+
+    public function test_invalid_callbacks_are_rate_limited_before_authentication(): void
+    {
+        Queue::fake();
+        Http::preventStrayRequests();
+        config()->set('finance_fiscal.finance.payment_webhooks_enabled', true);
+        config()->set('finance_fiscal.providers.efi.webhook_legacy_route_enabled', false);
+        config()->set('finance_fiscal.providers.efi.webhook_rate_limit', 2);
+        $url = '/api/v1/webhooks/payments/efi/'.str_repeat('c', 64);
+        $server = ['REMOTE_ADDR' => '198.51.100.77'];
+
+        $this->withServerVariables($server)->post($url)->assertNotFound();
+        $this->withServerVariables($server)->post($url)->assertNotFound();
+        $response = $this->withServerVariables($server)->post($url)
+            ->assertTooManyRequests();
+
+        $this->assertTrue(
+            $response->headers->has('Retry-After')
+            || $response->headers->has('X-RateLimit-Reset')
+        );
+        $this->assertDatabaseCount('payment_webhook_receipts', 0, 'finance_fiscal');
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
     }
 
     public function test_webhook_encrypts_token_and_queues_job(): void
@@ -206,69 +307,53 @@ class EfiPaymentWebhookTest extends TestCase
         Http::preventStrayRequests();
 
         Http::fake([
-            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
-                => Http::response([
-                    'access_token' =>
-                        'token-test',
-                ]),
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' => Http::response([
+                'access_token' => 'token-test',
+            ]),
 
-            'https://cobrancas-h.api.efipay.com.br/v1/notification/*'
-                => Http::response([
-                    'code' => 200,
-                    'data' => [
-                        [
-                            'id' => 1,
-                            'type' => 'charge',
-                            'identifiers' => [
-                                'charge_id' =>
-                                    900001,
-                            ],
-                            'status' => [
-                                'current' =>
-                                    'new',
-                                'previous' =>
-                                    null,
-                            ],
-                            'created_at' =>
-                                '2026-08-07 18:00:00',
+            'https://cobrancas-h.api.efipay.com.br/v1/notification/*' => Http::response([
+                'code' => 200,
+                'data' => [
+                    [
+                        'id' => 1,
+                        'type' => 'charge',
+                        'identifiers' => [
+                            'charge_id' => 900001,
                         ],
-                        [
-                            'id' => 2,
-                            'type' => 'charge',
-                            'identifiers' => [
-                                'charge_id' =>
-                                    900001,
-                            ],
-                            'status' => [
-                                'current' =>
-                                    'waiting',
-                                'previous' =>
-                                    'new',
-                            ],
-                            'created_at' =>
-                                '2026-08-07 18:01:00',
+                        'status' => [
+                            'current' => 'new',
+                            'previous' => null,
                         ],
-                        [
-                            'id' => 3,
-                            'type' => 'charge',
-                            'identifiers' => [
-                                'charge_id' =>
-                                    900001,
-                            ],
-                            'status' => [
-                                'current' =>
-                                    'paid',
-                                'previous' =>
-                                    'waiting',
-                            ],
-                            'value' => 85000,
-                            'received_by_bank_at' =>
-                                '2026-08-07',
-                            'created_at' =>
-                                '2026-08-07 18:10:00',
-                        ],
+                        'created_at' => '2026-08-07 18:00:00',
                     ],
-                ]),
+                    [
+                        'id' => 2,
+                        'type' => 'charge',
+                        'identifiers' => [
+                            'charge_id' => 900001,
+                        ],
+                        'status' => [
+                            'current' => 'waiting',
+                            'previous' => 'new',
+                        ],
+                        'created_at' => '2026-08-07 18:01:00',
+                    ],
+                    [
+                        'id' => 3,
+                        'type' => 'charge',
+                        'identifiers' => [
+                            'charge_id' => 900001,
+                        ],
+                        'status' => [
+                            'current' => 'paid',
+                            'previous' => 'waiting',
+                        ],
+                        'value' => 85000,
+                        'received_by_bank_at' => '2026-08-07',
+                        'created_at' => '2026-08-07 18:10:00',
+                    ],
+                ],
+            ]),
         ]);
 
         $job = new ProcessEfiPaymentWebhook(
@@ -278,7 +363,7 @@ class EfiPaymentWebhookTest extends TestCase
         $job->handle(
             app(EfiPaymentProvider::class),
             app(SyncChargeFromProvider::class),
-            app(\App\Modules\Shared\Services\DomainAudit::class),
+            app(DomainAudit::class),
         );
 
         $charge->refresh();
@@ -314,8 +399,7 @@ class EfiPaymentWebhookTest extends TestCase
         );
 
         $this->assertSame(
-            PaymentWebhookReceipt::
-                STATUS_PROCESSED,
+            PaymentWebhookReceipt::STATUS_PROCESSED,
             $receipt->status
         );
 
@@ -335,32 +419,26 @@ class EfiPaymentWebhookTest extends TestCase
         Http::preventStrayRequests();
 
         Http::fake([
-            'https://cobrancas-h.api.efipay.com.br/v1/authorize'
-                => Http::response([
-                    'access_token' =>
-                        'token-test',
-                ]),
+            'https://cobrancas-h.api.efipay.com.br/v1/authorize' => Http::response([
+                'access_token' => 'token-test',
+            ]),
 
-            'https://cobrancas-h.api.efipay.com.br/v1/notification/*'
-                => Http::response([
-                    'code' => 200,
-                    'data' => [
-                        [
-                            'id' => 1,
-                            'type' => 'charge',
-                            'identifiers' => [
-                                'charge_id' =>
-                                    900001,
-                            ],
-                            'status' => [
-                                'current' =>
-                                    'waiting',
-                                'previous' =>
-                                    'new',
-                            ],
+            'https://cobrancas-h.api.efipay.com.br/v1/notification/*' => Http::response([
+                'code' => 200,
+                'data' => [
+                    [
+                        'id' => 1,
+                        'type' => 'charge',
+                        'identifiers' => [
+                            'charge_id' => 900001,
+                        ],
+                        'status' => [
+                            'current' => 'waiting',
+                            'previous' => 'new',
                         ],
                     ],
-                ]),
+                ],
+            ]),
         ]);
 
         $receipt = $this->receipt();
@@ -374,7 +452,7 @@ class EfiPaymentWebhookTest extends TestCase
                     EfiPaymentProvider::class
                 ),
                 app(SyncChargeFromProvider::class),
-                app(\App\Modules\Shared\Services\DomainAudit::class),
+                app(DomainAudit::class),
             );
         }
 
@@ -646,7 +724,7 @@ class EfiPaymentWebhookTest extends TestCase
             (new ProcessEfiPaymentWebhook($receipt->id))->handle(
                 app(EfiPaymentProvider::class),
                 app(SyncChargeFromProvider::class),
-                app(\App\Modules\Shared\Services\DomainAudit::class),
+                app(DomainAudit::class),
             );
             $this->fail('Falha do provider deveria ser propagada.');
         } catch (\Throwable) {
@@ -673,7 +751,7 @@ class EfiPaymentWebhookTest extends TestCase
             (new ProcessEfiPaymentWebhook($receipt->id))->handle(
                 app(EfiPaymentProvider::class),
                 app(SyncChargeFromProvider::class),
-                app(\App\Modules\Shared\Services\DomainAudit::class),
+                app(DomainAudit::class),
             );
             $this->fail('Timeout deveria ser propagado.');
         } catch (ConnectionException) {
@@ -683,6 +761,37 @@ class EfiPaymentWebhookTest extends TestCase
         $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
         $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
         $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+    }
+
+    public function test_notification_not_found_is_safely_classified_without_financial_effect(): void
+    {
+        $charge = $this->efiCharge();
+        $token = '79027955-5e06-4ff0-a9c7-46b47b8f1b27';
+        $receipt = $this->receipt($token);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::response(['code' => 404], 404),
+        ]);
+
+        $this->processReceipt($receipt);
+
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+        $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+        $this->assertSame('Notificação não encontrada no provedor.', $receipt->last_error);
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+        $this->assertDatabaseHas('domain_audit_events', [
+            'action' => 'payment_webhook.token_not_found',
+            'entity_id' => (string) $receipt->id,
+        ], 'finance_fiscal');
+        $this->assertStringNotContainsString(
+            $token,
+            DomainAuditEvent::query()
+                ->where('action', 'payment_webhook.token_not_found')
+                ->firstOrFail()
+                ->toJson()
+        );
     }
 
     public function test_invalid_json_and_unknown_provider_are_rejected(): void
@@ -744,12 +853,17 @@ class EfiPaymentWebhookTest extends TestCase
         $this->processReceipt($receipt);
     }
 
+    private function protectedWebhookUrl(): string
+    {
+        return '/api/v1/webhooks/payments/efi/'.str_repeat('a', 64);
+    }
+
     private function processReceipt(PaymentWebhookReceipt $receipt): void
     {
         (new ProcessEfiPaymentWebhook($receipt->id))->handle(
             app(EfiPaymentProvider::class),
             app(SyncChargeFromProvider::class),
-            app(\App\Modules\Shared\Services\DomainAudit::class),
+            app(DomainAudit::class),
         );
     }
 
@@ -772,20 +886,15 @@ class EfiPaymentWebhookTest extends TestCase
 
     private function receipt(
         string $token = '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
-    ): PaymentWebhookReceipt
-    {
+    ): PaymentWebhookReceipt {
         return PaymentWebhookReceipt::query()
             ->create([
                 'provider' => 'efi',
-                'token_hash' =>
-                    hash('sha256', $token),
-                'token_encrypted' =>
-                    Crypt::encryptString(
-                        $token
-                    ),
-                'status' =>
-                    PaymentWebhookReceipt::
-                        STATUS_RECEIVED,
+                'token_hash' => hash('sha256', $token),
+                'token_encrypted' => Crypt::encryptString(
+                    $token
+                ),
+                'status' => PaymentWebhookReceipt::STATUS_RECEIVED,
                 'received_at' => now(),
             ]);
     }
@@ -809,10 +918,8 @@ class EfiPaymentWebhookTest extends TestCase
             attributes: [],
             items: [
                 [
-                    'description' =>
-                        'Serviço',
-                    'unit_amount' =>
-                        '850.00',
+                    'description' => 'Serviço',
+                    'unit_amount' => '850.00',
                 ],
             ],
         );
@@ -837,8 +944,7 @@ class EfiPaymentWebhookTest extends TestCase
 
         $charge->update([
             'provider' => 'efi',
-            'provider_charge_id' =>
-                (string) (900000 + $charge->id),
+            'provider_charge_id' => (string) (900000 + $charge->id),
         ]);
 
         return $charge->refresh();

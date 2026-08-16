@@ -3,6 +3,14 @@
 namespace App\Providers;
 
 use App\Models\Notification;
+use App\Modules\Finance\Contracts\PaymentProvider;
+use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
+use App\Modules\Finance\Infrastructure\FakePaymentProvider;
+use App\Modules\Fiscal\Contracts\NfseProvider;
+use App\Modules\Fiscal\Infrastructure\DisabledNfseProvider;
+use App\Modules\Fiscal\Infrastructure\FakeNfseProvider;
+use App\Modules\Shared\Contracts\ClientDirectory;
+use App\Modules\Shared\Infrastructure\CoreClientDirectory;
 use App\Support\BusinessClock;
 use Carbon\Carbon;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -44,12 +52,12 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
-            \App\Modules\Shared\Contracts\ClientDirectory::class,
-            \App\Modules\Shared\Infrastructure\CoreClientDirectory::class,
+            ClientDirectory::class,
+            CoreClientDirectory::class,
         );
 
         $this->app->singleton(
-            \App\Modules\Finance\Contracts\PaymentProvider::class,
+            PaymentProvider::class,
             function () {
                 return match (
                     config(
@@ -57,10 +65,10 @@ class AppServiceProvider extends ServiceProvider
                         'fake'
                     )
                 ) {
-                    'fake' => new \App\Modules\Finance\Infrastructure\FakePaymentProvider(),
+                    'fake' => new FakePaymentProvider,
 
                     'efi' => $this->app->make(
-                        \App\Modules\Finance\Infrastructure\EfiPaymentProvider::class
+                        EfiPaymentProvider::class
                     ),
                     default => throw new \LogicException(
                         'Payment provider não suportado.'
@@ -70,7 +78,7 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
-            \App\Modules\Fiscal\Contracts\NfseProvider::class,
+            NfseProvider::class,
             function () {
                 return match (
                     config(
@@ -78,8 +86,8 @@ class AppServiceProvider extends ServiceProvider
                         'fake'
                     )
                 ) {
-                    'fake' => new \App\Modules\Fiscal\Infrastructure\FakeNfseProvider(),
-                    'disabled' => new \App\Modules\Fiscal\Infrastructure\DisabledNfseProvider(),
+                    'fake' => new FakeNfseProvider,
+                    'disabled' => new DisabledNfseProvider,
                     default => throw new \LogicException(
                         'NFS-e provider não suportado.'
                     ),
@@ -155,12 +163,11 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with([
                 'topbarNotifications' => $notifications,
-                'topbarUnreadNotificationCount' =>
-                    Notification::query()
-                        ->where('user_id', $user->id)
-                        ->whereNull('resolved_at')
-                        ->whereNull('read_at')
-                        ->count(),
+                'topbarUnreadNotificationCount' => Notification::query()
+                    ->where('user_id', $user->id)
+                    ->whereNull('resolved_at')
+                    ->whereNull('read_at')
+                    ->count(),
             ]);
         });
 
@@ -171,6 +178,16 @@ class AppServiceProvider extends ServiceProvider
                     'documentation.rate_limit',
                     120
                 )
+            )->by($request->ip())
+        );
+
+        RateLimiter::for(
+            'efi-payment-webhook',
+            fn (Request $request) => Limit::perMinute(
+                max(1, min(300, (int) config(
+                    'finance_fiscal.providers.efi.webhook_rate_limit',
+                    30
+                )))
             )->by($request->ip())
         );
     }

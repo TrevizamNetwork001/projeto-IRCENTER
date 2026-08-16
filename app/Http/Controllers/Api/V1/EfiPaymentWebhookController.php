@@ -79,8 +79,7 @@ final class EfiPaymentWebhookController extends Controller
         if (is_string($postedToken)) {
             $validationBody = http_build_query(
                 [
-                    'notification' =>
-                        $postedToken,
+                    'notification' => $postedToken,
                 ],
                 '',
                 '&',
@@ -154,6 +153,9 @@ final class EfiPaymentWebhookController extends Controller
                 'provider' => 'efi',
                 'receive_count' => $receipt->receive_count,
             ],
+            correlationId: is_string(
+                $request->attributes->get('request_id')
+            ) ? $request->attributes->get('request_id') : null,
         );
 
         /* O mesmo token pode revelar eventos novos em cada entrega. */

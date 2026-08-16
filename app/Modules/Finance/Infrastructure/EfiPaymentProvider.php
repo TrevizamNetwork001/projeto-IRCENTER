@@ -8,6 +8,7 @@ use App\Modules\Finance\Contracts\PreflightsPaymentCharges;
 use App\Modules\Finance\Data\EfiNotificationEvent;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Data\PaymentChargeResult;
+use App\Modules\Finance\Exceptions\EfiNotificationNotFound;
 use App\Modules\Finance\Support\Decimal;
 use App\Modules\Finance\Support\EfiCustomId;
 use App\Modules\Finance\Support\EfiStatusMapper;
@@ -18,12 +19,11 @@ use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
 
-final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentProvider, PreflightsPaymentCharges
+final class EfiPaymentProvider implements CorrelatablePaymentProvider, PaymentProvider, PreflightsPaymentCharges
 {
     public function __construct(
         private readonly BusinessClock $clock,
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {
@@ -112,30 +112,25 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         $payload = [
             'items' => [
                 [
-                    'name' =>
-                        'Fatura '.$request->invoicePublicId,
+                    'name' => 'Fatura '.$request->invoicePublicId,
 
-                    'value' =>
-                        $valueCents,
+                    'value' => $valueCents,
 
                     'amount' => 1,
                 ],
             ],
 
             'metadata' => [
-                'custom_id' =>
-                    EfiCustomId::fromCorrelationId(
-                        $request->idempotencyKey
-                    ),
+                'custom_id' => EfiCustomId::fromCorrelationId(
+                    $request->idempotencyKey
+                ),
             ],
 
             'payment' => [
                 'banking_billet' => [
-                    'customer' =>
-                        $this->customer($request),
+                'customer' => $this->customer($request),
 
-                    'expire_at' =>
-                        $request->dueOn,
+                'expire_at' => $request->dueOn,
                 ],
             ],
         ];
@@ -322,8 +317,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         $response->throw();
 
         return new PaymentChargeResult(
-            providerChargeId:
-                $providerChargeId,
+            providerChargeId: $providerChargeId,
             status: 'canceled',
         );
     }
@@ -409,6 +403,10 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                     .rawurlencode($token)
             );
 
+        if ($response->notFound()) {
+            throw new EfiNotificationNotFound;
+        }
+
         $response->throw();
 
         $data = $response->json('data');
@@ -475,41 +473,31 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
 
             $events[] =
                 new EfiNotificationEvent(
-                    eventId:
-                        (string) $eventId,
+                    eventId: (string) $eventId,
 
-                    chargeId:
-                        (string) $chargeId,
+                    chargeId: (string) $chargeId,
 
-                    type:
-                        $type,
+                    type: $type,
 
-                    currentStatus:
-                        $current,
+                    currentStatus: $current,
 
-                    previousStatus:
-                        is_string($previous)
+                    previousStatus: is_string($previous)
                             ? $previous
                             : null,
 
-                        normalizedStatus:
-                            EfiStatusMapper::toLocal($current),
+                    normalizedStatus: EfiStatusMapper::toLocal($current),
 
-                    valueCents:
-                        $valueCents,
+                    valueCents: $valueCents,
 
-                    receivedByBankAt:
-                        is_string($received)
+                    receivedByBankAt: is_string($received)
                             ? $received
                             : null,
 
-                    providerCreatedAtRaw:
-                        is_string($created)
+                    providerCreatedAtRaw: is_string($created)
                             ? $created
                             : null,
 
-                    payload:
-                        $item,
+                    payload: $item,
                 );
         }
 
@@ -620,8 +608,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             [
                 'begin_date' => $beginDate,
                 'end_date' => $endDate,
-            ]
-            as $field => $value
+            ] as $field => $value
         ) {
             if (
                 preg_match(
@@ -685,8 +672,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
                 $this->baseUrl()
                     .'/v1/authorize',
                 [
-                    'grant_type' =>
-                        'client_credentials',
+                    'grant_type' => 'client_credentials',
                 ]
             );
 
@@ -809,8 +795,7 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
             'address' => [
                 'street' => $street,
                 'number' => $number,
-                'neighborhood' =>
-                    $district,
+                'neighborhood' => $district,
                 'zipcode' => $zipcode,
                 'city' => $city,
                 'complement' => trim(
@@ -987,77 +972,68 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
         );
 
         return new PaymentChargeResult(
-            providerChargeId:
-                (string) $chargeId,
+            providerChargeId: (string) $chargeId,
 
-            status:
-                EfiStatusMapper::toLocal($status),
+            status: EfiStatusMapper::toLocal($status),
 
-            checkoutUrl:
-                $this->safeArtifactUrl(
-                    $data['link']
-                    ?? $data['billet_link']
-                    ?? data_get(
-                        $data,
-                        'payment.banking_billet.link'
-                    )
-                ),
-
-            pixCopyPaste:
-                data_get(
+            checkoutUrl: $this->safeArtifactUrl(
+                $data['link']
+                ?? $data['billet_link']
+                ?? data_get(
                     $data,
-                    'pix.qrcode'
+                    'payment.banking_billet.link'
                 )
+            ),
+
+            pixCopyPaste: data_get(
+                $data,
+                'pix.qrcode'
+            )
                 ?? data_get(
                     $data,
                     'payment.banking_billet.'
                     .'pix.qrcode'
                 ),
 
-            billetUrl:
-                $this->safeArtifactUrl(
-                    $data['billet_link']
-                    ?? data_get(
-                        $data,
-                        'payment.banking_billet.billet_link'
-                    )
-                ),
+            billetUrl: $this->safeArtifactUrl(
+                $data['billet_link']
+                ?? data_get(
+                    $data,
+                    'payment.banking_billet.billet_link'
+                )
+            ),
 
-            billetPdfUrl:
-                $this->safeArtifactUrl(
-                    data_get(
-                        $data,
-                        'pdf.charge'
-                    )
-                    ?? data_get(
-                        $data,
-                        'payment.banking_billet.pdf.charge'
-                    )
-                ),
+            billetPdfUrl: $this->safeArtifactUrl(
+                data_get(
+                    $data,
+                    'pdf.charge'
+                )
+                ?? data_get(
+                    $data,
+                    'payment.banking_billet.pdf.charge'
+                )
+            ),
 
-            barcode:
-                $this->safeBarcode(
-                    $data['barcode']
-                    ?? data_get(
-                        $data,
-                        'payment.banking_billet.barcode'
-                    )
-                ),
+            barcode: $this->safeBarcode(
+                $data['barcode']
+                ?? data_get(
+                    $data,
+                    'payment.banking_billet.barcode'
+                )
+            ),
 
-            amountCents:
-                $this->safeAmountCents(
-                    $data['total']
-                    ?? null
-                ),
+            amountCents: $this->safeAmountCents(
+                $data['total']
+                ?? null
+            ),
 
-            dueOn:
-                $this->safeDate(
-                    $data['expire_at']
-                    ?? data_get(
-                        $data,
-                        'payment.banking_billet.expire_at'
-                    )
-                ),
+            dueOn: $this->safeDate(
+                $data['expire_at']
+                ?? data_get(
+                    $data,
+                    'payment.banking_billet.expire_at'
+                )
+            ),
         );
     }
 
@@ -1192,11 +1168,9 @@ final class EfiPaymentProvider implements PaymentProvider, CorrelatablePaymentPr
     private function baseUrl(): string
     {
         return match ($this->environment()) {
-            'homologation' =>
-                'https://cobrancas-h.api.efipay.com.br',
+            'homologation' => 'https://cobrancas-h.api.efipay.com.br',
 
-            'production' =>
-                'https://cobrancas.api.efipay.com.br',
+            'production' => 'https://cobrancas.api.efipay.com.br',
         };
     }
 }

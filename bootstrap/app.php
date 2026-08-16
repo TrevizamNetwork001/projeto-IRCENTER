@@ -1,11 +1,12 @@
 <?php
 
 use App\Http\Middleware\AuthenticateDocumentationApi;
+use App\Http\Middleware\EnsureFiscalEnabled;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\RequestLogContext;
 use App\Http\Middleware\RequireDocumentationApiScope;
 use App\Http\Middleware\SecurityHeaders;
-use App\Http\Middleware\EnsureFiscalEnabled;
+use App\Http\Middleware\ValidateEfiWebhookCallback;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,13 +30,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([
-            'documentation.api' =>
-                AuthenticateDocumentationApi::class,
-            'documentation.scope' =>
-                RequireDocumentationApiScope::class,
-            'password.changed' =>
-                EnsurePasswordWasChanged::class,
+            'documentation.api' => AuthenticateDocumentationApi::class,
+            'documentation.scope' => RequireDocumentationApiScope::class,
+            'password.changed' => EnsurePasswordWasChanged::class,
             'fiscal.enabled' => EnsureFiscalEnabled::class,
+            'efi.webhook.callback' => ValidateEfiWebhookCallback::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

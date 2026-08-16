@@ -62,7 +62,6 @@ return [
         ),
     ],
 
-
     'providers' => [
         'efi' => [
             'environment' => env(
@@ -80,6 +79,20 @@ return [
 
             'notification_url' => env(
                 'EFI_NOTIFICATION_URL'
+            ),
+
+            'webhook_callback_secret' => env(
+                'EFI_WEBHOOK_CALLBACK_SECRET'
+            ),
+
+            'webhook_rate_limit' => env(
+                'EFI_WEBHOOK_RATE_LIMIT',
+                30
+            ),
+
+            'webhook_legacy_route_enabled' => env(
+                'EFI_WEBHOOK_LEGACY_ROUTE_ENABLED',
+                false
             ),
         ],
     ],

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\DocumentationResourceController;
+use App\Http\Controllers\Api\V1\EfiPaymentWebhookController;
 use App\Support\DocumentationApiScope;
 use Illuminate\Support\Facades\Route;
 
@@ -60,8 +61,23 @@ Route::prefix('v1/documentation')
     });
 
 Route::post(
-    '/v1/webhooks/payments/efi',
-    \App\Http\Controllers\Api\V1\EfiPaymentWebhookController::class
+    '/v1/webhooks/payments/efi/{callbackSecret}',
+    EfiPaymentWebhookController::class
 )
-    ->middleware('throttle:120,1')
+    ->where('callbackSecret', '[a-f0-9]{64}')
+    ->middleware([
+        'throttle:efi-payment-webhook',
+        'efi.webhook.callback',
+    ])
     ->name('api.webhooks.payments.efi');
+
+/* Rota transitória, desabilitada por padrão, para troca controlada na Efí. */
+Route::post(
+    '/v1/webhooks/payments/efi',
+    EfiPaymentWebhookController::class
+)
+    ->middleware([
+        'throttle:efi-payment-webhook',
+        'efi.webhook.callback',
+    ])
+    ->name('api.webhooks.payments.efi.legacy');

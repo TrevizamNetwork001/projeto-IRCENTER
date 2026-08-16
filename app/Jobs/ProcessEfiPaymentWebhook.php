@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Modules\Finance\Actions\SyncChargeFromProvider;
+use App\Modules\Finance\Exceptions\EfiNotificationNotFound;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Finance\Models\PaymentWebhookReceipt;
 use App\Modules\Shared\Services\DomainAudit;
@@ -68,6 +69,16 @@ final class ProcessEfiPaymentWebhook implements ShouldQueue
             $audit->record(
                 module: 'finance',
                 action: 'payment_webhook.processed',
+                entityType: 'payment_webhook_receipt',
+                entityId: $receipt->id,
+                metadata: ['provider' => 'efi'],
+            );
+        } catch (EfiNotificationNotFound $exception) {
+            $this->markFailed($receipt, $exception);
+
+            $audit->record(
+                module: 'finance',
+                action: 'payment_webhook.token_not_found',
                 entityType: 'payment_webhook_receipt',
                 entityId: $receipt->id,
                 metadata: ['provider' => 'efi'],
