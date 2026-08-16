@@ -28,3 +28,18 @@ os logs globalmente.
 
 O limite padrão é 30 requisições por minuto e por IP. Ele pode ser ajustado por
 `EFI_WEBHOOK_RATE_LIMIT` entre 1 e 300 após observar o volume legítimo.
+
+## Processamento concorrente
+
+O processamento assíncrono de uma mesma notificação é serializado por receipt
+com o middleware nativo `WithoutOverlapping`. Entregas repetidas do mesmo token
+reutilizam o mesmo receipt por meio da restrição única `(provider, token_hash)`;
+por isso, o ID do receipt é a unidade lógica do lock.
+
+A chave do lock contém somente um namespace da aplicação, um discriminador do
+job e o ID interno do receipt. Ela nunca contém o token da notificação, o
+segredo do callback, credenciais Efí ou o conteúdo criptografado do token.
+
+Detalhes arquiteturais, parâmetros de retry, requisitos do Redis e instruções
+para executar a prova multiprocesso estão em
+[EFI_WEBHOOK_CONCURRENCY.md](EFI_WEBHOOK_CONCURRENCY.md).
