@@ -122,6 +122,9 @@ class ClientController extends Controller
         $fiscalDocumentCount = config('finance_fiscal.fiscal.enabled', false) && $financeSchema->hasTable('fiscal_documents')
             ? \App\Modules\Fiscal\Models\FiscalDocument::query()->where('core_client_id', $client->id)->count()
             : 0;
+        $lastAuthorizedFiscalDocument = config('finance_fiscal.fiscal.enabled', false) && $financeSchema->hasTable('fiscal_documents')
+            ? \App\Modules\Fiscal\Models\FiscalDocument::query()->where('core_client_id', $client->id)->where('status', 'authorized')->latest('authorized_at')->first()
+            : null;
 
         return view('clients.show', [
             'client' => $client->load([
@@ -137,6 +140,7 @@ class ClientController extends Controller
             'fiscalProfile' => $fiscalProfile,
             'fiscalDocuments' => $fiscalDocuments,
             'fiscalDocumentCount' => $fiscalDocumentCount,
+            'lastAuthorizedFiscalDocument' => $lastAuthorizedFiscalDocument,
         ]);
     }
 

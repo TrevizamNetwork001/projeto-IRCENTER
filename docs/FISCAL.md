@@ -77,3 +77,17 @@ O link para o Portal Nacional é somente uma navegação iniciada pelo usuário.
 ## Limites e preparação para FISCAL-2B
 
 A FISCAL-2A não implementa DPS/XML oficial, certificado, assinatura, mTLS, API SEFIN, scraping, cancelamento oficial, emissão por pagamento, jobs ou produção. A FISCAL-2B poderá substituir somente o passo manual por um provider automático, preservando documento, snapshots, idempotência, transmissões, auditoria e artefatos.
+
+## FISCAL-2A.1 — Homologação prática do fluxo manual
+
+O fluxo local foi homologado com fixtures sintéticas desde a criação do rascunho até prontidão, congelamento dos snapshots, retorno para revisão, novo preparo, registro manual, anexação e download privado de XML/PDF, timeline, cliente e filtros. A criação prioriza cliente, serviço, competência, descrição e valor; o emitente ativo e o vínculo do serviço com o item financeiro são preenchidos internamente, e vínculos financeiros continuam opcionais.
+
+A prontidão usa mensagens operacionais e associa cada pendência a uma área. CPF/CNPJ, nome/razão social, município, UF e código IBGE do tomador, emitente ativo completo, serviço ativo/classificado, descrição e valores positivos bloqueiam o preparo. E-mail fiscal e complemento de endereço são avisos opcionais. Ao preparar, a interface avisa que os snapshots serão congelados e que nenhuma informação será enviada ao governo.
+
+Em `ready`, o resumo para o Portal Nacional é organizado por tomador, serviço, competência, valores e dados complementares, sem IDs, paths ou JSON. A cópia integral e as cópias pontuais usam Clipboard API com fallback local. O link abre apenas a URL pública do Portal Nacional em nova aba, sem parâmetros ou automação.
+
+O registro manual deixa explícito que a NFS-e deve ter sido emitida antes no Portal. Número e data/hora são obrigatórios; chave, código de verificação e observação são opcionais; a confirmação expressa permanece obrigatória. Depois de autorizado, documento, metadados oficiais, snapshots e itens históricos são imutáveis. A origem exibida é `Registro manual`, separada do provider técnico.
+
+XML deve ser bem formado e é lido com `LIBXML_NONET`; PDF exige MIME e assinatura `%PDF-`. Ambos respeitam o limite configurado, recebem nome sanitizado, SHA-256 e armazenamento privado. Downloads validam usuário, vínculo do artifact e existência do arquivo; o caminho de storage nunca é apresentado. Ausência de XML/PDF após emissão é informativa, não uma falha.
+
+O cancelamento disponível é somente o descarte interno de rascunho e não representa cancelamento fiscal oficial. A aplicação não gera DPS, não assina XML, não transmite NFS-e, não usa certificado, não chama rede fiscal e mantém `FISCAL_ENABLED=false` como default seguro. Uma fase futura poderá integrar um provider nacional, sem ser requisito para operar manualmente.

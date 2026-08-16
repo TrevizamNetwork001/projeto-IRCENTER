@@ -46,7 +46,9 @@ final class FiscalManualOperationTest extends TestCase
         $customer->update(['document' => null]);
         $result = $service->evaluate($document->fresh());
         $this->assertSame('BLOCKED', $result->status);
-        $this->assertTrue(collect($result->issues)->contains('code', 'customer.document'));
+        $issue = collect($result->issues)->firstWhere('code', 'customer.document');
+        $this->assertSame('Informe o CPF/CNPJ do tomador.', $issue['message']);
+        $this->assertSame('Cadastro fiscal do cliente', $issue['area']);
     }
 
     public function test_manual_transitions_freeze_and_restore_snapshot_then_authorize(): void
@@ -70,7 +72,24 @@ final class FiscalManualOperationTest extends TestCase
         $this->assertSame($user->id, $authorized->registered_by_user_id);
         $this->assertNotNull($authorized->authorized_at);
         $this->expectException(LogicException::class);
+        $authorized->items()->firstOrFail()->update(['description' => 'Tentativa histórica']);
+    }
+
+    public function test_authorized_document_fields_remain_immutable(): void
+    {
+        [$document, $user] = $this->draft('manual-immutable');
+        $ready = app(PrepareFiscalDocument::class)->execute($document, $user->id);
+        $authorized = app(AuthorizeFiscalDocumentManually::class)->execute($ready, ['nfse_number' => 'NF-IMMUTABLE', 'authorized_at' => now()], $user->id);
+        $this->expectException(LogicException::class);
         $authorized->update(['services_amount' => '999.00']);
+    }
+
+    public function test_item_cannot_be_added_to_authorized_document(): void
+    {
+        [$document, $user] = $this->draft('manual-item-create');
+        $authorized = app(AuthorizeFiscalDocumentManually::class)->execute(app(PrepareFiscalDocument::class)->execute($document, $user->id), ['nfse_number' => 'NF-NO-ITEM', 'authorized_at' => now()], $user->id);
+        $this->expectException(LogicException::class);
+        $authorized->items()->create(['description' => 'Item tardio', 'quantity' => '1.0000', 'unit_amount' => '1.00', 'total_amount' => '1.00']);
     }
 
     public function test_draft_can_be_cancelled_only_as_internal_document(): void
@@ -87,7 +106,7 @@ final class FiscalManualOperationTest extends TestCase
         [$document, $user] = $this->draft();
         app(PrepareFiscalDocument::class)->execute($document, $user->id);
         $this->actingAs($user)->get(route('fiscal.dashboard'))->assertOk()->assertSee('Prontos para emissão');
-        $this->actingAs($user)->get(route('fiscal.documents.show', $document))->assertOk()->assertSee('Dados para emissão manual')->assertSee('Copiar resumo para emissão');
+        $this->actingAs($user)->get(route('fiscal.documents.show', $document))->assertOk()->assertSee('Dados para emissão no Portal Nacional')->assertSee('TOMADOR')->assertSee('Código do serviço: 010101')->assertSee('Copiar resumo para emissão')->assertDontSee('Provider: fake');
         $route = route('fiscal.documents.authorize-manual', $document);
         $payload = ['nfse_number' => '100-2026', 'authorized_at' => '2026-08-12T10:00'];
         $this->actingAs($user)->post($route, $payload)->assertSessionHasErrors('confirmation');
@@ -115,19 +134,31 @@ final class FiscalManualOperationTest extends TestCase
         $pdf = "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF";
         $this->actingAs($user)->post(route('fiscal.documents.artifacts.store', $document), ['type' => 'manual_danfse_pdf', 'artifact' => UploadedFile::fake()->createWithContent('danfse.pdf', $pdf)])->assertRedirect();
         $this->assertSame(2, $document->artifacts()->count());
-        $this->actingAs($user)->post(route('fiscal.documents.artifacts.store', $document), ['type' => 'manual_nfse_xml', 'artifact' => UploadedFile::fake()->createWithContent('ruim.xml', '<NFSe>')])->assertStatus(422);
+        $this->actingAs($user)->post(route('fiscal.documents.artifacts.store', $document), ['type' => 'manual_nfse_xml', 'artifact' => UploadedFile::fake()->createWithContent('ruim.xml', '<NFSe>')])->assertRedirect()->assertSessionHasErrors('artifact');
 
         [$other] = $this->draft('manual-other');
         $this->actingAs($user)->get(route('fiscal.documents.artifacts.download', [$other, $artifact]))->assertNotFound();
+        Storage::disk('local')->delete($artifact->storage_path);
+        $this->actingAs($user)->get(route('fiscal.documents.artifacts.download', [$document, $artifact]))->assertNotFound();
     }
 
     public function test_create_ui_and_client_section_are_available_only_when_enabled(): void
     {
         [$document, $user, $customer] = $this->draft();
         $this->actingAs($user)->get(route('fiscal.documents.create', ['client_id' => $customer->core_client_id]))->assertOk()->assertSee('Novo documento fiscal');
-        $this->actingAs($user)->get(route('clients.show', $customer->core_client_id))->assertOk()->assertSee('Cadastro e documentos fiscais')->assertSee($document->public_id);
+        $this->actingAs($user)->get(route('clients.show', $customer->core_client_id))->assertOk()->assertSee('Cadastro e documentos fiscais')->assertSee('Documentos')->assertSee('Última NFS-e');
         config()->set('finance_fiscal.fiscal.enabled', false);
         $this->actingAs($user)->get(route('fiscal.documents.show', $document))->assertNotFound();
+    }
+
+    public function test_dashboard_filters_origin_client_and_competence_period(): void
+    {
+        [$document, $user, $customer] = $this->draft('manual-filter');
+        $document->update(['emission_origin' => 'manual']);
+        $client = Client::query()->findOrFail($customer->core_client_id);
+        $response = $this->actingAs($user)->get(route('fiscal.dashboard', ['search' => $client->legal_name, 'origin' => 'manual', 'competence' => '2026-08', 'competence_to' => '2026-08']));
+        $response->assertOk()->assertSee('Registro manual')->assertSee($document->competence_date->format('m/Y'));
+        $this->actingAs($user)->get(route('fiscal.dashboard', ['competence' => '2027-01']))->assertOk()->assertSee('Nenhum documento fiscal encontrado para os filtros selecionados.');
     }
 
     private function draft(string $key = 'manual-test'): array

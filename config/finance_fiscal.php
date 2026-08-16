@@ -46,10 +46,6 @@ return [
 
         'portal_url' => 'https://www.nfse.gov.br/EmissorNacional/',
 
-        'artifact_max_kb' => env('FISCAL_ARTIFACT_MAX_KB', 5120),
-
-        'portal_url' => 'https://www.nfse.gov.br/EmissorNacional/',
-
         'nfse_provider' => env(
             'NFSE_PROVIDER',
             'fake'

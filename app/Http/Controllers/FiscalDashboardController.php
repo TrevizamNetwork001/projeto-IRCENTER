@@ -16,9 +16,11 @@ final class FiscalDashboardController extends Controller
     {
         $status = (string) $request->query('status', '');
         $competence = (string) $request->query('competence', '');
+        $competenceTo = (string) $request->query('competence_to', '');
+        $origin = (string) $request->query('origin', '');
         $search = trim((string) $request->query('search', ''));
         $clientIds = $search === '' ? null : Client::query()->where('legal_name', 'like', "%{$search}%")->orWhere('trade_name', 'like', "%{$search}%")->pluck('id');
-        $documents = FiscalDocument::query()->when($status !== '', fn ($query) => $query->where('status', $status))->when($competence !== '', fn ($query) => $query->where('competence_date', 'like', $competence.'%'))->when($clientIds !== null, fn ($query) => $query->whereIn('core_client_id', $clientIds))->latest('id')->paginate(20)->withQueryString();
+        $documents = FiscalDocument::query()->when($status !== '', fn ($query) => $query->where('status', $status))->when($competence !== '', fn ($query) => $query->whereDate('competence_date', '>=', $competence.'-01'))->when($competenceTo !== '', fn ($query) => $query->whereDate('competence_date', '<=', date('Y-m-t', strtotime($competenceTo.'-01'))))->when($origin !== '', fn ($query) => $query->where('emission_origin', $origin))->when($clientIds !== null, fn ($query) => $query->whereIn('core_client_id', $clientIds))->latest('id')->paginate(20)->withQueryString();
         $clientNames = Client::query()->whereIn('id', $documents->pluck('core_client_id'))->get()->mapWithKeys(fn (Client $client) => [$client->id => $client->displayName()]);
         return view('fiscal.dashboard', [
             'environment' => config('finance_fiscal.fiscal.environment', 'homologation'),
@@ -32,7 +34,7 @@ final class FiscalDashboardController extends Controller
             'pendingCount' => FiscalDocument::query()->whereIn('status', ['ready', 'processing', 'rejected'])->count(),
             'documents' => $documents,
             'clientNames' => $clientNames,
-            'filters' => compact('status', 'competence', 'search'),
+            'filters' => compact('status', 'competence', 'competenceTo', 'origin', 'search'),
         ]);
     }
 }

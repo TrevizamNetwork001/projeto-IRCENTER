@@ -37,7 +37,10 @@ final class FiscalDocumentController extends Controller
     {
         $this->authorizeOperator();
         $clientId = $request->integer('client_id') ?: null;
-        return view('fiscal.documents.create', ['clients' => Client::query()->where('active', true)->orderBy('legal_name')->get(), 'issuers' => FiscalIssuerProfile::query()->where('active', true)->orderBy('legal_name')->get(), 'services' => FiscalServiceProfile::query()->where('active', true)->orderBy('fiscal_description')->get(), 'selectedClientId' => $clientId]);
+        $clients = Client::query()->where('active', true)->orderBy('legal_name')->get();
+        $profiles = FiscalCustomerProfile::query()->whereIn('core_client_id', $clients->pluck('id'))->get()->keyBy('core_client_id');
+        $services = FiscalServiceProfile::query()->where('active', true)->with('billingItem')->orderBy('fiscal_description')->get();
+        return view('fiscal.documents.create', ['clients' => $clients, 'profiles' => $profiles, 'issuer' => FiscalIssuerProfile::query()->where('active', true)->orderBy('legal_name')->first(), 'services' => $services, 'selectedClientId' => $clientId]);
     }
 
     public function store(StoreFiscalDocumentRequest $request, CreateFiscalDocument $create): RedirectResponse
@@ -49,7 +52,7 @@ final class FiscalDocumentController extends Controller
         $service = FiscalServiceProfile::query()->where('active', true)->findOrFail($data['service_id']);
         $this->validateFinancialOwnership($client->id, $data);
         $document = $create->execute(['core_client_id' => $client->id, 'fiscal_issuer_profile_id' => $issuer->id, 'fiscal_customer_profile_id' => $customer->id, 'billing_contract_id' => $data['billing_contract_id'] ?? null, 'invoice_id' => $data['invoice_id'] ?? null, 'charge_id' => $data['charge_id'] ?? null, 'billing_item_id' => $data['billing_item_id'] ?? $service->billing_item_id, 'competence_date' => $data['competence_date'], 'service_date' => $data['service_date'] ?? null, 'discount_amount' => $data['discount_amount'] ?? '0', 'deduction_amount' => $data['deduction_amount'] ?? '0', 'summary' => $data['summary'] ?? null, 'idempotency_key' => 'manual-create-'.Str::uuid(), 'emission_origin' => 'manual'], [['fiscal_service_profile_id' => $service->id, 'billing_item_id' => $data['billing_item_id'] ?? $service->billing_item_id, 'description' => $data['description'], 'quantity' => $data['quantity'], 'unit_amount' => $data['unit_amount']]], $request->user()->id);
-        return redirect()->route('fiscal.documents.show', $document)->with('success', 'Rascunho fiscal criado.');
+        return redirect()->route('fiscal.documents.show', $document)->with('success', 'Documento fiscal criado.');
     }
 
     public function show(FiscalDocument $fiscalDocument, FiscalDocumentReadinessService $readiness): View
@@ -62,7 +65,7 @@ final class FiscalDocumentController extends Controller
     {
         $this->authorizeOperator();
         try { $prepare->execute($fiscalDocument, auth()->id()); } catch (\DomainException|\LogicException $exception) { return back()->withErrors(['readiness' => $exception->getMessage()]); }
-        return back()->with('success', 'Documento pronto para emissão manual.');
+        return back()->with('success', 'Documento pronto para emissão.');
     }
 
     public function draft(FiscalDocument $fiscalDocument, ReturnFiscalDocumentToDraft $action): RedirectResponse
@@ -75,7 +78,7 @@ final class FiscalDocumentController extends Controller
     public function authorizeManual(AuthorizeFiscalDocumentRequest $request, FiscalDocument $fiscalDocument, AuthorizeFiscalDocumentManually $action): RedirectResponse
     {
         $action->execute($fiscalDocument, $request->validated(), $request->user()->id);
-        return back()->with('success', 'NFS-e registrada como autorizada manualmente.');
+        return back()->with('success', 'NFS-e registrada com sucesso.');
     }
 
     public function cancel(FiscalDocument $fiscalDocument, CancelFiscalDraft $action): RedirectResponse
@@ -93,25 +96,32 @@ final class FiscalDocumentController extends Controller
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($contents);
         $type = $request->validated('type');
         if ($type === 'manual_nfse_xml') {
-            abort_unless(in_array($mime, ['application/xml', 'text/xml', 'text/plain'], true), 422);
+            if (! in_array($mime, ['application/xml', 'text/xml', 'text/plain'], true)) {
+                return back()->withErrors(['artifact' => 'Não foi possível anexar o XML. Verifique se o arquivo é um XML válido.']);
+            }
             $dom = new DOMDocument();
             $previous = libxml_use_internal_errors(true);
             $valid = $dom->loadXML($contents, LIBXML_NONET);
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
-            abort_unless($valid, 422);
+            if (! $valid) {
+                return back()->withErrors(['artifact' => 'O arquivo XML não é válido.']);
+            }
             $mime = 'application/xml';
         } else {
-            abort_unless($mime === 'application/pdf' && str_starts_with($contents, '%PDF-'), 422);
+            if ($mime !== 'application/pdf' || ! str_starts_with($contents, '%PDF-')) {
+                return back()->withErrors(['artifact' => 'Não foi possível anexar o PDF. Verifique se o arquivo é um PDF válido.']);
+            }
         }
         $store->store($fiscalDocument, $type, $contents, $mime, $file->getClientOriginalName(), $request->user()->id);
-        return back()->with('success', 'Artefato fiscal armazenado privadamente.');
+        return back()->with('success', $type === 'manual_nfse_xml' ? 'XML anexado.' : 'PDF anexado.');
     }
 
     public function download(FiscalDocument $fiscalDocument, FiscalArtifact $artifact): StreamedResponse
     {
         abort_unless(auth()->user()?->isAdministrator(), 403);
         abort_unless($artifact->fiscal_document_id === $fiscalDocument->id, 404);
+        abort_unless(\Storage::disk($artifact->storage_disk)->exists($artifact->storage_path), 404);
         return \Storage::disk($artifact->storage_disk)->download($artifact->storage_path, $artifact->original_filename ?: $artifact->type, ['Content-Type' => $artifact->mime_type, 'X-Content-Type-Options' => 'nosniff']);
     }
 

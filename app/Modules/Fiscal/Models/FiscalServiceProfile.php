@@ -3,6 +3,7 @@
 namespace App\Modules\Fiscal\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 final class FiscalServiceProfile extends Model
@@ -23,5 +24,10 @@ final class FiscalServiceProfile extends Model
     public function snapshot(): array
     {
         return $this->only(['public_id', 'billing_item_id', 'fiscal_description', 'national_service_code', 'municipal_service_code', 'nbs_code', 'municipality_code', 'municipality', 'iss_rate', 'tax_settings', 'withholding_settings']);
+    }
+
+    public function billingItem(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Finance\Models\BillingItem::class, 'billing_item_id');
     }
 }
