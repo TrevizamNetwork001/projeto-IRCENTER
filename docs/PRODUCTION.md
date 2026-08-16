@@ -137,21 +137,8 @@ O header X-Powered-By não deve ser retornado.
 
 ## Backup do PostgreSQL
 
-    mkdir -p backups
-    BACKUP="backups/ircenter-$(date +%Y%m%d-%H%M%S).sql"
-    docker compose exec -T postgres sh -c \
-        'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-        > "$BACKUP"
-    test -s "$BACKUP"
+Siga o procedimento obrigatório de dump custom, SHA-256 e restore isolado em [DATABASE_BACKUP_RESTORE.md](DATABASE_BACKUP_RESTORE.md). Backups ficam fora do checkout, em `/var/backups/ircenter`, e não são considerados válidos apenas por existirem.
 
 ## Restauração
 
-A restauração deve ser realizada apenas em janela controlada e após backup
-do estado atual:
-
-    docker compose exec -T postgres sh -c \
-        'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-        < backups/ARQUIVO.sql
-
-Antes de restaurar um backup completo, avaliar a necessidade de recriar ou
-limpar previamente o banco de destino.
+A restauração em produção exige janela e autorização próprias. A validação pré-migration deve restaurar somente em database temporário isolado, aplicar os guardrails e comparações documentados e remover esse database após o aceite. Nunca restaure sobre o banco produtivo como teste.
