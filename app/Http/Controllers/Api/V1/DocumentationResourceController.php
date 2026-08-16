@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApiClient;
 use App\Models\AutonomousSystem;
 use App\Models\Client;
 use App\Models\Prefix;
 use App\Models\User;
+use App\Support\DocumentationApiScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +20,6 @@ class DocumentationResourceController extends Controller
             ->select([
                 'id',
                 'client_code',
-                'contract_number',
                 'legal_name',
                 'trade_name',
                 'document',
@@ -43,11 +44,20 @@ class DocumentationResourceController extends Controller
             ->orderBy('legal_name')
             ->paginate($this->perPage($request));
 
+        $clients->through(
+            fn (Client $client): array => $this->clientData(
+                $client,
+                $this->canReadPii($request)
+            )
+        );
+
         return response()->json($clients);
     }
 
-    public function client(Client $client): JsonResponse
-    {
+    public function client(
+        Request $request,
+        Client $client
+    ): JsonResponse {
         $client->load([
             'autonomousSystems' => fn ($query) => $query
                 ->select([
@@ -85,30 +95,19 @@ class DocumentationResourceController extends Controller
         ]);
 
         return response()->json([
-            'data' => $client->only([
-                'id',
-                'client_code',
-                'contract_number',
-                'legal_name',
-                'trade_name',
-                'document',
-                'email',
-                'phone',
-                'website',
-                'postal_code',
-                'street',
-                'address_number',
-                'address_complement',
-                'district',
-                'city',
-                'state',
-                'country',
-                'active',
-                'updated_at',
-            ]) + [
-                'autonomous_systems' =>
-                    $client->autonomousSystems,
-                'prefixes' => $client->prefixes,
+            'data' => $this->clientData(
+                $client,
+                $this->canReadPii($request)
+            ) + [
+                'autonomous_systems' => $client->autonomousSystems->map(
+                    fn (AutonomousSystem $system): array => $this->autonomousSystemData(
+                        $system,
+                        $this->canReadPii($request)
+                    )
+                ),
+                'prefixes' => $client->prefixes->map(
+                    fn (Prefix $prefix): array => $this->prefixData($prefix)
+                ),
             ],
         ]);
     }
@@ -130,6 +129,13 @@ class DocumentationResourceController extends Controller
             )
             ->orderBy('name')
             ->paginate($this->perPage($request));
+
+        $users->through(
+            fn (User $user): array => $this->userData(
+                $user,
+                $this->canReadPii($request)
+            )
+        );
 
         return response()->json($users);
     }
@@ -169,6 +175,13 @@ class DocumentationResourceController extends Controller
             )
             ->orderBy('asn')
             ->paginate($this->perPage($request));
+
+        $systems->through(
+            fn (AutonomousSystem $system): array => $this->autonomousSystemData(
+                $system,
+                $this->canReadPii($request)
+            )
+        );
 
         return response()->json($systems);
     }
@@ -220,6 +233,10 @@ class DocumentationResourceController extends Controller
             ->orderBy('prefix')
             ->paginate($this->perPage($request));
 
+        $prefixes->through(
+            fn (Prefix $prefix): array => $this->prefixData($prefix)
+        );
+
         return response()->json($prefixes);
     }
 
@@ -229,5 +246,155 @@ class DocumentationResourceController extends Controller
             max($request->integer('per_page', 25), 1),
             100
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function clientData(Client $client, bool $includePii): array
+    {
+        $data = $client->only([
+            'id',
+            'client_code',
+            'legal_name',
+            'trade_name',
+            'website',
+            'active',
+            'updated_at',
+        ]);
+
+        if ($includePii) {
+            $data += $client->only([
+                'document',
+                'email',
+                'phone',
+                'postal_code',
+                'street',
+                'address_number',
+                'address_complement',
+                'district',
+                'city',
+                'state',
+                'country',
+            ]);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function userData(User $user, bool $includePii): array
+    {
+        $data = $user->only([
+            'id',
+            'name',
+            'role',
+            'active',
+            'updated_at',
+        ]);
+
+        if ($includePii) {
+            $data += $user->only(['email']);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function autonomousSystemData(
+        AutonomousSystem $system,
+        bool $includePii
+    ): array {
+        $data = $system->only([
+            'id',
+            'client_id',
+            'asn',
+            'name',
+            'description',
+            'rir',
+            'country',
+            'website',
+            'active',
+            'updated_at',
+        ]);
+
+        if ($includePii) {
+            $data += $system->only([
+                'noc_contact',
+                'noc_email',
+                'noc_phone',
+            ]);
+        }
+
+        if ($system->relationLoaded('client') && $system->client !== null) {
+            $data['client'] = $system->client->only([
+                'id',
+                'client_code',
+                'legal_name',
+                'trade_name',
+            ]);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function prefixData(Prefix $prefix): array
+    {
+        $data = $prefix->only([
+            'id',
+            'client_id',
+            'autonomous_system_id',
+            'prefix',
+            'ip_version',
+            'description',
+            'rir',
+            'country',
+            'allocation_status',
+            'purpose',
+            'active',
+            'updated_at',
+        ]);
+
+        if ($prefix->relationLoaded('client') && $prefix->client !== null) {
+            $data['client'] = $prefix->client->only([
+                'id',
+                'client_code',
+                'legal_name',
+                'trade_name',
+            ]);
+        }
+
+        if (
+            $prefix->relationLoaded('autonomousSystem')
+            && $prefix->autonomousSystem !== null
+        ) {
+            $data['autonomous_system'] =
+                $prefix->autonomousSystem->only(['id', 'asn', 'name']);
+        }
+
+        return $data;
+    }
+
+    private function canReadPii(Request $request): bool
+    {
+        $apiClient = $request->attributes->get('api_client');
+
+        // LEGACY COMPATIBILITY: legacy token retains the prior payload.
+        return $apiClient === 'legacy'
+            || (
+                $apiClient instanceof ApiClient
+                && in_array(
+                    DocumentationApiScope::PII_READ,
+                    $apiClient->scopes ?? [],
+                    true
+                )
+            );
     }
 }

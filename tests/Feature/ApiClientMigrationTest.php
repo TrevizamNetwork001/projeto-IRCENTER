@@ -10,31 +10,19 @@ class ApiClientMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_api_clients_migration_can_roll_back_and_run(): void
+    public function test_scopes_migration_can_roll_back_and_run(): void
     {
         $migration = require database_path(
-            'migrations/2026_08_16_150000_create_api_clients_table.php'
+            'migrations/2026_08_16_160000_add_scopes_to_api_clients_table.php'
         );
 
         $this->assertTrue(Schema::hasTable('api_clients'));
+        $this->assertTrue(Schema::hasColumn('api_clients', 'scopes'));
 
         $migration->down();
-        $this->assertFalse(Schema::hasTable('api_clients'));
+        $this->assertFalse(Schema::hasColumn('api_clients', 'scopes'));
 
         $migration->up();
-        $this->assertTrue(Schema::hasColumns('api_clients', [
-            'id',
-            'name',
-            'identifier',
-            'token_hash',
-            'token_prefix',
-            'is_active',
-            'expires_at',
-            'last_used_at',
-            'last_used_ip',
-            'revoked_at',
-            'created_at',
-            'updated_at',
-        ]));
+        $this->assertTrue(Schema::hasColumn('api_clients', 'scopes'));
     }
 }

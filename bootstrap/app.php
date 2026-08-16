@@ -3,6 +3,7 @@
 use App\Http\Middleware\AuthenticateDocumentationApi;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\RequestLogContext;
+use App\Http\Middleware\RequireDocumentationApiScope;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\EnsureFiscalEnabled;
 use Illuminate\Foundation\Application;
@@ -30,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'documentation.api' =>
                 AuthenticateDocumentationApi::class,
+            'documentation.scope' =>
+                RequireDocumentationApiScope::class,
             'password.changed' =>
                 EnsurePasswordWasChanged::class,
             'fiscal.enabled' => EnsureFiscalEnabled::class,

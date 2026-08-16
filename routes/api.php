@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\DocumentationResourceController;
+use App\Support\DocumentationApiScope;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/documentation')
@@ -12,17 +13,29 @@ Route::prefix('v1/documentation')
         Route::get(
             '/clients',
             [DocumentationResourceController::class, 'clients']
-        )->name('api.documentation.clients.index');
+        )
+            ->middleware(
+                'documentation.scope:'.DocumentationApiScope::CLIENTS_READ
+            )
+            ->name('api.documentation.clients.index');
 
         Route::get(
             '/clients/{client}',
             [DocumentationResourceController::class, 'client']
-        )->name('api.documentation.clients.show');
+        )
+            ->middleware(
+                'documentation.scope:'.DocumentationApiScope::CLIENTS_READ
+            )
+            ->name('api.documentation.clients.show');
 
         Route::get(
             '/users',
             [DocumentationResourceController::class, 'users']
-        )->name('api.documentation.users.index');
+        )
+            ->middleware(
+                'documentation.scope:'.DocumentationApiScope::USERS_READ
+            )
+            ->name('api.documentation.users.index');
 
         Route::get(
             '/autonomous-systems',
@@ -30,12 +43,20 @@ Route::prefix('v1/documentation')
                 DocumentationResourceController::class,
                 'autonomousSystems',
             ]
-        )->name('api.documentation.autonomous-systems.index');
+        )
+            ->middleware(
+                'documentation.scope:'.DocumentationApiScope::NETWORK_READ
+            )
+            ->name('api.documentation.autonomous-systems.index');
 
         Route::get(
             '/prefixes',
             [DocumentationResourceController::class, 'prefixes']
-        )->name('api.documentation.prefixes.index');
+        )
+            ->middleware(
+                'documentation.scope:'.DocumentationApiScope::NETWORK_READ
+            )
+            ->name('api.documentation.prefixes.index');
     });
 
 Route::post(

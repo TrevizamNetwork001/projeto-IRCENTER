@@ -25,6 +25,7 @@ class ListApiClients extends Command
                 $client->expires_at?->toIso8601String() ?? '—',
                 $client->last_used_at?->toIso8601String() ?? '—',
                 $client->token_prefix,
+                implode(', ', $client->scopes ?? []) ?: 'Nenhum',
             ])
             ->all();
 
@@ -37,6 +38,7 @@ class ListApiClients extends Command
                 'Expiração',
                 'Último uso',
                 'Token prefix',
+                'Scopes',
             ],
             $rows
         );

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApiClient;
+use App\Support\DocumentationApiScope;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -20,7 +21,8 @@ class ApiCredentialService
      */
     public function create(
         string $name,
-        ?CarbonInterface $expiresAt = null
+        ?CarbonInterface $expiresAt = null,
+        array $scopes = []
     ): array {
         $name = trim($name);
 
@@ -38,12 +40,14 @@ class ApiCredentialService
 
         $token = self::TOKEN_PREFIX.bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
+        $scopes = $this->normalizeScopes($scopes);
 
         return DB::transaction(function () use (
             $name,
             $expiresAt,
             $token,
-            $tokenHash
+            $tokenHash,
+            $scopes
         ): array {
             $client = ApiClient::create([
                 'name' => $name,
@@ -52,6 +56,7 @@ class ApiCredentialService
                 'token_prefix' => substr($token, 0, 16),
                 'is_active' => true,
                 'expires_at' => $expiresAt,
+                'scopes' => $scopes,
             ]);
 
             $this->auditService->record(
@@ -153,6 +158,38 @@ class ApiCredentialService
         });
     }
 
+    /**
+     * @param  list<string>  $scopes
+     */
+    public function updateScopes(ApiClient $client, array $scopes): ApiClient
+    {
+        $scopes = $this->normalizeScopes($scopes);
+
+        return DB::transaction(function () use ($client, $scopes): ApiClient {
+            $oldValues = [
+                'api_client_id' => $client->id,
+                'identifier' => $client->identifier,
+                'scopes' => $client->scopes ?? [],
+            ];
+
+            $client->forceFill(['scopes' => $scopes])->save();
+
+            $this->auditService->record(
+                'api_client.scopes_updated',
+                $client,
+                $oldValues,
+                [
+                    'api_client_id' => $client->id,
+                    'identifier' => $client->identifier,
+                    'scopes' => $client->scopes,
+                ],
+                $client->name
+            );
+
+            return $client;
+        });
+    }
+
     private function newIdentifier(): string
     {
         do {
@@ -164,6 +201,40 @@ class ApiCredentialService
         );
 
         return $identifier;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $scopes
+     * @return list<string>
+     */
+    private function normalizeScopes(array $scopes): array
+    {
+        foreach ($scopes as $scope) {
+            if (! is_string($scope)) {
+                throw new InvalidArgumentException(
+                    'Um ou mais scopes são inválidos.'
+                );
+            }
+        }
+
+        $normalized = array_values(array_unique(array_map(
+            fn (string $scope): string => trim($scope),
+            $scopes
+        )));
+
+        if (
+            in_array('', $normalized, true)
+            || array_diff($normalized, DocumentationApiScope::all()) !== []
+        ) {
+            throw new InvalidArgumentException(
+                'Um ou mais scopes são inválidos.'
+            );
+        }
+
+        return array_values(array_filter(
+            DocumentationApiScope::all(),
+            fn (string $scope): bool => in_array($scope, $normalized, true)
+        ));
     }
 
     /**
@@ -179,6 +250,7 @@ class ApiCredentialService
             'is_active' => $client->is_active,
             'expires_at' => $client->expires_at?->toIso8601String(),
             'revoked_at' => $client->revoked_at?->toIso8601String(),
+            'scopes' => $client->scopes ?? [],
         ];
     }
 }

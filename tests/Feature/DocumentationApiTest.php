@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Prefix;
 use App\Models\User;
 use App\Services\ApiCredentialService;
+use App\Support\DocumentationApiScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -57,6 +58,203 @@ class DocumentationApiTest extends TestCase
         $this->withToken($credential['token'])
             ->getJson('/api/v1/documentation/clients')
             ->assertOk();
+    }
+
+    public function test_valid_credential_without_scopes_is_forbidden(): void
+    {
+        $credential = $this->createCredential('Sem scopes', []);
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/clients')
+            ->assertForbidden()
+            ->assertHeader('X-Request-ID')
+            ->assertExactJson([
+                'message' => 'Acesso não autorizado para este recurso.',
+            ]);
+    }
+
+    public function test_network_scope_accesses_network_but_not_clients(): void
+    {
+        $client = Client::factory()->create();
+        AutonomousSystem::factory()->create(['client_id' => $client->id]);
+        Prefix::factory()->create(['client_id' => $client->id]);
+        $credential = $this->createCredential(
+            'Somente rede',
+            [DocumentationApiScope::NETWORK_READ]
+        );
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/autonomous-systems')
+            ->assertOk();
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/prefixes')
+            ->assertOk();
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/clients')
+            ->assertForbidden();
+    }
+
+    public function test_clients_scope_does_not_access_users(): void
+    {
+        $credential = $this->createCredential('Somente clientes');
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/users')
+            ->assertForbidden();
+    }
+
+    public function test_users_scope_accesses_users(): void
+    {
+        User::factory()->create();
+        $credential = $this->createCredential(
+            'Somente usuários',
+            [DocumentationApiScope::USERS_READ]
+        );
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/users')
+            ->assertOk();
+    }
+
+    public function test_pii_scope_alone_does_not_access_clients(): void
+    {
+        $credential = $this->createCredential(
+            'Somente PII',
+            [DocumentationApiScope::PII_READ]
+        );
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/clients')
+            ->assertForbidden();
+    }
+
+    public function test_clients_scope_omits_pii_and_internal_fields(): void
+    {
+        Client::factory()->create([
+            'document' => '12345678901',
+            'email' => 'pii@example.test',
+            'phone' => '11999999999',
+            'postal_code' => '01001000',
+            'street' => 'Rua de Teste',
+            'address_number' => '123',
+            'address_complement' => 'Sala 1',
+            'district' => 'Centro',
+            'city' => 'São Paulo',
+            'state' => 'SP',
+            'notes' => 'Nota interna',
+            'contract_number' => 'CONTRATO-INTERNO',
+        ]);
+        $credential = $this->createCredential('Clientes sem PII');
+
+        $response = $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/clients')
+            ->assertOk();
+
+        foreach ([
+            'document',
+            'email',
+            'phone',
+            'postal_code',
+            'street',
+            'address_number',
+            'address_complement',
+            'district',
+            'city',
+            'state',
+            'country',
+            'notes',
+            'contract_number',
+        ] as $field) {
+            $response->assertJsonMissingPath("data.0.{$field}");
+        }
+
+        $this->assertNoForbiddenKeys($response->json());
+    }
+
+    public function test_clients_and_pii_scopes_return_only_allowed_pii(): void
+    {
+        $client = Client::factory()->create([
+            'document' => '12345678901',
+            'email' => 'allowed@example.test',
+            'phone' => '11999999999',
+            'postal_code' => '01001000',
+            'street' => 'Rua Permitida',
+            'address_number' => '123',
+            'address_complement' => 'Sala 1',
+            'district' => 'Centro',
+            'city' => 'São Paulo',
+            'state' => 'SP',
+            'country' => 'BR',
+            'notes' => 'Nunca expor',
+            'contract_number' => 'CONTRATO-INTERNO',
+        ]);
+        $credential = $this->createCredential(
+            'Clientes com PII',
+            [
+                DocumentationApiScope::CLIENTS_READ,
+                DocumentationApiScope::PII_READ,
+            ]
+        );
+
+        $response = $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/clients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $client->id)
+            ->assertJsonPath('data.0.document', '12345678901')
+            ->assertJsonPath('data.0.email', 'allowed@example.test')
+            ->assertJsonPath('data.0.phone', '11999999999')
+            ->assertJsonPath('data.0.street', 'Rua Permitida')
+            ->assertJsonMissingPath('data.0.notes')
+            ->assertJsonMissingPath('data.0.contract_number');
+
+        $this->assertNoForbiddenKeys($response->json());
+    }
+
+    public function test_network_scope_omits_noc_pii_without_pii_scope(): void
+    {
+        $client = Client::factory()->create();
+        AutonomousSystem::factory()->create([
+            'client_id' => $client->id,
+            'noc_contact' => 'Pessoa de Teste',
+            'noc_email' => 'noc@example.test',
+            'noc_phone' => '11999999999',
+        ]);
+        $credential = $this->createCredential(
+            'Rede sem PII',
+            [DocumentationApiScope::NETWORK_READ]
+        );
+
+        $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/autonomous-systems')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.noc_contact')
+            ->assertJsonMissingPath('data.0.noc_email')
+            ->assertJsonMissingPath('data.0.noc_phone');
+    }
+
+    public function test_no_scope_combination_exposes_user_secrets(): void
+    {
+        User::factory()->create([
+            'email' => 'user@example.test',
+            'password' => 'fake-password-hash-for-testing',
+            'remember_token' => 'fake-remember-token-for-testing',
+        ]);
+        $credential = $this->createCredential(
+            'Usuários com PII',
+            [
+                DocumentationApiScope::USERS_READ,
+                DocumentationApiScope::PII_READ,
+            ]
+        );
+
+        $response = $this->withToken($credential['token'])
+            ->getJson('/api/v1/documentation/users')
+            ->assertOk()
+            ->assertJsonPath('data.0.email', 'user@example.test');
+
+        $this->assertNoForbiddenKeys($response->json());
     }
 
     public function test_inactive_individual_credential_is_rejected(): void
@@ -268,8 +466,41 @@ class DocumentationApiTest extends TestCase
     /**
      * @return array{client: ApiClient, token: string}
      */
-    private function createCredential(string $name): array
+    private function createCredential(
+        string $name,
+        array $scopes = [DocumentationApiScope::CLIENTS_READ]
+    ): array {
+        return app(ApiCredentialService::class)->create(
+            $name,
+            null,
+            $scopes
+        );
+    }
+
+    private function assertNoForbiddenKeys(mixed $value): void
     {
-        return app(ApiCredentialService::class)->create($name);
+        if (! is_array($value)) {
+            return;
+        }
+
+        $forbidden = [
+            'password',
+            'password_hash',
+            'remember_token',
+            'token',
+            'token_hash',
+            'secret',
+            'client_secret',
+            'api_key',
+            'app_key',
+        ];
+
+        foreach ($value as $key => $nestedValue) {
+            if (is_string($key)) {
+                $this->assertNotContains(strtolower($key), $forbidden);
+            }
+
+            $this->assertNoForbiddenKeys($nestedValue);
+        }
     }
 }

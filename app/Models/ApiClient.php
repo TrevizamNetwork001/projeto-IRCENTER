@@ -15,9 +15,14 @@ use Illuminate\Database\Eloquent\Model;
     'last_used_at',
     'last_used_ip',
     'revoked_at',
+    'scopes',
 ])]
 class ApiClient extends Model
 {
+    protected $attributes = [
+        'scopes' => '[]',
+    ];
+
     protected $hidden = [
         'token_hash',
     ];
@@ -29,6 +34,7 @@ class ApiClient extends Model
             'expires_at' => 'immutable_datetime',
             'last_used_at' => 'immutable_datetime',
             'revoked_at' => 'immutable_datetime',
+            'scopes' => 'array',
         ];
     }
 }
