@@ -3,7 +3,7 @@
 @section('content')
 <section class="page-heading"><div><div class="page-eyebrow"><a class="inline-link" href="{{ route('fiscal.dashboard') }}">Fiscal</a> · Novo documento</div><h1>Novo documento fiscal</h1><p>Crie um rascunho interno para revisar antes da emissão no Portal Nacional.</p></div></section>
 @if($errors->any())<div class="alert-error" role="alert">{{ $errors->first() }}</div>@endif
-@if(!$issuer)<div class="alert-error" role="alert">Cadastre e ative um emitente fiscal antes de criar documentos.</div>@else
+@if(!$issuer)<section class="panel empty-state"><div><strong>Emitente fiscal não configurado</strong><span>Para criar documentos fiscais, configure os dados fiscais da empresa emitente.</span></div><a class="button button-primary" href="{{ route('fiscal.issuer.edit') }}">Configurar emitente</a></section>@else
 <form method="POST" action="{{ route('fiscal.documents.store') }}" class="panel form-panel">@csrf
 <input type="hidden" name="issuer_id" value="{{ $issuer->id }}">
 <div class="form-grid">

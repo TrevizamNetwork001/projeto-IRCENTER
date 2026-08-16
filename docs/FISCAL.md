@@ -55,6 +55,12 @@ Artefatos guardam somente tipo, disco, caminho, MIME, SHA-256 e tamanho. `Fiscal
 
 Certificados, senhas, tokens e chaves privadas não são tratados nesta fase. Uma futura integração automática deverá definir um mecanismo seguro e externo à tabela de emitente.
 
+## Configuração do emitente
+
+O cadastro do emitente é uma operação administrativa normal em **Fiscal → Configuração do emitente**. Na ausência de dados oficiais, o dashboard indica `Emitente pendente` e a tela de novo documento permanece disponível com orientação para configurar o emitente; nenhum rascunho pode ser criado até existir um cadastro ativo e válido.
+
+Somente administradores podem criar ou editar o cadastro. A ativação exige razão social, CNPJ válido, município, código IBGE, UF e endereço completos. A atualização é transacional, mantém no máximo um emitente ativo e registra criação, alteração, ativação ou desativação em `domain_audit_events`. Dados reais devem ser preenchidos pelo operador; não pertencem a migrations, seeders ou ao repositório.
+
 ## FISCAL-2A — Operação manual assistida
 
 A FISCAL-2A acrescenta criação explícita de rascunhos, avaliação centralizada de prontidão (`READY`, `WARNING` e `BLOCKED`), retorno para revisão, resumo baseado no snapshot e registro assistido de uma NFS-e que o usuário já autorizou no Portal Nacional. O modo de emissão é registrado separadamente como `manual`; o provider continua sendo outro conceito.

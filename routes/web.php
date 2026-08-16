@@ -17,6 +17,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\FiscalDashboardController;
 use App\Http\Controllers\FiscalCustomerProfileController;
 use App\Http\Controllers\FiscalDocumentController;
+use App\Http\Controllers\FiscalIssuerProfileController;
 use App\Http\Controllers\IrrObjectController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
@@ -86,6 +87,8 @@ Route::middleware([
 
     Route::middleware('fiscal.enabled')->group(function (): void {
         Route::get('/fiscal', FiscalDashboardController::class)->name('fiscal.dashboard');
+        Route::get('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'edit'])->name('fiscal.issuer.edit');
+        Route::put('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'update'])->name('fiscal.issuer.update');
         Route::get('/fiscal/documents/create', [FiscalDocumentController::class, 'create'])->name('fiscal.documents.create');
         Route::post('/fiscal/documents', [FiscalDocumentController::class, 'store'])->name('fiscal.documents.store');
         Route::get('/fiscal/documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->whereNumber('fiscalDocument')->name('fiscal.documents.show');
