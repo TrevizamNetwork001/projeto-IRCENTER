@@ -1,0 +1,97 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\ApiClient;
+use App\Models\AuditLog;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Tests\TestCase;
+
+class ApiClientCommandTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_create_displays_token_once_without_hash(): void
+    {
+        $exitCode = Artisan::call('api-client:create', [
+            'name' => 'Consumidor de teste',
+        ]);
+        $output = Artisan::output();
+        $client = ApiClient::query()->sole();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertMatchesRegularExpression(
+            '/irc_api_[a-f0-9]{64}/',
+            $output
+        );
+        preg_match('/irc_api_[a-f0-9]{64}/', $output, $matches);
+        $token = $matches[0];
+
+        $this->assertSame(1, substr_count($output, $token));
+        $this->assertStringContainsString(
+            'não poderá ser exibida novamente',
+            $output
+        );
+        $this->assertStringNotContainsString($client->token_hash, $output);
+        $this->assertSame(hash('sha256', $token), $client->token_hash);
+
+        $audit = AuditLog::query()
+            ->where('action', 'api_client.created')
+            ->sole();
+        $serializedAudit = json_encode(
+            [$audit->old_values, $audit->new_values],
+            JSON_THROW_ON_ERROR
+        );
+
+        $this->assertStringNotContainsString($token, $serializedAudit);
+        $this->assertStringNotContainsString(
+            $client->token_hash,
+            $serializedAudit
+        );
+    }
+
+    public function test_list_never_displays_token_hash(): void
+    {
+        Artisan::call('api-client:create', ['name' => 'Para listagem']);
+        $client = ApiClient::query()->sole();
+
+        $exitCode = Artisan::call('api-client:list');
+        $output = Artisan::output();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString($client->identifier, $output);
+        $this->assertStringContainsString($client->token_prefix, $output);
+        $this->assertStringNotContainsString($client->token_hash, $output);
+    }
+
+    public function test_revoke_and_reactivate_are_audited(): void
+    {
+        Artisan::call('api-client:create', ['name' => 'Revogável']);
+        $client = ApiClient::query()->sole();
+
+        $this->assertSame(0, Artisan::call('api-client:revoke', [
+            'identifier' => $client->identifier,
+        ]));
+
+        $client->refresh();
+        $this->assertFalse($client->is_active);
+        $this->assertNotNull($client->revoked_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'api_client.revoked',
+            'resource_id' => $client->id,
+        ]);
+
+        $this->assertSame(0, Artisan::call('api-client:reactivate', [
+            'identifier' => $client->identifier,
+        ]));
+
+        $client->refresh();
+        $this->assertTrue($client->is_active);
+        $this->assertNull($client->revoked_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'api_client.reactivated',
+            'resource_id' => $client->id,
+        ]);
+    }
+}

@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 class AuditService
 {
     /**
-     * @param array<string, mixed>|null $oldValues
-     * @param array<string, mixed>|null $newValues
+     * @param  array<string, mixed>|null  $oldValues
+     * @param  array<string, mixed>|null  $newValues
      */
     public function record(
         string $action,
@@ -36,7 +36,7 @@ class AuditService
     }
 
     /**
-     * @param array<string, mixed>|null $values
+     * @param  array<string, mixed>|null  $values
      * @return array<string, mixed>|null
      */
     private function sanitize(?array $values): ?array
@@ -49,6 +49,7 @@ class AuditService
             'password',
             'remember_token',
             'token',
+            'token_hash',
             'secret',
             'api_key',
         ] as $sensitiveKey) {
