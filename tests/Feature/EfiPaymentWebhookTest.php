@@ -18,12 +18,16 @@ use App\Modules\Finance\Models\PaymentProviderEvent;
 use App\Modules\Finance\Models\PaymentWebhookReceipt;
 use App\Modules\Shared\Models\DomainAuditEvent;
 use App\Modules\Shared\Services\DomainAudit;
+use Illuminate\Contracts\Queue\Job as QueueJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Mockery;
 use Tests\TestCase;
 
 class EfiPaymentWebhookTest extends TestCase
@@ -91,6 +95,89 @@ class EfiPaymentWebhookTest extends TestCase
                 'notification' => '09027955-5e06-4ff0-a9c7-46b47b8f1b27',
             ]
         )->assertNotFound();
+    }
+
+    public function test_job_uses_deterministic_receipt_lock_without_secrets(): void
+    {
+        $first = new ProcessEfiPaymentWebhook(41);
+        $same = new ProcessEfiPaymentWebhook(41);
+        $different = new ProcessEfiPaymentWebhook(42);
+
+        $middleware = $first->middleware()[0];
+
+        $this->assertInstanceOf(WithoutOverlapping::class, $middleware);
+        $this->assertSame(10, $middleware->releaseAfter);
+        $this->assertSame(60, $middleware->expiresAfter);
+        $this->assertSame(0, $first->tries);
+        $this->assertSame(5, $first->maxExceptions);
+        $this->assertSame(
+            $middleware->getLockKey($first),
+            $same->middleware()[0]->getLockKey($same)
+        );
+        $this->assertNotSame(
+            $middleware->getLockKey($first),
+            $different->middleware()[0]->getLockKey($different)
+        );
+
+        $key = $middleware->getLockKey($first);
+
+        foreach ([
+            'notification-token-test',
+            str_repeat('a', 64),
+            'sandbox-secret',
+        ] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $key);
+        }
+    }
+
+    public function test_occupied_lock_releases_job_without_financial_failure(): void
+    {
+        Http::preventStrayRequests();
+        $receipt = $this->receipt();
+        $job = new ProcessEfiPaymentWebhook($receipt->id);
+        $middleware = $job->middleware()[0];
+        $lock = Cache::lock($middleware->getLockKey($job), 60);
+        $this->assertTrue($lock->get());
+
+        $queuedJob = Mockery::mock(QueueJob::class);
+        $queuedJob->shouldReceive('release')->once()->with(10);
+        $job->setJob($queuedJob);
+        $entered = false;
+
+        try {
+            $middleware->handle($job, function () use (&$entered): void {
+                $entered = true;
+            });
+        } finally {
+            $lock->release();
+        }
+
+        $this->assertFalse($entered);
+        $this->assertSame(
+            PaymentWebhookReceipt::STATUS_RECEIVED,
+            $receipt->refresh()->status
+        );
+        $this->assertDatabaseMissing('domain_audit_events', [
+            'action' => 'payment_webhook.token_not_found',
+        ], 'finance_fiscal');
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+        Http::assertNothingSent();
+    }
+
+    public function test_job_can_enter_after_receipt_lock_is_released(): void
+    {
+        $job = new ProcessEfiPaymentWebhook(51);
+        $middleware = $job->middleware()[0];
+        $lock = Cache::lock($middleware->getLockKey($job), 60);
+        $this->assertTrue($lock->get());
+        $lock->release();
+        $entered = false;
+
+        $middleware->handle($job, function () use (&$entered): void {
+            $entered = true;
+        });
+
+        $this->assertTrue($entered);
     }
 
     public function test_missing_callback_configuration_fails_closed(): void

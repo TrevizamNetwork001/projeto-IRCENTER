@@ -7,8 +7,10 @@ use App\Modules\Finance\Exceptions\EfiNotificationNotFound;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Finance\Models\PaymentWebhookReceipt;
 use App\Modules\Shared\Services\DomainAudit;
+use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Crypt;
 use Throwable;
 
@@ -16,7 +18,9 @@ final class ProcessEfiPaymentWebhook implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 5;
+    public int $tries = 0;
+
+    public int $maxExceptions = 5;
 
     public int $timeout = 30;
 
@@ -28,6 +32,26 @@ final class ProcessEfiPaymentWebhook implements ShouldQueue
     public function backoff(): array
     {
         return [10, 30, 120, 300];
+    }
+
+    /** @return list<WithoutOverlapping> */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping((string) $this->receiptId))
+                ->withPrefix('ircenter:finance:efi:webhook:receipt:')
+                ->releaseAfter(10)
+                ->expireAfter(60),
+        ];
+    }
+
+    public function retryUntil(): DateTimeInterface
+    {
+        /*
+         * Releases por contenção consomem tentativas. A janela limitada,
+         * combinada a maxExceptions, separa overlap de falhas reais da Efí.
+         */
+        return now()->addMinutes(10);
     }
 
     public function handle(
