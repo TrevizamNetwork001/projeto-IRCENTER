@@ -12,4 +12,9 @@ return [
         'DOCUMENTATION_API_RATE_LIMIT',
         120
     ),
+
+    'client_rate_limit' => env(
+        'DOCUMENTATION_API_CLIENT_RATE_LIMIT',
+        120
+    ),
 ];

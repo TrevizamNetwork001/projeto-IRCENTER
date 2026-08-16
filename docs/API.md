@@ -27,7 +27,7 @@ As listagens aceitam `page` e `per_page`; o padrão de `per_page` é 25 e valore
 
 ## Rate limit e rastreabilidade
 
-O limite vigente é aplicado por IP antes da autenticação. Respostas 429 preservam `X-RateLimit-Limit`, `Retry-After` e demais cabeçalhos produzidos pelo framework.
+Há duas camadas independentes de limite: uma por IP, aplicada antes da autenticação, e outra com orçamento global por credencial individual, aplicada após a autenticação e compartilhada entre todos os endpoints. Trocar o IP não reinicia o orçamento da credencial. O token legado, enquanto explicitamente habilitado, permanece protegido pela camada por IP e não recebe identidade individual artificial. Os valores são configuração operacional. Respostas 429 não revelam qual camada foi atingida e preservam `X-RateLimit-Limit`, `Retry-After` e demais cabeçalhos produzidos pelo framework.
 
 Toda resposta possui `X-Request-ID`, um UUID gerado pelo servidor. Se o cliente enviar esse cabeçalho, o valor não é reutilizado. Em erros, o mesmo valor aparece em `error.request_id`.
 

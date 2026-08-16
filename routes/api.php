@@ -9,6 +9,7 @@ Route::prefix('v1/documentation')
     ->middleware([
         'throttle:documentation-api',
         'documentation.api',
+        'documentation.client.throttle',
     ])
     ->group(function (): void {
         Route::get(

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\ApiClient;
 use App\Models\Notification;
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
@@ -174,11 +175,30 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for(
             'documentation-api',
             fn (Request $request) => Limit::perMinute(
-                (int) config(
-                    'documentation.rate_limit',
-                    120
-                )
+                $this->documentationRateLimit('rate_limit')
             )->by($request->ip())
+        );
+
+        RateLimiter::for(
+            'documentation-api-client',
+            function (Request $request) {
+                $apiClient = $request->attributes->get('api_client');
+
+                // LEGACY COMPATIBILITY: the legacy token has no ApiClient.
+                if ($apiClient === 'legacy') {
+                    return Limit::none();
+                }
+
+                if (! $apiClient instanceof ApiClient) {
+                    throw new \LogicException(
+                        'Contexto do ApiClient não disponível.'
+                    );
+                }
+
+                return Limit::perMinute(
+                    $this->documentationRateLimit('client_rate_limit')
+                )->by('documentation-api-client:'.$apiClient->getKey());
+            }
         );
 
         RateLimiter::for(
@@ -203,5 +223,20 @@ class AppServiceProvider extends ServiceProvider
             'attempt' => $event->job->attempts(),
             'connection' => $event->connectionName,
         ];
+    }
+
+    private function documentationRateLimit(string $key): int
+    {
+        $value = config("documentation.{$key}", 120);
+
+        if (
+            filter_var($value, FILTER_VALIDATE_INT) === false
+            || (int) $value < 1
+            || (int) $value > 10000
+        ) {
+            return 120;
+        }
+
+        return (int) $value;
     }
 }

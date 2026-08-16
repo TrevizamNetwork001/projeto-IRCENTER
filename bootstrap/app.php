@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\RequestLogContext;
 use App\Http\Middleware\RequireDocumentationApiScope;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\ThrottleDocumentationApiClient;
 use App\Http\Middleware\ValidateEfiWebhookCallback;
 use App\Support\ApiErrorResponse;
 use Illuminate\Foundation\Application;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'documentation.api' => AuthenticateDocumentationApi::class,
             'documentation.scope' => RequireDocumentationApiScope::class,
+            'documentation.client.throttle' => ThrottleDocumentationApiClient::class,
             'password.changed' => EnsurePasswordWasChanged::class,
             'fiscal.enabled' => EnsureFiscalEnabled::class,
             'efi.webhook.callback' => ValidateEfiWebhookCallback::class,
