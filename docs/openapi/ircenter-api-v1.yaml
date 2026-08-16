@@ -1,0 +1,129 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IRCENTER API",
+    "version": "1.0.0",
+    "description": "API JSON versionada em /api/v1. A autenticação usa Bearer Token e cada credencial possui scopes. HTTPS é obrigatório em produção."
+  },
+  "servers": [{"url": "/api/v1"}],
+  "security": [{"bearerAuth": []}],
+  "tags": [
+    {"name": "Clientes"},
+    {"name": "Usuários"},
+    {"name": "Rede"}
+  ],
+  "paths": {
+    "/api/v1/documentation/clients": {
+      "get": {
+        "tags": ["Clientes"],
+        "summary": "Lista clientes",
+        "description": "Requer documentation.clients.read. Com documentation.pii.read, inclui os campos pessoais definidos em ClientWithPii; sem ele, esses campos são omitidos.",
+        "x-required-scope": "documentation.clients.read",
+        "x-additional-scopes": ["documentation.pii.read"],
+        "parameters": [
+          {"$ref": "#/components/parameters/Page"},
+          {"$ref": "#/components/parameters/PerPage"},
+          {"$ref": "#/components/parameters/ActiveOnly"}
+        ],
+        "responses": {
+          "200": {"description": "Clientes paginados.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientPage"}, "examples": {"basic": {"value": {"current_page": 1, "data": [{"id": 123, "client_code": "CLI-000123", "legal_name": "Empresa Exemplo Ltda", "trade_name": "Empresa Exemplo", "website": "https://example.test", "active": true, "updated_at": "2026-01-15T12:00:00.000000Z"}], "first_page_url": "https://api.example.test/api/v1/documentation/clients?page=1", "from": 1, "last_page": 1, "last_page_url": "https://api.example.test/api/v1/documentation/clients?page=1", "links": [], "next_page_url": null, "path": "https://api.example.test/api/v1/documentation/clients", "per_page": 25, "prev_page_url": null, "to": 1, "total": 1}}}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "422": {"$ref": "#/components/responses/UnprocessableEntity"}, "429": {"$ref": "#/components/responses/TooManyRequests"}, "500": {"$ref": "#/components/responses/InternalError"}
+        }
+      }
+    },
+    "/api/v1/documentation/clients/{client}": {
+      "get": {
+        "tags": ["Clientes"], "summary": "Obtém um cliente", "description": "Requer documentation.clients.read. documentation.pii.read é adicional e controla a presença de PII no cliente e nos contatos NOC.",
+        "x-required-scope": "documentation.clients.read", "x-additional-scopes": ["documentation.pii.read"],
+        "parameters": [{"$ref": "#/components/parameters/ClientId"}],
+        "responses": {
+          "200": {"description": "Cliente encontrado.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientDetailResponse"}, "examples": {"withPii": {"value": {"data": {"id": 123, "client_code": "CLI-000123", "legal_name": "Empresa Exemplo Ltda", "trade_name": "Empresa Exemplo", "website": "https://example.test", "active": true, "updated_at": "2026-01-15T12:00:00.000000Z", "document": "00.000.000/0001-00", "email": "contato@example.test", "phone": "+55 11 90000-0000", "postal_code": "01001-000", "street": "Rua Exemplo", "address_number": "123", "address_complement": "Sala 1", "district": "Centro", "city": "São Paulo", "state": "SP", "country": "BR", "autonomous_systems": [], "prefixes": []}}}}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "429": {"$ref": "#/components/responses/TooManyRequests"}, "500": {"$ref": "#/components/responses/InternalError"}
+        }
+      }
+    },
+    "/api/v1/documentation/users": {
+      "get": {
+        "tags": ["Usuários"], "summary": "Lista usuários", "description": "Requer documentation.users.read. O e-mail só aparece com o scope adicional documentation.pii.read; caso contrário, é omitido.",
+        "x-required-scope": "documentation.users.read", "x-additional-scopes": ["documentation.pii.read"],
+        "parameters": [{"$ref": "#/components/parameters/Page"}, {"$ref": "#/components/parameters/PerPage"}, {"$ref": "#/components/parameters/ActiveOnly"}],
+        "responses": {
+          "200": {"description": "Usuários paginados.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserPage"}, "examples": {"users": {"value": {"current_page": 1, "data": [{"id": 7, "name": "Usuário Exemplo", "role": "viewer", "active": true, "updated_at": "2026-01-15T12:00:00.000000Z"}], "first_page_url": "https://api.example.test/api/v1/documentation/users?page=1", "from": 1, "last_page": 1, "last_page_url": "https://api.example.test/api/v1/documentation/users?page=1", "links": [], "next_page_url": null, "path": "https://api.example.test/api/v1/documentation/users", "per_page": 25, "prev_page_url": null, "to": 1, "total": 1}}}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "422": {"$ref": "#/components/responses/UnprocessableEntity"}, "429": {"$ref": "#/components/responses/TooManyRequests"}, "500": {"$ref": "#/components/responses/InternalError"}
+        }
+      }
+    },
+    "/api/v1/documentation/autonomous-systems": {
+      "get": {
+        "tags": ["Rede"], "summary": "Lista sistemas autônomos", "description": "Requer documentation.network.read. Contatos NOC são omitidos sem o scope adicional documentation.pii.read.",
+        "x-required-scope": "documentation.network.read", "x-additional-scopes": ["documentation.pii.read"],
+        "parameters": [{"$ref": "#/components/parameters/Page"}, {"$ref": "#/components/parameters/PerPage"}, {"$ref": "#/components/parameters/ActiveOnly"}, {"$ref": "#/components/parameters/ClientIdFilter"}],
+        "responses": {
+          "200": {"description": "Sistemas autônomos paginados.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AutonomousSystemPage"}, "examples": {"asns": {"value": {"current_page": 1, "data": [{"id": 10, "client_id": 123, "asn": 65000, "name": "AS65000", "description": "Rede de documentação", "rir": "LACNIC", "country": "BR", "website": "https://example.test", "active": true, "updated_at": "2026-01-15T12:00:00.000000Z", "client": {"id": 123, "client_code": "CLI-000123", "legal_name": "Empresa Exemplo Ltda", "trade_name": "Empresa Exemplo"}}], "first_page_url": "https://api.example.test/api/v1/documentation/autonomous-systems?page=1", "from": 1, "last_page": 1, "last_page_url": "https://api.example.test/api/v1/documentation/autonomous-systems?page=1", "links": [], "next_page_url": null, "path": "https://api.example.test/api/v1/documentation/autonomous-systems", "per_page": 25, "prev_page_url": null, "to": 1, "total": 1}}}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "422": {"$ref": "#/components/responses/UnprocessableEntity"}, "429": {"$ref": "#/components/responses/TooManyRequests"}, "500": {"$ref": "#/components/responses/InternalError"}
+        }
+      }
+    },
+    "/api/v1/documentation/prefixes": {
+      "get": {
+        "tags": ["Rede"], "summary": "Lista prefixos", "description": "Requer documentation.network.read. documentation.pii.read não altera este payload, mas permanece um scope adicional e nunca autoriza o endpoint sozinho.",
+        "x-required-scope": "documentation.network.read", "x-additional-scopes": ["documentation.pii.read"],
+        "parameters": [{"$ref": "#/components/parameters/Page"}, {"$ref": "#/components/parameters/PerPage"}, {"$ref": "#/components/parameters/ActiveOnly"}, {"$ref": "#/components/parameters/ClientIdFilter"}, {"$ref": "#/components/parameters/IpVersion"}],
+        "responses": {
+          "200": {"description": "Prefixos paginados.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PrefixPage"}, "examples": {"prefixes": {"value": {"current_page": 1, "data": [{"id": 20, "client_id": 123, "autonomous_system_id": 10, "prefix": "203.0.113.0/24", "ip_version": 4, "description": "Prefixo de documentação", "rir": "LACNIC", "country": "BR", "allocation_status": "allocated", "purpose": "documentation", "active": true, "updated_at": "2026-01-15T12:00:00.000000Z", "client": {"id": 123, "client_code": "CLI-000123", "legal_name": "Empresa Exemplo Ltda", "trade_name": "Empresa Exemplo"}, "autonomous_system": {"id": 10, "asn": 65000, "name": "AS65000"}}], "first_page_url": "https://api.example.test/api/v1/documentation/prefixes?page=1", "from": 1, "last_page": 1, "last_page_url": "https://api.example.test/api/v1/documentation/prefixes?page=1", "links": [], "next_page_url": null, "path": "https://api.example.test/api/v1/documentation/prefixes", "per_page": 25, "prev_page_url": null, "to": 1, "total": 1}}}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "422": {"$ref": "#/components/responses/UnprocessableEntity"}, "429": {"$ref": "#/components/responses/TooManyRequests"}, "500": {"$ref": "#/components/responses/InternalError"}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Bearer Token opaco fornecido para uma credencial individual. Exemplo fictício: irc_api_EXAMPLE_ONLY."}},
+    "headers": {"RequestId": {"description": "UUID gerado pelo servidor para correlacionar a requisição. Um valor enviado pelo cliente não é reutilizado.", "schema": {"type": "string", "format": "uuid"}}},
+    "parameters": {
+      "Page": {"name": "page", "in": "query", "required": false, "description": "Página, inteiro maior ou igual a 1. Valor inválido retorna 422.", "schema": {"type": "integer", "minimum": 1, "default": 1}, "example": 2},
+      "PerPage": {"name": "per_page", "in": "query", "required": false, "description": "Itens por página, inteiro maior ou igual a 1. Valores acima de 100 são limitados a 100; tipo inválido ou valor menor que 1 retorna 422.", "schema": {"type": "integer", "minimum": 1, "default": 25}, "example": 50, "x-maximum-applied": 100},
+      "ActiveOnly": {"name": "active_only", "in": "query", "required": false, "description": "Quando verdadeiro, retorna apenas registros ativos. Aceita true, false, 1 e 0; valor inválido retorna 422.", "schema": {"type": "boolean", "default": false}, "example": true},
+      "ClientIdFilter": {"name": "client_id", "in": "query", "required": false, "description": "Filtra pelo ID numérico positivo do cliente. Valor inválido retorna 422.", "schema": {"type": "integer", "minimum": 1}, "example": 123},
+      "IpVersion": {"name": "ip_version", "in": "query", "required": false, "description": "Filtra pela versão IP. Valor diferente de 4 ou 6 retorna 422.", "schema": {"type": "integer", "enum": [4, 6]}, "example": 4},
+      "ClientId": {"name": "client", "in": "path", "required": true, "description": "ID numérico positivo do cliente.", "schema": {"type": "integer", "minimum": 1}, "example": 123}
+    },
+    "responses": {
+      "Unauthorized": {"description": "Token ausente ou inválido.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "examples": {"missing": {"value": {"error": {"code": "authentication_required", "message": "Credencial de acesso não informada.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Credencial de acesso não informada."}}, "invalid": {"value": {"error": {"code": "invalid_token", "message": "Credencial de acesso inválida.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Credencial de acesso inválida."}}}}}},
+      "Forbidden": {"description": "Credencial sem autorização para o recurso.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"error": {"code": "insufficient_scope", "message": "Acesso não autorizado para este recurso.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Acesso não autorizado para este recurso."}}}},
+      "NotFound": {"description": "Recurso inexistente.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"error": {"code": "resource_not_found", "message": "Recurso não encontrado.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Recurso não encontrado."}}}},
+      "UnprocessableEntity": {"description": "Parâmetros inválidos.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ValidationErrorResponse"}, "example": {"error": {"code": "validation_error", "message": "Os dados informados são inválidos.", "request_id": "123e4567-e89b-12d3-a456-426614174000", "details": {"page": ["The page field must be at least 1."]}}, "message": "Os dados informados são inválidos."}}}},
+      "TooManyRequests": {"description": "Limite por IP excedido.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}, "X-RateLimit-Limit": {"description": "Limite vigente por minuto.", "schema": {"type": "integer"}}, "Retry-After": {"description": "Segundos até nova tentativa.", "schema": {"type": "integer"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"error": {"code": "rate_limit_exceeded", "message": "Limite de requisições excedido.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Limite de requisições excedido."}}}},
+      "InternalError": {"description": "Falha interna sem detalhes sensíveis.", "headers": {"X-Request-ID": {"$ref": "#/components/headers/RequestId"}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"error": {"code": "internal_error", "message": "Não foi possível processar a solicitação.", "request_id": "123e4567-e89b-12d3-a456-426614174000"}, "message": "Não foi possível processar a solicitação."}}}}
+    },
+    "schemas": {
+      "Timestamp": {"type": "string", "format": "date-time"},
+      "NullableString": {"type": ["string", "null"]},
+      "ClientSummary": {"type": "object", "additionalProperties": false, "required": ["id", "client_code", "legal_name", "trade_name"], "properties": {"id": {"type": "integer"}, "client_code": {"$ref": "#/components/schemas/NullableString"}, "legal_name": {"type": "string"}, "trade_name": {"$ref": "#/components/schemas/NullableString"}}},
+      "ClientBasic": {"type": "object", "additionalProperties": false, "required": ["id", "client_code", "legal_name", "trade_name", "website", "active", "updated_at"], "properties": {"id": {"type": "integer"}, "client_code": {"$ref": "#/components/schemas/NullableString"}, "legal_name": {"type": "string"}, "trade_name": {"$ref": "#/components/schemas/NullableString"}, "website": {"$ref": "#/components/schemas/NullableString"}, "active": {"type": "boolean"}, "updated_at": {"$ref": "#/components/schemas/Timestamp"}}},
+      "ClientWithPii": {"allOf": [{"$ref": "#/components/schemas/ClientBasic"}, {"type": "object", "additionalProperties": false, "required": ["document", "email", "phone", "postal_code", "street", "address_number", "address_complement", "district", "city", "state", "country"], "properties": {"document": {"$ref": "#/components/schemas/NullableString"}, "email": {"$ref": "#/components/schemas/NullableString"}, "phone": {"$ref": "#/components/schemas/NullableString"}, "postal_code": {"$ref": "#/components/schemas/NullableString"}, "street": {"$ref": "#/components/schemas/NullableString"}, "address_number": {"$ref": "#/components/schemas/NullableString"}, "address_complement": {"$ref": "#/components/schemas/NullableString"}, "district": {"$ref": "#/components/schemas/NullableString"}, "city": {"$ref": "#/components/schemas/NullableString"}, "state": {"$ref": "#/components/schemas/NullableString"}, "country": {"$ref": "#/components/schemas/NullableString"}}}]},
+      "UserBasic": {"type": "object", "additionalProperties": false, "required": ["id", "name", "role", "active", "updated_at"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}, "role": {"type": "string"}, "active": {"type": "boolean"}, "updated_at": {"$ref": "#/components/schemas/Timestamp"}}},
+      "UserWithPii": {"allOf": [{"$ref": "#/components/schemas/UserBasic"}, {"type": "object", "additionalProperties": false, "required": ["email"], "properties": {"email": {"type": "string", "format": "email"}}}]},
+      "AutonomousSystemBasic": {"type": "object", "additionalProperties": false, "required": ["id", "client_id", "asn", "name", "description", "rir", "country", "website", "active", "updated_at"], "properties": {"id": {"type": "integer"}, "client_id": {"type": "integer"}, "asn": {"type": "integer"}, "name": {"type": "string"}, "description": {"$ref": "#/components/schemas/NullableString"}, "rir": {"$ref": "#/components/schemas/NullableString"}, "country": {"$ref": "#/components/schemas/NullableString"}, "website": {"$ref": "#/components/schemas/NullableString"}, "active": {"type": "boolean"}, "updated_at": {"$ref": "#/components/schemas/Timestamp"}, "client": {"$ref": "#/components/schemas/ClientSummary"}}},
+      "AutonomousSystemWithPii": {"allOf": [{"$ref": "#/components/schemas/AutonomousSystemBasic"}, {"type": "object", "additionalProperties": false, "required": ["noc_contact", "noc_email", "noc_phone"], "properties": {"noc_contact": {"$ref": "#/components/schemas/NullableString"}, "noc_email": {"$ref": "#/components/schemas/NullableString"}, "noc_phone": {"$ref": "#/components/schemas/NullableString"}}}]},
+      "AutonomousSystemReference": {"type": "object", "additionalProperties": false, "required": ["id", "asn", "name"], "properties": {"id": {"type": "integer"}, "asn": {"type": "integer"}, "name": {"type": "string"}}},
+      "Prefix": {"type": "object", "additionalProperties": false, "required": ["id", "client_id", "autonomous_system_id", "prefix", "ip_version", "description", "rir", "country", "allocation_status", "purpose", "active", "updated_at"], "properties": {"id": {"type": "integer"}, "client_id": {"type": "integer"}, "autonomous_system_id": {"type": ["integer", "null"]}, "prefix": {"type": "string"}, "ip_version": {"type": "integer", "enum": [4, 6]}, "description": {"$ref": "#/components/schemas/NullableString"}, "rir": {"$ref": "#/components/schemas/NullableString"}, "country": {"$ref": "#/components/schemas/NullableString"}, "allocation_status": {"type": "string"}, "purpose": {"$ref": "#/components/schemas/NullableString"}, "active": {"type": "boolean"}, "updated_at": {"$ref": "#/components/schemas/Timestamp"}, "client": {"$ref": "#/components/schemas/ClientSummary"}, "autonomous_system": {"$ref": "#/components/schemas/AutonomousSystemReference"}}},
+      "PaginationLinks": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["url", "label", "active"], "properties": {"url": {"type": ["string", "null"]}, "label": {"type": "string"}, "page": {"type": ["integer", "null"]}, "active": {"type": "boolean"}}}},
+      "Pagination": {"type": "object", "required": ["current_page", "data", "first_page_url", "from", "last_page", "last_page_url", "links", "next_page_url", "path", "per_page", "prev_page_url", "to", "total"], "properties": {"current_page": {"type": "integer"}, "first_page_url": {"type": "string"}, "from": {"type": ["integer", "null"]}, "last_page": {"type": "integer"}, "last_page_url": {"type": "string"}, "links": {"$ref": "#/components/schemas/PaginationLinks"}, "next_page_url": {"type": ["string", "null"]}, "path": {"type": "string"}, "per_page": {"type": "integer", "maximum": 100}, "prev_page_url": {"type": ["string", "null"]}, "to": {"type": ["integer", "null"]}, "total": {"type": "integer"}}},
+      "ClientPage": {"allOf": [{"$ref": "#/components/schemas/Pagination"}, {"type": "object", "required": ["data"], "properties": {"data": {"type": "array", "items": {"oneOf": [{"$ref": "#/components/schemas/ClientBasic"}, {"$ref": "#/components/schemas/ClientWithPii"}]}}}}]},
+      "UserPage": {"allOf": [{"$ref": "#/components/schemas/Pagination"}, {"type": "object", "required": ["data"], "properties": {"data": {"type": "array", "items": {"oneOf": [{"$ref": "#/components/schemas/UserBasic"}, {"$ref": "#/components/schemas/UserWithPii"}]}}}}]},
+      "AutonomousSystemPage": {"allOf": [{"$ref": "#/components/schemas/Pagination"}, {"type": "object", "required": ["data"], "properties": {"data": {"type": "array", "items": {"oneOf": [{"$ref": "#/components/schemas/AutonomousSystemBasic"}, {"$ref": "#/components/schemas/AutonomousSystemWithPii"}]}}}}]},
+      "PrefixPage": {"allOf": [{"$ref": "#/components/schemas/Pagination"}, {"type": "object", "required": ["data"], "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Prefix"}}}}]},
+      "ClientDetailResponse": {"type": "object", "additionalProperties": false, "required": ["data"], "properties": {"data": {"oneOf": [{"allOf": [{"$ref": "#/components/schemas/ClientBasic"}, {"type": "object", "required": ["autonomous_systems", "prefixes"], "properties": {"autonomous_systems": {"type": "array", "items": {"$ref": "#/components/schemas/AutonomousSystemBasic"}}, "prefixes": {"type": "array", "items": {"$ref": "#/components/schemas/Prefix"}}}}]}, {"allOf": [{"$ref": "#/components/schemas/ClientWithPii"}, {"type": "object", "required": ["autonomous_systems", "prefixes"], "properties": {"autonomous_systems": {"type": "array", "items": {"$ref": "#/components/schemas/AutonomousSystemWithPii"}}, "prefixes": {"type": "array", "items": {"$ref": "#/components/schemas/Prefix"}}}}]}]}}},
+      "Error": {"type": "object", "additionalProperties": false, "required": ["code", "message", "request_id"], "properties": {"code": {"type": "string", "enum": ["authentication_required", "invalid_token", "insufficient_scope", "resource_not_found", "validation_error", "rate_limit_exceeded", "internal_error"]}, "message": {"type": "string"}, "request_id": {"type": "string", "format": "uuid"}}},
+      "ValidationError": {"allOf": [{"$ref": "#/components/schemas/Error"}, {"type": "object", "required": ["details"], "properties": {"details": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}}}}]},
+      "ErrorResponse": {"type": "object", "additionalProperties": false, "required": ["error", "message"], "properties": {"error": {"$ref": "#/components/schemas/Error"}, "message": {"type": "string", "deprecated": true, "description": "Campo temporário para compatibilidade com consumidores do contrato anterior."}}},
+      "ValidationErrorResponse": {"type": "object", "additionalProperties": false, "required": ["error", "message"], "properties": {"error": {"$ref": "#/components/schemas/ValidationError"}, "message": {"type": "string", "deprecated": true, "description": "Campo temporário para compatibilidade com consumidores do contrato anterior."}}}
+    },
+    "x-scopes": {
+      "documentation.clients.read": "Permite consultar clientes.",
+      "documentation.users.read": "Permite consultar usuários.",
+      "documentation.network.read": "Permite consultar sistemas autônomos e prefixos.",
+      "documentation.pii.read": "Scope adicional: libera somente campos pessoais nos endpoints já autorizados; nunca autoriza um endpoint sozinho."
+    }
+  }
+}

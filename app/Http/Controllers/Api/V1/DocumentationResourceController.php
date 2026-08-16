@@ -16,6 +16,8 @@ class DocumentationResourceController extends Controller
 {
     public function clients(Request $request): JsonResponse
     {
+        $this->validateListRequest($request, ['active_only']);
+
         $clients = Client::query()
             ->select([
                 'id',
@@ -114,6 +116,8 @@ class DocumentationResourceController extends Controller
 
     public function users(Request $request): JsonResponse
     {
+        $this->validateListRequest($request, ['active_only']);
+
         $users = User::query()
             ->select([
                 'id',
@@ -143,6 +147,11 @@ class DocumentationResourceController extends Controller
     public function autonomousSystems(
         Request $request
     ): JsonResponse {
+        $this->validateListRequest($request, [
+            'active_only',
+            'client_id',
+        ]);
+
         $systems = AutonomousSystem::query()
             ->with([
                 'client:id,client_code,legal_name,trade_name',
@@ -188,6 +197,12 @@ class DocumentationResourceController extends Controller
 
     public function prefixes(Request $request): JsonResponse
     {
+        $this->validateListRequest($request, [
+            'active_only',
+            'client_id',
+            'ip_version',
+        ]);
+
         $prefixes = Prefix::query()
             ->with([
                 'client:id,client_code,legal_name,trade_name',
@@ -246,6 +261,36 @@ class DocumentationResourceController extends Controller
             max($request->integer('per_page', 25), 1),
             100
         );
+    }
+
+    /**
+     * @param  list<string>  $filters
+     */
+    private function validateListRequest(
+        Request $request,
+        array $filters
+    ): void {
+        $rules = [
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1'],
+        ];
+
+        if (in_array('active_only', $filters, true)) {
+            $rules['active_only'] = [
+                'sometimes',
+                'in:true,false,1,0',
+            ];
+        }
+
+        if (in_array('client_id', $filters, true)) {
+            $rules['client_id'] = ['sometimes', 'integer', 'min:1'];
+        }
+
+        if (in_array('ip_version', $filters, true)) {
+            $rules['ip_version'] = ['sometimes', 'integer', 'in:4,6'];
+        }
+
+        $request->validate($rules);
     }
 
     /**

@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Services\ApiCredentialService;
+use App\Support\ApiErrorResponse;
 use Closure;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -52,11 +52,15 @@ class AuthenticateDocumentationApi
             }
         }
 
-        return new JsonResponse(
-            [
-                'message' => 'Credencial da API inválida.',
-            ],
-            401
+        return ApiErrorResponse::make(
+            code: $token === ''
+                ? 'authentication_required'
+                : 'invalid_token',
+            message: $token === ''
+                ? 'Credencial de acesso não informada.'
+                : 'Credencial de acesso inválida.',
+            status: 401,
+            request: $request,
         );
     }
 }

@@ -32,9 +32,11 @@ class DocumentationApiTest extends TestCase
     {
         $this->getJson('/api/v1/documentation/clients')
             ->assertUnauthorized()
-            ->assertJson([
-                'message' => 'Credencial da API inválida.',
-            ]);
+            ->assertJsonPath('error.code', 'authentication_required')
+            ->assertJsonPath(
+                'message',
+                'Credencial de acesso não informada.'
+            );
     }
 
     public function test_api_rejects_invalid_token(): void
@@ -68,9 +70,11 @@ class DocumentationApiTest extends TestCase
             ->getJson('/api/v1/documentation/clients')
             ->assertForbidden()
             ->assertHeader('X-Request-ID')
-            ->assertExactJson([
-                'message' => 'Acesso não autorizado para este recurso.',
-            ]);
+            ->assertJsonPath('error.code', 'insufficient_scope')
+            ->assertJsonPath(
+                'message',
+                'Acesso não autorizado para este recurso.'
+            );
     }
 
     public function test_network_scope_accesses_network_but_not_clients(): void

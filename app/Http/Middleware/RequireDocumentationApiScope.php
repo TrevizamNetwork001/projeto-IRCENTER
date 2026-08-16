@@ -3,9 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Models\ApiClient;
+use App\Support\ApiErrorResponse;
 use App\Support\DocumentationApiScope;
 use Closure;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -34,9 +34,11 @@ class RequireDocumentationApiScope
             return $next($request);
         }
 
-        return new JsonResponse(
-            ['message' => 'Acesso não autorizado para este recurso.'],
-            403
+        return ApiErrorResponse::make(
+            code: 'insufficient_scope',
+            message: 'Acesso não autorizado para este recurso.',
+            status: 403,
+            request: $request,
         );
     }
 }
