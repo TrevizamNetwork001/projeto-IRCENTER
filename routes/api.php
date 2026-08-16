@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/documentation')
     ->middleware([
-        'documentation.api',
         'throttle:documentation-api',
+        'documentation.api',
     ])
     ->group(function (): void {
         Route::get(

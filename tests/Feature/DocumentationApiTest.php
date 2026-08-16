@@ -41,6 +41,30 @@ class DocumentationApiTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_invalid_attempts_are_rate_limited_by_ip(): void
+    {
+        config(['documentation.rate_limit' => 2]);
+
+        $server = ['REMOTE_ADDR' => '203.0.113.10'];
+
+        $this->withServerVariables($server)
+            ->withToken('invalid-token')
+            ->getJson('/api/v1/documentation/clients')
+            ->assertUnauthorized();
+
+        $this->withServerVariables($server)
+            ->withToken('invalid-token')
+            ->getJson('/api/v1/documentation/clients')
+            ->assertUnauthorized();
+
+        $this->withServerVariables($server)
+            ->withToken('invalid-token')
+            ->getJson('/api/v1/documentation/clients')
+            ->assertTooManyRequests()
+            ->assertHeader('X-RateLimit-Limit', '2')
+            ->assertHeader('Retry-After');
+    }
+
     public function test_api_lists_clients_without_notes(): void
     {
         $client = Client::factory()->create([
