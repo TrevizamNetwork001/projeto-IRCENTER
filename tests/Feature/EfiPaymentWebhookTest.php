@@ -21,6 +21,7 @@ use App\Modules\Shared\Services\DomainAudit;
 use Illuminate\Contracts\Queue\Job as QueueJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -879,6 +880,88 @@ class EfiPaymentWebhookTest extends TestCase
                 ->firstOrFail()
                 ->toJson()
         );
+    }
+
+    public function test_efi_semantic_notification_not_found_is_not_retried(): void
+    {
+        $charge = $this->efiCharge();
+        $token = '89027955-5e06-4ff0-a9c7-46b47b8f1b27';
+        $receipt = $this->receipt($token);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+            '*/v1/notification/*' => Http::response([
+                'code' => 3500010,
+                'error' => 'property_does_not_exists',
+                'error_description' => [
+                    'property' => 'notification',
+                    'message' => 'A propriedade [notification] informada não existe.',
+                ],
+            ], 500),
+        ]);
+
+        $this->processReceipt($receipt);
+
+        $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+        $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+        $this->assertSame('Notificação não encontrada no provedor.', $receipt->last_error);
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
+        $this->assertDatabaseHas('domain_audit_events', [
+            'action' => 'payment_webhook.token_not_found',
+            'entity_id' => (string) $receipt->id,
+        ], 'finance_fiscal');
+    }
+
+    public function test_other_efi_500_errors_are_rethrown_for_retry(): void
+    {
+        $cases = [
+            'different code' => [
+                'token' => '99027955-5e06-4ff0-a9c7-46b47b8f1b27',
+                'code' => 3500011,
+                'property' => 'notification',
+            ],
+            'different property' => [
+                'token' => 'a9027955-5e06-4ff0-a9c7-46b47b8f1b27',
+                'code' => 3500010,
+                'property' => 'charge',
+            ],
+        ];
+
+        foreach ($cases as $case => $values) {
+            $charge = $this->efiCharge();
+            $receipt = $this->receipt($values['token']);
+
+            Http::fake([
+                '*/v1/authorize' => Http::response(['access_token' => 'token-test']),
+                '*/v1/notification/*' => Http::response([
+                    'code' => $values['code'],
+                    'error_description' => ['property' => $values['property']],
+                ], 500),
+            ]);
+
+            $rethrown = false;
+
+            try {
+                (new ProcessEfiPaymentWebhook($receipt->id))->handle(
+                    app(EfiPaymentProvider::class),
+                    app(SyncChargeFromProvider::class),
+                    app(DomainAudit::class),
+                );
+            } catch (RequestException) {
+                $rethrown = true;
+            }
+
+            $this->assertTrue($rethrown, "HTTP 500 with {$case} should be rethrown for retry.");
+            $this->assertSame(Charge::STATUS_OPEN, $charge->refresh()->status);
+            $this->assertSame(PaymentWebhookReceipt::STATUS_FAILED, $receipt->refresh()->status);
+            $this->assertDatabaseMissing('domain_audit_events', [
+                'action' => 'payment_webhook.token_not_found',
+                'entity_id' => (string) $receipt->id,
+            ], 'finance_fiscal');
+        }
+
+        $this->assertDatabaseCount('payments', 0, 'finance_fiscal');
     }
 
     public function test_invalid_json_and_unknown_provider_are_rejected(): void

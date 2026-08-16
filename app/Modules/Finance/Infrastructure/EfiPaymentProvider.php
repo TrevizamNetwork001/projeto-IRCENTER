@@ -403,7 +403,14 @@ final class EfiPaymentProvider implements CorrelatablePaymentProvider, PaymentPr
                     .rawurlencode($token)
             );
 
-        if ($response->notFound()) {
+        if (
+            $response->notFound()
+            || (
+                $response->status() === 500
+                && $response->json('code') === 3500010
+                && $response->json('error_description.property') === 'notification'
+            )
+        ) {
             throw new EfiNotificationNotFound;
         }
 
