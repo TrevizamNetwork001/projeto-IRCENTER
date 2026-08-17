@@ -254,18 +254,38 @@
 
         <div class="app-content">
             <header class="app-topbar">
-                <div class="topbar-search">
+                <form
+                    class="topbar-search"
+                    method="GET"
+                    action="{{ route('search.index') }}"
+                    role="search"
+                >
                     <x-icon name="search" size="18"/>
 
                     <input
+                        id="global-search-input"
+                        name="q"
                         type="search"
+                        value="{{ request()->routeIs('search.*') ? request('q') : '' }}"
                         placeholder="Buscar recursos..."
                         aria-label="Buscar recursos"
-                        disabled
+                        aria-autocomplete="list"
+                        aria-controls="global-search-suggestions"
+                        aria-expanded="false"
+                        maxlength="100"
+                        autocomplete="off"
+                        data-suggestions-url="{{ route('search.suggestions') }}"
                     >
 
-                    <span class="search-shortcut">⌘ K</span>
-                </div>
+                    <span class="search-shortcut" aria-hidden="true">⌘ K</span>
+
+                    <div
+                        id="global-search-suggestions"
+                        class="global-search-suggestions"
+                        role="listbox"
+                        hidden
+                    ></div>
+                </form>
 
                 <div class="topbar-actions">
                     <button
@@ -484,6 +504,134 @@
             </main>
         </div>
     </div>
+
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
+        (() => {
+            const input = document.getElementById('global-search-input');
+            const form = input?.closest('form');
+            const dropdown = document.getElementById(
+                'global-search-suggestions'
+            );
+            let timer;
+            let controller;
+            let activeIndex = -1;
+
+            const closeSuggestions = () => {
+                if (! input || ! dropdown) return;
+                dropdown.hidden = true;
+                dropdown.replaceChildren();
+                input.setAttribute('aria-expanded', 'false');
+                input.removeAttribute('aria-activedescendant');
+                activeIndex = -1;
+            };
+
+            const selectSuggestion = index => {
+                const items = [...dropdown.querySelectorAll('[role="option"]')];
+                activeIndex = Math.max(0, Math.min(index, items.length - 1));
+                items.forEach((item, itemIndex) => {
+                    const selected = itemIndex === activeIndex;
+                    item.classList.toggle('is-active', selected);
+                    item.setAttribute('aria-selected', selected ? 'true' : 'false');
+                });
+                const active = items[activeIndex];
+                if (active) {
+                    input.setAttribute('aria-activedescendant', active.id);
+                    active.scrollIntoView({ block: 'nearest' });
+                }
+            };
+
+            const renderSuggestions = suggestions => {
+                dropdown.replaceChildren();
+
+                suggestions.forEach((suggestion, index) => {
+                    const link = document.createElement('a');
+                    const heading = document.createElement('span');
+                    const title = document.createElement('strong');
+                    const type = document.createElement('small');
+                    const detail = document.createElement('span');
+
+                    link.id = `global-search-option-${index}`;
+                    link.className = 'global-search-suggestion';
+                    link.href = suggestion.url;
+                    link.role = 'option';
+                    link.setAttribute('aria-selected', 'false');
+                    title.textContent = suggestion.title;
+                    type.textContent = suggestion.type;
+                    detail.textContent = suggestion.detail || 'Abrir recurso';
+                    heading.append(title, type);
+                    link.append(heading, detail);
+                    dropdown.append(link);
+                });
+
+                dropdown.hidden = suggestions.length === 0;
+                input.setAttribute(
+                    'aria-expanded',
+                    suggestions.length === 0 ? 'false' : 'true'
+                );
+                activeIndex = -1;
+            };
+
+            input?.addEventListener('input', () => {
+                window.clearTimeout(timer);
+                controller?.abort();
+                const query = input.value.trim();
+
+                if (query.length < 2) {
+                    closeSuggestions();
+                    return;
+                }
+
+                timer = window.setTimeout(async () => {
+                    controller = new AbortController();
+
+                    try {
+                        const url = new URL(input.dataset.suggestionsUrl);
+                        url.searchParams.set('q', query);
+                        const response = await fetch(url, {
+                            headers: { Accept: 'application/json' },
+                            signal: controller.signal,
+                        });
+
+                        if (! response.ok) throw new Error('search_failed');
+                        const data = await response.json();
+                        renderSuggestions(data.suggestions || []);
+                    } catch (error) {
+                        if (error.name !== 'AbortError') closeSuggestions();
+                    }
+                }, 250);
+            });
+
+            input?.addEventListener('keydown', event => {
+                const items = [...dropdown.querySelectorAll('[role="option"]')];
+
+                if (event.key === 'ArrowDown' && items.length) {
+                    event.preventDefault();
+                    selectSuggestion(activeIndex + 1);
+                } else if (event.key === 'ArrowUp' && items.length) {
+                    event.preventDefault();
+                    selectSuggestion(activeIndex <= 0 ? items.length - 1 : activeIndex - 1);
+                } else if (event.key === 'Enter' && activeIndex >= 0) {
+                    event.preventDefault();
+                    items[activeIndex]?.click();
+                } else if (event.key === 'Escape') {
+                    closeSuggestions();
+                }
+            });
+
+            form?.addEventListener('focusout', event => {
+                if (! form.contains(event.relatedTarget)) closeSuggestions();
+            });
+
+            document.addEventListener('keydown', event => {
+                if ((event.metaKey || event.ctrlKey)
+                    && event.key.toLowerCase() === 'k') {
+                    event.preventDefault();
+                    input?.focus();
+                    input?.select();
+                }
+            });
+        })();
+    </script>
 
     <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {

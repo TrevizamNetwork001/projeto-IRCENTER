@@ -13,6 +13,7 @@ use App\Http\Controllers\BillingItemController;
 use App\Http\Controllers\ChargeController;
 use App\Http\Controllers\FinanceDashboardController;
 use App\Http\Controllers\FinanceClientController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\FiscalDashboardController;
 use App\Http\Controllers\FiscalCustomerProfileController;
@@ -44,6 +45,7 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware([
     'auth',
+    'user.active',
     'password.changed',
 ])->group(function (): void {
     Route::get(
@@ -57,6 +59,11 @@ Route::middleware([
     )->name('password.change.update');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('/search', GlobalSearchController::class)->name('search.index');
+    Route::get('/search/suggestions', [GlobalSearchController::class, 'suggestions'])
+        ->middleware('throttle:120,1')
+        ->name('search.suggestions');
 
     Route::get(
         '/system-diagnostic',
