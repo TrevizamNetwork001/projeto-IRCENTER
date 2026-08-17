@@ -372,4 +372,21 @@ class UserManagementTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_authenticated_user_is_logged_out_after_deactivation(): void
+    {
+        $user = User::factory()->create([
+            'active' => true,
+        ]);
+
+        $this->actingAs($user);
+
+        $user->update(['active' => false]);
+
+        $this->get(route('dashboard'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
 }
