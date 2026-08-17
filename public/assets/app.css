@@ -4333,8 +4333,8 @@ html[data-theme="light"] .incident-status-pill {
     padding: 17px;
 }
 
-.report-summary-icon,
-.report-export-icon {
+.report-summary-card > .report-summary-icon,
+.report-export-card > .report-export-icon {
     display: grid;
     width: 38px;
     height: 38px;
@@ -4347,8 +4347,8 @@ html[data-theme="light"] .incident-status-pill {
     line-height: 0;
 }
 
-.report-summary-icon .ui-icon,
-.report-export-icon .ui-icon {
+.report-summary-card > .report-summary-icon .ui-icon,
+.report-export-card > .report-export-icon .ui-icon {
     display: block;
     margin: auto;
 }
