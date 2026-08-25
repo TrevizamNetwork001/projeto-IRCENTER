@@ -75,7 +75,9 @@
                         <dt>Último acesso</dt>
                         <dd>
                             {{ $user->last_login_at
-                                ? $user->last_login_at->format('d/m/Y H:i')
+                                ? app(\App\Support\BusinessClock::class)
+                                    ->toBusinessTimezone($user->last_login_at)
+                                    ->format('d/m/Y H:i')
                                 : 'Ainda não registrado' }}
                         </dd>
                     </div>
@@ -84,7 +86,11 @@
                         <dt>Senha alterada em</dt>
                         <dd>
                             {{ $user->password_changed_at
-                                ? $user->password_changed_at->format('d/m/Y H:i')
+                                ? app(\App\Support\BusinessClock::class)
+                                    ->toBusinessTimezone(
+                                        $user->password_changed_at
+                                    )
+                                    ->format('d/m/Y H:i')
                                 : 'Não informado' }}
                         </dd>
                     </div>

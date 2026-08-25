@@ -14,6 +14,7 @@ use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
 use App\Modules\Shared\Services\DomainAudit;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -32,6 +33,8 @@ class ChargeSubmissionSafetyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        CarbonImmutable::setTestNow('2026-08-10 12:00:00 UTC');
 
         Artisan::call('migrate', [
             '--database' =>
@@ -53,6 +56,13 @@ class ChargeSubmissionSafetyTest extends TestCase
             .'payment_live_enabled',
             false
         );
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
     }
 
     #[DataProvider('httpSubmissionFailures')]

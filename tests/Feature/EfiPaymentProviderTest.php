@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Finance\Contracts\PaymentProvider;
 use App\Modules\Finance\Data\PaymentChargeRequest;
 use App\Modules\Finance\Infrastructure\EfiPaymentProvider;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -18,6 +19,8 @@ class EfiPaymentProviderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        CarbonImmutable::setTestNow('2026-08-10 12:00:00 UTC');
 
         Http::preventStrayRequests();
 
@@ -45,6 +48,13 @@ class EfiPaymentProviderTest extends TestCase
             'finance_fiscal.finance.payment_live_enabled',
             false
         );
+    }
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_homologation_is_not_live(): void

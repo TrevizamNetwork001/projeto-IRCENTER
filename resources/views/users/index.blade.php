@@ -93,7 +93,12 @@
 
                             <td>
                                 {{ $user->last_login_at
-                                    ?->format('d/m/Y H:i') ?? 'Nunca' }}
+                                    ? app(\App\Support\BusinessClock::class)
+                                        ->toBusinessTimezone(
+                                            $user->last_login_at
+                                        )
+                                        ->format('d/m/Y H:i')
+                                    : 'Nunca' }}
                             </td>
 
                             <td class="table-mono">

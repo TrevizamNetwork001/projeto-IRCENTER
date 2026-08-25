@@ -146,6 +146,24 @@ class UserManagementTest extends TestCase
             ->assertSee($user->name);
     }
 
+    public function test_profile_displays_account_timestamps_in_business_timezone(): void
+    {
+        $user = User::factory()->create([
+            'active' => true,
+            'must_change_password' => false,
+            'last_login_at' => '2026-08-17 18:53:00',
+            'password_changed_at' => '2026-08-17 12:18:00',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertSee('17/08/2026 15:53')
+            ->assertSee('17/08/2026 09:18')
+            ->assertDontSee('17/08/2026 18:53')
+            ->assertDontSee('17/08/2026 12:18');
+    }
+
     public function test_user_can_access_voluntary_password_form(): void
     {
         $user = User::factory()->create([
