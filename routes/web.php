@@ -43,6 +43,8 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 });
 
+require __DIR__.'/security.php';
+
 Route::middleware([
     'auth',
     'user.active',

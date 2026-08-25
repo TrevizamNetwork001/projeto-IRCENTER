@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureFiscalEnabled;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RequestLogContext;
+use App\Http\Middleware\RequireRecentPassword;
 use App\Http\Middleware\RequireDocumentationApiScope;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ThrottleDocumentationApiClient;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'documentation.scope' => RequireDocumentationApiScope::class,
             'documentation.client.throttle' => ThrottleDocumentationApiClient::class,
             'password.changed' => EnsurePasswordWasChanged::class,
+            'password.recent' => RequireRecentPassword::class,
             'user.active' => EnsureUserIsActive::class,
             'fiscal.enabled' => EnsureFiscalEnabled::class,
             'efi.webhook.callback' => ValidateEfiWebhookCallback::class,

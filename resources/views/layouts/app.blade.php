@@ -266,6 +266,7 @@
                         id="global-search-input"
                         name="q"
                         type="search"
+                        role="combobox"
                         value="{{ request()->routeIs('search.*') ? request('q') : '' }}"
                         placeholder="Buscar recursos..."
                         aria-label="Buscar recursos"
@@ -465,6 +466,14 @@
                                 role="menuitem"
                             >
                                 Alterar minha senha
+                            </a>
+
+                            <a
+                                class="account-menu-item"
+                                href="{{ route('profile.security') }}"
+                                role="menuitem"
+                            >
+                                Segurança da conta
                             </a>
 
                             @if (auth()->user()->isAdministrator())
