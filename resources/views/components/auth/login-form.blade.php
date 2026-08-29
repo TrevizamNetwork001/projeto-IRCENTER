@@ -16,12 +16,12 @@
     </button>
 
     <div class="auth-login-card">
-        <div class="auth-login-mark">
-            <span>IR</span>
-        </div>
-
         <header class="auth-login-header">
-            <span class="page-eyebrow">Área restrita</span>
+            <span class="page-eyebrow auth-login-eyebrow">
+                <x-icon name="shield" size="14"/>
+                Acesso seguro
+            </span>
+
             <h2>Acessar o IRCENTER</h2>
 
             <p>
@@ -98,31 +98,51 @@
                 </div>
             </div>
 
-            <label class="auth-remember">
-                <input
-                    name="remember"
-                    type="checkbox"
-                    value="1"
-                >
+            <div class="auth-field-row">
+                <label class="auth-remember">
+                    <input
+                        name="remember"
+                        type="checkbox"
+                        value="1"
+                    >
 
-                <span>Manter sessão ativa</span>
-            </label>
+                    <span>Manter sessão ativa</span>
+                </label>
+
+                <span
+                    class="auth-forgot-hint"
+                    title="Fale com o administrador do IRCENTER para redefinir sua senha."
+                >
+                    Esqueci minha senha
+                </span>
+            </div>
 
             <button
                 class="primary-button auth-submit"
                 type="submit"
             >
-                Entrar
+                <span>Entrar</span>
+                <x-icon name="chevron-right" size="18"/>
             </button>
         </form>
 
         <footer class="auth-login-footer">
             <span>
-                <x-icon name="shield" size="15"/>
-                Acesso protegido
+                <x-icon name="lock" size="14"/>
+                Conexão segura
             </span>
 
-            <span>Atividades auditadas</span>
+            <span>
+                <x-icon name="shield" size="14"/>
+                Auditoria ativa
+            </span>
+
+            <span>
+                <x-icon name="check" size="14"/>
+                Acesso protegido
+            </span>
         </footer>
     </div>
+
+    <p class="auth-page-footer">© {{ now()->year }} IRCENTER</p>
 </section>

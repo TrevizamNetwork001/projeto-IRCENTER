@@ -10,7 +10,7 @@ class LoginViewTest extends TestCase
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('Gestão inteligente de')
+            ->assertSee('Infraestrutura. Conectividade. Inteligência.')
             ->assertSee('Acessar o IRCENTER')
             ->assertSee('Manter sessão ativa')
             ->assertSee('auth-network-visual', false)
