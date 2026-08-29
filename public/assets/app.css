@@ -1284,6 +1284,22 @@ a {
     background: rgba(255, 255, 255, 0.012);
 }
 
+.audit-diff-table td:first-child {
+    color: var(--text-muted);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.audit-diff-table tr.is-changed td {
+    border-top-color: rgba(33, 199, 232, 0.22);
+    background: rgba(33, 199, 232, 0.05);
+}
+
+.audit-diff-table tr.is-changed td:nth-child(3) {
+    color: var(--cyan);
+    font-weight: 700;
+}
+
 .table-primary-link {
     color: var(--text);
     font-weight: 700;

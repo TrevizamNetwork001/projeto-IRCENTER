@@ -104,6 +104,7 @@ class AuditLogController extends Controller
 
         return view('audit.show', [
             'auditLog' => $auditLog,
+            'diffRows' => $auditLog->diffRows(),
         ]);
     }
 

@@ -72,37 +72,51 @@
         </article>
     </section>
 
-    <section class="audit-values-grid">
-        <article class="panel">
-            <header class="panel-header">
-                <div>
-                    <span class="panel-eyebrow">Antes</span>
-                    <h2>Valores anteriores</h2>
-                </div>
-            </header>
+    <section class="panel">
+        <header class="panel-header">
+            <div>
+                <span class="panel-eyebrow">Alterações</span>
+                <h2>Comparação de valores</h2>
+            </div>
 
-            <pre class="code-preview">{{ json_encode(
-                $auditLog->old_values,
-                JSON_PRETTY_PRINT
-                | JSON_UNESCAPED_UNICODE
-                | JSON_UNESCAPED_SLASHES
-            ) ?: 'Nenhum valor anterior.' }}</pre>
-        </article>
+            @if (count($diffRows) > 0)
+                <span class="panel-status">
+                    {{ collect($diffRows)->where('changed', true)->count() }}
+                    de {{ count($diffRows) }} campo(s) alterado(s)
+                </span>
+            @endif
+        </header>
 
-        <article class="panel">
-            <header class="panel-header">
-                <div>
-                    <span class="panel-eyebrow">Depois</span>
-                    <h2>Novos valores</h2>
-                </div>
-            </header>
+        @if (count($diffRows) === 0)
+            <div class="empty-state">
+                <strong>Sem valores registrados</strong>
+                <span>
+                    Este evento não possui estado anterior nem novo
+                    associado.
+                </span>
+            </div>
+        @else
+            <div class="table-wrapper">
+                <table class="data-table audit-diff-table">
+                    <thead>
+                        <tr>
+                            <th>Campo</th>
+                            <th>Antes</th>
+                            <th>Depois</th>
+                        </tr>
+                    </thead>
 
-            <pre class="code-preview">{{ json_encode(
-                $auditLog->new_values,
-                JSON_PRETTY_PRINT
-                | JSON_UNESCAPED_UNICODE
-                | JSON_UNESCAPED_SLASHES
-            ) ?: 'Nenhum valor novo.' }}</pre>
-        </article>
+                    <tbody>
+                        @foreach ($diffRows as $row)
+                            <tr class="{{ $row['changed'] ? 'is-changed' : '' }}">
+                                <td>{{ $row['label'] }}</td>
+                                <td class="table-mono">{{ $row['old'] }}</td>
+                                <td class="table-mono">{{ $row['new'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 @endsection
