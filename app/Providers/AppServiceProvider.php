@@ -210,6 +210,10 @@ class AppServiceProvider extends ServiceProvider
                 )))
             )->by($request->ip())
         );
+
+        RateLimiter::for('scheduling-availability', fn (Request $request) => Limit::perMinute((int) config('scheduling.public_rate_limit', 60))->by('scheduling-availability:'.$request->ip()));
+        RateLimiter::for('scheduling-booking', fn (Request $request) => Limit::perMinute((int) config('scheduling.booking_rate_limit', 10))->by('scheduling-booking:'.$request->ip()));
+        RateLimiter::for('scheduling-action', fn (Request $request) => Limit::perMinute(10)->by('scheduling-action:'.$request->ip()));
     }
 
     private function jobContext(object $event): array

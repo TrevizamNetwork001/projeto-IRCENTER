@@ -1,0 +1,4 @@
+<?php
+namespace App\Modules\Scheduling\Services;
+use App\Modules\Scheduling\Models\Appointment;
+final class IcsGenerator {public function generate(Appointment $a):string{$a->loadMissing('eventType');$e=function(?string $value):string{$value=str_replace(["\r\n","\r"],"\n",(string)$value);return str_replace(['\\',',',';',"\n"],['\\\\','\\,','\\;','\\n'],$value);};$lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//IRCENTER//Agenda//PT-BR','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:'.$e($a->public_id).'@ircenter','DTSTAMP:'.now('UTC')->format('Ymd\THis\Z'),'DTSTART:'.$a->scheduled_start_at->utc()->format('Ymd\THis\Z'),'DTEND:'.$a->scheduled_end_at->utc()->format('Ymd\THis\Z'),'SUMMARY:'.$e($a->eventType->name),'DESCRIPTION:'.$e($a->eventType->description),'LOCATION:'.$e($a->eventType->location_value),'END:VEVENT','END:VCALENDAR'];return implode("\r\n",$lines)."\r\n";}}

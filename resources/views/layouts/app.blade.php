@@ -20,6 +20,7 @@
     </script>
 
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/scheduling.css') }}">
 </head>
 <body class="app-body">
     <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
@@ -84,6 +85,12 @@
                     </span>
                     <span>Clientes</span>
                 </a>
+
+                @if (config('scheduling.enabled'))
+                    <a href="{{ route('scheduling.admin.index') }}" class="sidebar-link {{ request()->routeIs('scheduling.admin.*') ? 'is-active' : '' }}">
+                        <span class="sidebar-link-icon" aria-hidden="true">▦</span><span>Agenda</span>
+                    </a>
+                @endif
 
                 <a
                     href="{{ route('finance.dashboard') }}"
