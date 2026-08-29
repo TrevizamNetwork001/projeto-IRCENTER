@@ -72,6 +72,11 @@ Route::middleware([
         SystemDiagnosticController::class
     )->name('system-diagnostic.index');
 
+    Route::put(
+        '/system-diagnostic/backup-retention',
+        [SystemDiagnosticController::class, 'updateBackupRetention']
+    )->name('system-diagnostic.backup-retention.update');
+
     Route::post(
         '/external-integrations/{externalIntegration}/test',
         [ExternalIntegrationController::class, 'test']

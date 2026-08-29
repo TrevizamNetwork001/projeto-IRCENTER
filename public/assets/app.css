@@ -1284,6 +1284,39 @@ a {
     background: rgba(255, 255, 255, 0.012);
 }
 
+.data-table tr.is-failed-row td {
+    border-top-color: rgba(240, 106, 122, 0.22);
+    background: rgba(240, 106, 122, 0.05);
+    color: var(--danger);
+}
+
+.backup-retention-form {
+    flex-wrap: wrap;
+    margin: 20px 0;
+    padding: 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-soft);
+}
+
+.backup-retention-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.backup-retention-form input.form-control {
+    width: 110px;
+    padding: 9px 12px;
+}
+
+.backup-retention-form .button {
+    align-self: flex-end;
+}
+
 .audit-diff-table td:first-child {
     color: var(--text-muted);
     font-weight: 700;

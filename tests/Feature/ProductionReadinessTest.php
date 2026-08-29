@@ -173,4 +173,66 @@ class ProductionReadinessTest extends TestCase
             ->assertSee('Página não encontrada')
             ->assertSee('IRCENTER');
     }
+
+    public function test_guest_cannot_update_backup_retention(): void
+    {
+        $this->put(route('system-diagnostic.backup-retention.update'), [
+            'retention_daily_days' => 14,
+            'retention_weekly_days' => 90,
+            'retention_monthly_days' => 730,
+        ])->assertRedirect(route('login'));
+    }
+
+    public function test_non_administrator_cannot_update_backup_retention(): void
+    {
+        $viewer = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($viewer)
+            ->put(route('system-diagnostic.backup-retention.update'), [
+                'retention_daily_days' => 14,
+                'retention_weekly_days' => 90,
+                'retention_monthly_days' => 730,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_administrator_backup_retention_update_rejects_invalid_order(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('system-diagnostic.index'))
+            ->put(route('system-diagnostic.backup-retention.update'), [
+                'retention_daily_days' => 90,
+                'retention_weekly_days' => 14,
+                'retention_monthly_days' => 730,
+            ])
+            ->assertRedirect(route('system-diagnostic.index'))
+            ->assertSessionHasErrors('retention_daily_days');
+    }
+
+    public function test_administrator_backup_retention_update_rejects_out_of_range(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+            'must_change_password' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('system-diagnostic.backup-retention.update'), [
+                'retention_daily_days' => 0,
+                'retention_weekly_days' => 90,
+                'retention_monthly_days' => 730,
+            ])
+            ->assertSessionHasErrors('retention_daily_days');
+    }
 }
