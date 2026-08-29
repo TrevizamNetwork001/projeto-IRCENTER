@@ -21,15 +21,18 @@
 
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/scheduling.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/scheduling-final.css') }}">
 </head>
 <body class="app-body">
     <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
     <div class="app-shell">
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <div class="brand-mark">
-                    <span>IR</span>
-                </div>
+                <img
+                    class="brand-logo"
+                    src="{{ asset('assets/logo-trevizam-icon.png') }}"
+                    alt="Trevizam Networks"
+                >
 
                 <div>
                     <div class="brand-name">IRCENTER</div>
@@ -475,14 +478,6 @@
                                 Alterar minha senha
                             </a>
 
-                            <a
-                                class="account-menu-item"
-                                href="{{ route('profile.security') }}"
-                                role="menuitem"
-                            >
-                                Segurança da conta
-                            </a>
-
                             @if (auth()->user()->isAdministrator())
                                 <a
                                     class="account-menu-item"
@@ -817,5 +812,6 @@
         })();
     </script>
 
+    @stack('scripts')
 </body>
 </html>
