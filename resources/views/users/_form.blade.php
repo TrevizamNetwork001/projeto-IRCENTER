@@ -64,6 +64,28 @@
         </div>
     @endif
 
+    <div class="field-group field-checkbox-group">
+        <label class="checkbox-label">
+            <input type="hidden" name="active" value="0">
+
+            <input
+                name="active"
+                type="checkbox"
+                value="1"
+                @checked(old('active', $managedUser->active ?? true))
+            >
+
+            <span>
+                <strong>Usuário ativo</strong>
+                <small>Pode autenticar na plataforma</small>
+            </span>
+        </label>
+
+        @error('active')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+
     <div class="field-group field-span-2">
         <label>Avatar</label>
 
@@ -172,28 +194,6 @@
         </small>
 
         @error('client_id')
-            <div class="field-error">{{ $message }}</div>
-        @enderror
-    </div>
-
-    <div class="field-group field-checkbox-group">
-        <label class="checkbox-label">
-            <input type="hidden" name="active" value="0">
-
-            <input
-                name="active"
-                type="checkbox"
-                value="1"
-                @checked(old('active', $managedUser->active ?? true))
-            >
-
-            <span>
-                <strong>Usuário ativo</strong>
-                <small>Pode autenticar na plataforma</small>
-            </span>
-        </label>
-
-        @error('active')
             <div class="field-error">{{ $message }}</div>
         @enderror
     </div>
