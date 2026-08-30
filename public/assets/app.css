@@ -3057,8 +3057,12 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
 }
 
 .account-menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 3px 5px;
     border: 1px solid transparent;
+    border-radius: 10px;
     background: transparent;
     cursor: pointer;
     text-align: left;
