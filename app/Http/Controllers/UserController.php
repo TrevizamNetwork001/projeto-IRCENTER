@@ -73,7 +73,6 @@ class UserController extends Controller
                 'must_change_password' => true,
             ]),
             'roles' => User::roles(),
-            'avatars' => User::avatars(),
             'clients' => Client::query()
                 ->where('active', true)
                 ->orderBy('legal_name')
