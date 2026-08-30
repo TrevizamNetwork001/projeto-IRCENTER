@@ -21,7 +21,7 @@
                     class="profile-camera-button"
                     aria-label="Alterar imagem do perfil"
                     title="Alterar imagem do perfil"
-                    onclick="document.getElementById('avatar-dialog').showModal()"
+                    data-avatar-dialog-open
                 >
                     <x-icon name="camera" size="14"/>
                 </button>
@@ -132,7 +132,17 @@
         </div>
     </section>
 
-    <dialog id="avatar-dialog" class="avatar-dialog">
+    @php
+        $selectedIdentity = $user->hasPhotoAvatar()
+            ? 'photo'
+            : ($user->hasThemedAvatar() ? 'themed_avatar' : 'initials');
+    @endphp
+
+    <dialog
+        id="avatar-dialog"
+        class="avatar-dialog"
+        data-selected-identity="{{ $selectedIdentity }}"
+    >
         <div class="avatar-dialog-inner">
             <div class="avatar-dialog-header">
                 <h2>Imagem do perfil</h2>
@@ -141,7 +151,7 @@
                     type="button"
                     class="avatar-dialog-close"
                     aria-label="Fechar"
-                    onclick="document.getElementById('avatar-dialog').close()"
+                    data-avatar-dialog-close
                 >
                     <x-icon name="close" size="16"/>
                 </button>
@@ -172,7 +182,7 @@
                             name="avatar_key"
                             type="radio"
                             value=""
-                            @checked(! $user->hasThemedAvatar())
+                            @checked($selectedIdentity === 'initials')
                         >
 
                         <span class="avatar-option-preview">
@@ -193,7 +203,7 @@
                                 type="radio"
                                 value="{{ $avatarKey }}"
                                 @checked(
-                                    $user->hasThemedAvatar()
+                                    $selectedIdentity === 'themed_avatar'
                                     && $user->avatar_key === $avatarKey
                                 )
                             >
@@ -224,7 +234,7 @@
                     <button
                         type="button"
                         class="button button-secondary"
-                        onclick="document.getElementById('avatar-dialog').close()"
+                        data-avatar-dialog-close
                     >
                         Cancelar
                     </button>
@@ -285,6 +295,22 @@
 
     <script nonce="{{ request()->attributes->get('csp_nonce') }}">
         (() => {
+            const avatarDialog = document.getElementById('avatar-dialog');
+            const avatarDialogOpen = document.querySelector(
+                '[data-avatar-dialog-open]'
+            );
+
+            avatarDialogOpen?.addEventListener('click', () => {
+                avatarDialog?.showModal();
+            });
+
+            document.querySelectorAll('[data-avatar-dialog-close]')
+                .forEach((button) => {
+                    button.addEventListener('click', () => {
+                        avatarDialog?.close();
+                    });
+                });
+
             const control = document.getElementById(
                 'theme-segmented-control'
             );

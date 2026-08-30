@@ -44,6 +44,69 @@ class ProfilePhotoTest extends TestCase
         ], $attributes));
     }
 
+    private function assertSelectedIdentity(
+        User $user,
+        string $identity,
+        int $checkedRadioCount
+    ): void {
+        $response = $this->actingAs($user)->get(route('profile.edit'));
+
+        $response->assertOk()
+            ->assertSee('data-selected-identity="'.$identity.'"', false);
+
+        $this->assertSame(
+            $checkedRadioCount,
+            substr_count($response->getContent(), ' checked')
+        );
+    }
+
+    public function test_profile_selects_initials_without_photo_or_themed_avatar(): void
+    {
+        $user = $this->viewer([
+            'avatar_mode' => User::AVATAR_MODE_INITIALS,
+            'avatar_key' => null,
+            'avatar_photo_path' => null,
+        ]);
+
+        $this->assertSelectedIdentity($user, 'initials', 1);
+    }
+
+    public function test_profile_selects_only_the_active_themed_avatar(): void
+    {
+        $user = $this->viewer([
+            'avatar_mode' => User::AVATAR_MODE_AVATAR,
+            'avatar_key' => 'owl',
+            'avatar_photo_path' => null,
+        ]);
+
+        $this->assertSelectedIdentity($user, 'themed_avatar', 1);
+    }
+
+    public function test_profile_selects_photo_without_selecting_any_avatar_radio(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->viewer([
+            'avatar_mode' => User::AVATAR_MODE_PHOTO,
+            'avatar_key' => 'owl',
+            'avatar_photo_path' => 'profile-photos/photo.jpg',
+        ]);
+
+        $this->assertSelectedIdentity($user, 'photo', 0);
+    }
+
+    public function test_profile_dialog_controls_do_not_use_inline_javascript(): void
+    {
+        $user = $this->viewer();
+
+        $this->actingAs($user)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertSee('data-avatar-dialog-open', false)
+            ->assertSee('data-avatar-dialog-close', false)
+            ->assertDontSee('onclick=', false);
+    }
+
     public function test_user_can_upload_a_valid_jpeg_photo(): void
     {
         Storage::fake('public');
@@ -198,6 +261,7 @@ class ProfilePhotoTest extends TestCase
 
         $this->assertSame('initials', $user->avatar_mode);
         $this->assertNull($user->avatar_photo_path);
+        $this->assertSelectedIdentity($user, 'initials', 1);
     }
 
     public function test_removing_photo_falls_back_to_themed_avatar_when_previously_set(): void
@@ -222,6 +286,7 @@ class ProfilePhotoTest extends TestCase
         $this->assertSame('avatar', $user->avatar_mode);
         $this->assertSame('owl', $user->avatar_key);
         $this->assertNull($user->avatar_photo_path);
+        $this->assertSelectedIdentity($user, 'themed_avatar', 1);
     }
 
     public function test_guest_cannot_upload_or_remove_photo(): void
