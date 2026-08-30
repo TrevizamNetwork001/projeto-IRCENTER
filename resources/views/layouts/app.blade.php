@@ -428,16 +428,23 @@
                     </div>
 
                     <div class="user-menu account-menu">
+                        <a
+                            class="user-profile-link"
+                            href="{{ route('profile.edit') }}"
+                            title="Meu perfil"
+                            aria-label="Meu perfil"
+                        >
+                            <x-user-avatar :user="auth()->user()"/>
+                        </a>
+
                         <button
                             id="account-menu-toggle"
-                            class="user-profile-link account-menu-toggle"
+                            class="account-menu-toggle"
                             type="button"
                             aria-haspopup="true"
                             aria-expanded="false"
                             aria-controls="account-menu-dropdown"
                         >
-                            <x-user-avatar :user="auth()->user()"/>
-
                             <div class="user-details">
                                 <strong>{{ auth()->user()->name }}</strong>
                                 <span>{{ auth()->user()->roleLabel() }}</span>
