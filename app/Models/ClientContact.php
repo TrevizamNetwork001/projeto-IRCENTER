@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-final class ClientContact extends Model
+final class ClientContact extends Authenticatable
 {
+    use Notifiable;
+
     public const TYPE_GENERAL = 'general';
     public const TYPE_FINANCIAL = 'financial';
     public const TYPE_FISCAL = 'fiscal';
@@ -37,6 +40,14 @@ final class ClientContact extends Model
         'phone',
         'is_primary',
         'active',
+        'password',
+        'must_change_password',
+        'password_changed_at',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
 
     protected function casts(): array
@@ -45,6 +56,9 @@ final class ClientContact extends Model
             'client_id' => 'integer',
             'is_primary' => 'boolean',
             'active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
+            'password' => 'hashed',
         ];
     }
 

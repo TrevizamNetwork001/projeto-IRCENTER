@@ -2,15 +2,20 @@
 
 namespace App\Models\Concerns;
 
+use App\Models\ClientContact;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Restringe automaticamente as queries do model ao cliente do usuário
- * autenticado (guard "web"), quando esse usuário tiver `client_id`
- * preenchido. Usuários sem `client_id` (o padrão hoje) continuam
- * enxergando todos os registros — comportamento atual preservado.
+ * Restringe automaticamente as queries do model a um único cliente,
+ * cobrindo os dois casos de acesso restrito do sistema:
+ *
+ * - staff interno (guard "web") com `client_id` preenchido;
+ * - contato de cliente logado no portal (guard "client").
+ *
+ * Sem nenhum dos dois casos (staff irrestrito, comportamento atual), a
+ * query não é filtrada — nenhum comportamento existente muda.
  *
  * Por padrão assume que a coluna que referencia `clients.id` se chama
  * "client_id". Models cuja coluna tem outro nome (ex: "core_client_id")
@@ -21,17 +26,34 @@ trait BelongsToClient
     protected static function bootBelongsToClient(): void
     {
         static::addGlobalScope('client', function (Builder $query): void {
-            $user = Auth::guard('web')->user();
+            $clientId = static::resolveScopedClientId();
 
-            if (! $user instanceof User || $user->client_id === null) {
+            if ($clientId === null) {
                 return;
             }
 
             $query->where(
                 $query->getModel()->clientForeignKeyColumn(),
-                $user->client_id
+                $clientId
             );
         });
+    }
+
+    protected static function resolveScopedClientId(): ?int
+    {
+        $staff = Auth::guard('web')->user();
+
+        if ($staff instanceof User && $staff->client_id !== null) {
+            return $staff->client_id;
+        }
+
+        $contact = Auth::guard('client')->user();
+
+        if ($contact instanceof ClientContact) {
+            return $contact->client_id;
+        }
+
+        return null;
     }
 
     public function clientForeignKeyColumn(): string

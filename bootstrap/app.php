@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function (): void {
             Route::middleware('web')->group(base_path('routes/scheduling.php'));
+            Route::middleware('web')->group(base_path('routes/client-portal.php'));
             Route::middleware('api')
                 ->group(base_path('routes/health.php'));
         },
@@ -34,6 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(RequestLogContext::class);
         $middleware->append(SecurityHeaders::class);
+
+        $middleware->redirectGuestsTo(
+            fn (Request $request) => $request->is('portal/*')
+                ? route('portal.login')
+                : route('login'),
+        );
 
         $middleware->alias([
             'documentation.api' => AuthenticateDocumentationApi::class,
