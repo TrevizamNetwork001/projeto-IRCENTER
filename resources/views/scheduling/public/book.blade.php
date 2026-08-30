@@ -33,8 +33,7 @@
     <div id="booking-calendar" class="public-calendar" aria-label="Calendário de disponibilidade" aria-busy="true"><p>Carregando calendário…</p></div>
     <div class="calendar-status-legend" aria-label="Legenda do calendário">
      <span class="legend-available">Disponível</span>
-     <span class="legend-unavailable"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>Indisponível</span>
-     <span class="legend-limited">Fora do período/antecedência</span>
+     <span class="legend-unavailable">Indisponível</span>
     </div>
     <p class="booking-timezone-display"><x-icon name="globe" size="15"/> Horário de Brasília <span class="booking-timezone-code">({{ $timezone }})</span></p>
    </div>

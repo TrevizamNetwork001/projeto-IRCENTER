@@ -68,7 +68,6 @@
    for(let i=0;i<firstMonday;i++){const spacer=document.createElement('span');spacer.className='calendar-spacer';calendar.append(spacer);}
    Object.entries(data.days).forEach(([date,status])=>{
     const button=document.createElement('button');button.type='button';button.className='calendar-date status-'+status;button.dataset.date=date;button.disabled=status!=='available';button.textContent=String(Number(date.slice(-2)));
-    if(status==='unavailable')button.insertAdjacentHTML('beforeend','<svg class="unavailable-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>');
     const today=new Date().toLocaleDateString('en-CA',{timeZone:zoneValue});
     if(date===today)button.setAttribute('aria-current','date');
     const statusLabel=status==='available'?'disponível':status==='unavailable'?'indisponível':'fora do período ou antecedência';
