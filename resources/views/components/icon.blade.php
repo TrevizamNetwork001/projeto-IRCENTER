@@ -224,6 +224,14 @@
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79"/>
             @break
 
+        @case('globe')
+            <circle cx="12" cy="12" r="9"/>
+            <ellipse cx="12" cy="12" rx="4" ry="9"/>
+            <path d="M3 12h18"/>
+            <path d="M4.5 7h15"/>
+            <path d="M4.5 17h15"/>
+            @break
+
         @default
             <circle cx="12" cy="12" r="9"/>
     @endswitch
