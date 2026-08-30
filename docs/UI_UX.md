@@ -164,3 +164,93 @@ fase):
 3. Não introduzir dependência de JS ou framework novo só por causa de UI.
 4. Validar responsividade em 1440×900, 1366×768, 768×1024 e 390×844, e os
    dois temas, antes de considerar a tela pronta.
+
+## Meu Perfil (fase PROFILE-UX-1)
+
+`/profile` continua sendo página própria acessível pelo menu (nada virou
+modal). O que mudou foi o conteúdo: de 3 cards independentes (identidade,
+dados da conta, grade de avatares ocupando a maior parte da tela) para um
+**container único** (`.profile-container`) com seções internas separadas
+por `.profile-section` (Informações da conta, Aparência, Segurança).
+
+### Identidade e seletor de imagem
+
+O cabeçalho de identidade (`.profile-identity`) mostra avatar/foto + nome +
+e-mail + `.role-pill` (role é só informativo, sem edição). A biblioteca de
+avatares temáticos existente (`User::avatars()`) **foi preservada**, mas
+não fica mais fixa na página — vive dentro de um `<dialog>` nativo aberto
+por um botão de câmera discreto (`.profile-camera-button`, `aria-label`
+"Alterar imagem do perfil"). `<dialog>` nativo dá de graça foco preso,
+fechar com Escape e backdrop, sem lib nova.
+
+Três modos de identidade, um só campo de verdade (`avatar_mode`:
+`initials` | `avatar` | `photo`) mais os campos que já existiam
+(`avatar_key`) e um novo (`avatar_photo_path`):
+
+- **iniciais**: `avatar_mode=initials`, deriva de `User::initials()`
+  (já existia, sem mudança — máx. 2 letras, funciona com nome único).
+- **avatar temático**: `avatar_mode=avatar` + `avatar_key` (fluxo existente
+  de `profile.avatar.update`, só ganhou o campo de modo).
+- **foto**: `avatar_mode=photo` + `avatar_photo_path` (novo).
+
+Fallback em `User::hasPhotoAvatar()`/`hasThemedAvatar()`: foto > avatar
+temático > iniciais. Remover a foto restaura automaticamente o avatar
+temático anterior se houver, senão iniciais — implementado em
+`ProfileController::removePhoto()`.
+
+`x-user-avatar` (`resources/views/components/user-avatar.blade.php`) é o
+componente único que decide o que renderizar; é reaproveitado no topo do
+sistema (`layouts/app.blade.php`) e na tela de Usuários. Escolher uma foto
+no Perfil reflete automaticamente no avatar do topo, sem lógica duplicada.
+
+### Upload de foto — segurança
+
+- Formatos aceitos: **JPEG, PNG, WebP**. SVG nunca é aceito (a regra
+  `image` do Laravel já exclui SVG por padrão).
+- Limite: **2 MB** (`UploadProfilePhotoRequest::MAX_KILOBYTES`).
+- Validação real, não apenas por extensão/Content-Type do navegador: a
+  combinação `image` + `mimes:jpeg,jpg,png,webp` do Laravel usa
+  `getimagesize()` (decodificação real) e MIME detectado via `finfo` no
+  conteúdo do arquivo, não no que o cliente declarou.
+- Storage: disco `public` já existente (`storage/app/public`), nome de
+  arquivo gerado pelo Laravel (hash aleatório), nunca o nome original —
+  sem path traversal, sem escolha de caminho pelo usuário.
+- Substituir uma foto apaga o arquivo anterior do disco
+  (`ProfileController::uploadPhoto`); remover foto também apaga o arquivo.
+- Sem Gravatar, sem API externa, sem envio de dados pra fora do IRCENTER.
+- IDOR: nenhuma rota de foto/avatar aceita `user_id` do cliente — a
+  identidade vem sempre de `$request->user()`/`auth()->user()`.
+- CSRF: herdado do middleware global do projeto, como todo o resto.
+- **Não implementado nesta fase** (ambiente sem GD/Imagick instalado no
+  container `app`): redimensionamento/normalização para 512×512 e remoção
+  de metadados EXIF. A imagem é guardada como enviada, só validada e
+  limitada a 2 MB. Documentado aqui para decisão futura — instalar GD ou
+  Imagick na imagem PHP é a mudança de infraestrutura necessária para
+  fechar esse ponto, fora do escopo desta fase (não alterar Docker).
+
+### Aparência
+
+O IRCENTER só tem alternância binária Claro/Escuro (`localStorage`
+`ircenter-theme`, sem "Sistema"/auto). A seção Aparência do Perfil usa um
+`.segmented-control` com 2 opções que lê/escreve exatamente essa mesma
+chave — não foi criado um segundo mecanismo de tema.
+
+### Segurança
+
+"Alterar minha senha" saiu do canto superior da página (onde competia
+visualmente com o cabeçalho) e entrou na seção Segurança, ao lado da data
+da última alteração. Continua linkando para `profile.password.edit`, rota
+e fluxo de troca de senha **inalterados** (senha atual + nova + confirmação
++ CSRF + auditoria, tudo como já era).
+
+### Ativação pendente em produção
+
+Duas coisas precisam rodar em produção antes da foto de perfil funcionar
+de verdade lá, nenhuma delas executada nesta fase:
+
+1. Migration `2026_08_30_170000_add_photo_avatar_to_users_table` (adiciona
+   `avatar_mode` e `avatar_photo_path` a `users`, com backfill de
+   `avatar_mode='avatar'` para quem já tinha `avatar_key` escolhido).
+2. `php artisan storage:link` no container `app`, se ainda não tiver sido
+   rodado — sem o symlink `public/storage`, a URL da foto retorna 404
+   mesmo com o arquivo salvo corretamente no disco.

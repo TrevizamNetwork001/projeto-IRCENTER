@@ -289,6 +289,16 @@ Route::middleware([
         [ProfileController::class, 'updateAvatar']
     )->name('profile.avatar.update');
 
+    Route::post(
+        '/profile/photo',
+        [ProfileController::class, 'uploadPhoto']
+    )->name('profile.photo.store');
+
+    Route::delete(
+        '/profile/photo',
+        [ProfileController::class, 'removePhoto']
+    )->name('profile.photo.destroy');
+
     Route::get(
         '/profile/password',
         [ProfilePasswordController::class, 'edit']

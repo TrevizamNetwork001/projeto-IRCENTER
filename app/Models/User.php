@@ -10,10 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'name',
     'avatar_key',
+    'avatar_mode',
+    'avatar_photo_path',
     'email',
     'password',
     'role',
@@ -152,9 +155,36 @@ class User extends Authenticatable
         ];
     }
 
+    public const AVATAR_MODE_INITIALS = 'initials';
+
+    public const AVATAR_MODE_AVATAR = 'avatar';
+
+    public const AVATAR_MODE_PHOTO = 'photo';
+
+    public function hasPhotoAvatar(): bool
+    {
+        return $this->avatar_mode === self::AVATAR_MODE_PHOTO
+            && $this->avatar_photo_path !== null;
+    }
+
+    public function hasThemedAvatar(): bool
+    {
+        return $this->avatar_mode === self::AVATAR_MODE_AVATAR
+            && $this->avatar_key !== null;
+    }
+
+    public function photoUrl(): ?string
+    {
+        if (! $this->hasPhotoAvatar()) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->avatar_photo_path);
+    }
+
     public function avatarSymbol(): ?string
     {
-        if ($this->avatar_key === null) {
+        if (! $this->hasThemedAvatar()) {
             return null;
         }
 
@@ -163,7 +193,7 @@ class User extends Authenticatable
 
     public function avatarLabel(): ?string
     {
-        if ($this->avatar_key === null) {
+        if (! $this->hasThemedAvatar()) {
             return null;
         }
 

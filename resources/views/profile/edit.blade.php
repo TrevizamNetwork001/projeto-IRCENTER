@@ -7,114 +7,172 @@
         <div>
             <span class="page-eyebrow">Conta pessoal</span>
             <h1>Meu perfil</h1>
-            <p>
-                Consulte seus dados e personalize sua identificação
-                na plataforma.
-            </p>
+            <p>Gerencie seus dados, aparência e segurança.</p>
         </div>
-
-        <a
-            class="button button-secondary"
-            href="{{ route('profile.password.edit') }}"
-        >
-            Alterar minha senha
-        </a>
     </section>
 
-    @if (session('success'))
-        <div
-            class="alert-success"
-            data-auto-dismiss="5000"
-            role="status"
-        >
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <section class="profile-layout">
-        <div class="profile-sidebar">
-            <article class="panel profile-summary-card">
+    <section class="panel profile-container">
+        <header class="profile-identity">
+            <div class="profile-photo-wrap">
                 <x-user-avatar :user="$user" size="xlarge"/>
 
-                <div>
-                    <h2>{{ $user->name }}</h2>
+                <button
+                    type="button"
+                    class="profile-camera-button"
+                    aria-label="Alterar imagem do perfil"
+                    title="Alterar imagem do perfil"
+                    onclick="document.getElementById('avatar-dialog').showModal()"
+                >
+                    <x-icon name="camera" size="14"/>
+                </button>
+            </div>
 
-                    <span class="status-pill is-active">
-                        {{ $user->roleLabel() }}
-                    </span>
+            <div class="profile-identity-text">
+                <h1>{{ $user->name }}</h1>
+                <p>{{ $user->email }}</p>
+                <span class="role-pill is-{{ $user->role }}">
+                    {{ $user->roleLabel() }}
+                </span>
+            </div>
+        </header>
+
+        <div class="profile-section">
+            <h2 class="profile-section-title">Informações da conta</h2>
+
+            <div class="form-grid">
+                <div class="field-group">
+                    <label for="account-name">Nome</label>
+
+                    <input
+                        id="account-name"
+                        class="form-control"
+                        type="text"
+                        value="{{ $user->name }}"
+                        readonly
+                    >
                 </div>
-            </article>
 
-            <article class="panel profile-account-card">
-                <header class="panel-header">
-                    <div>
-                        <span class="panel-eyebrow">Conta</span>
-                        <h2>Dados da conta</h2>
-                    </div>
-                </header>
+                <div class="field-group">
+                    <label for="account-email">E-mail de acesso</label>
 
-                <dl class="details-list">
-                    <div>
-                        <dt>Nome</dt>
-                        <dd>{{ $user->name }}</dd>
-                    </div>
+                    <input
+                        id="account-email"
+                        class="form-control"
+                        type="text"
+                        value="{{ $user->email }}"
+                        readonly
+                    >
+                </div>
+            </div>
 
-                    <div>
-                        <dt>Perfil</dt>
-                        <dd>{{ $user->roleLabel() }}</dd>
-                    </div>
+            <small class="field-hint">
+                Nome e e-mail são definidos por um administrador. Fale
+                com a equipe responsável para alterá-los.
+            </small>
 
-                    <div>
-                        <dt>Último acesso</dt>
-                        <dd>
-                            {{ $user->last_login_at
-                                ? app(\App\Support\BusinessClock::class)
-                                    ->toBusinessTimezone($user->last_login_at)
-                                    ->format('d/m/Y H:i')
-                                : 'Ainda não registrado' }}
-                        </dd>
-                    </div>
-
-                    <div>
-                        <dt>Senha alterada em</dt>
-                        <dd>
-                            {{ $user->password_changed_at
-                                ? app(\App\Support\BusinessClock::class)
-                                    ->toBusinessTimezone(
-                                        $user->password_changed_at
-                                    )
-                                    ->format('d/m/Y H:i')
-                                : 'Não informado' }}
-                        </dd>
-                    </div>
-                </dl>
-            </article>
+            <dl class="details-list">
+                <div>
+                    <dt>Último acesso</dt>
+                    <dd>
+                        {{ $user->last_login_at
+                            ? app(\App\Support\BusinessClock::class)
+                                ->toBusinessTimezone($user->last_login_at)
+                                ->format('d/m/Y H:i')
+                            : 'Ainda não registrado' }}
+                    </dd>
+                </div>
+            </dl>
         </div>
 
-        <article class="panel">
-            <header class="panel-header">
-                <div>
-                    <span class="panel-eyebrow">Personalização</span>
-                    <h2>Escolha seu avatar</h2>
-                </div>
-            </header>
+        <div class="profile-section">
+            <h2 class="profile-section-title">Aparência</h2>
 
-            <form
-                method="POST"
-                action="{{ route('profile.avatar.update') }}"
+            <div
+                class="segmented-control"
+                id="theme-segmented-control"
+                role="group"
+                aria-label="Tema da plataforma"
             >
+                <button type="button" data-theme-choice="light">
+                    Claro
+                </button>
+
+                <button type="button" data-theme-choice="dark">
+                    Escuro
+                </button>
+            </div>
+        </div>
+
+        <div class="profile-section">
+            <h2 class="profile-section-title">Segurança</h2>
+
+            <div class="profile-security-row">
+                <div>
+                    <strong>Senha</strong>
+
+                    <div class="table-secondary-text">
+                        Última alteração:
+                        {{ $user->password_changed_at
+                            ? app(\App\Support\BusinessClock::class)
+                                ->toBusinessTimezone(
+                                    $user->password_changed_at
+                                )
+                                ->format('d/m/Y H:i')
+                            : 'Não informado' }}
+                    </div>
+                </div>
+
+                <a
+                    class="button button-secondary"
+                    href="{{ route('profile.password.edit') }}"
+                >
+                    Alterar senha
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <dialog id="avatar-dialog" class="avatar-dialog">
+        <div class="avatar-dialog-inner">
+            <div class="avatar-dialog-header">
+                <h2>Imagem do perfil</h2>
+
+                <button
+                    type="button"
+                    class="avatar-dialog-close"
+                    aria-label="Fechar"
+                    onclick="document.getElementById('avatar-dialog').close()"
+                >
+                    <x-icon name="close" size="16"/>
+                </button>
+            </div>
+
+            <div class="avatar-dialog-preview">
+                <x-user-avatar :user="$user" size="large"/>
+
+                <div>
+                    <strong>{{ $user->name }}</strong>
+                    <div class="table-secondary-text">
+                        {{ $user->hasPhotoAvatar()
+                            ? 'Usando foto de perfil'
+                            : ($user->hasThemedAvatar()
+                                ? 'Usando avatar '.$user->avatarLabel()
+                                : 'Usando iniciais do nome') }}
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('profile.avatar.update') }}">
                 @csrf
                 @method('PUT')
 
-                <div class="avatar-picker avatar-picker-profile">
+                <div class="avatar-picker">
                     <label class="avatar-option">
                         <input
                             name="avatar_key"
                             type="radio"
                             value=""
-                            @checked(
-                                old('avatar_key', $user->avatar_key) === null
-                            )
+                            @checked(! $user->hasThemedAvatar())
                         >
 
                         <span class="avatar-option-preview">
@@ -135,10 +193,8 @@
                                 type="radio"
                                 value="{{ $avatarKey }}"
                                 @checked(
-                                    old(
-                                        'avatar_key',
-                                        $user->avatar_key
-                                    ) === $avatarKey
+                                    $user->hasThemedAvatar()
+                                    && $user->avatar_key === $avatarKey
                                 )
                             >
 
@@ -165,11 +221,107 @@
                 @enderror
 
                 <div class="form-actions">
+                    <button
+                        type="button"
+                        class="button button-secondary"
+                        onclick="document.getElementById('avatar-dialog').close()"
+                    >
+                        Cancelar
+                    </button>
+
                     <button class="button button-primary" type="submit">
-                        Salvar avatar
+                        Aplicar
                     </button>
                 </div>
             </form>
-        </article>
-    </section>
+
+            <div class="avatar-photo-section">
+                <strong>Minha foto</strong>
+                <p class="field-hint">
+                    JPEG, PNG ou WebP · até 2&nbsp;MB.
+                </p>
+
+                <div class="avatar-photo-actions">
+                    <form
+                        method="POST"
+                        action="{{ route('profile.photo.store') }}"
+                        enctype="multipart/form-data"
+                    >
+                        @csrf
+
+                        <label class="button button-secondary">
+                            Escolher foto
+                            <input
+                                class="visually-hidden-input"
+                                type="file"
+                                name="photo"
+                                accept="image/jpeg,image/png,image/webp"
+                                onchange="this.form.requestSubmit()"
+                            >
+                        </label>
+                    </form>
+
+                    @if ($user->avatar_photo_path)
+                        <form
+                            method="POST"
+                            action="{{ route('profile.photo.destroy') }}"
+                        >
+                            @csrf
+                            @method('DELETE')
+
+                            <button class="button button-ghost" type="submit">
+                                Remover foto
+                            </button>
+                        </form>
+                    @endif
+                </div>
+
+                @error('photo')
+                    <div class="field-error">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+    </dialog>
+
+    <script nonce="{{ request()->attributes->get('csp_nonce') }}">
+        (() => {
+            const control = document.getElementById(
+                'theme-segmented-control'
+            );
+
+            if (! control) {
+                return;
+            }
+
+            const sync = () => {
+                const current =
+                    document.documentElement.dataset.theme || 'dark';
+
+                control.querySelectorAll('button').forEach((button) => {
+                    button.classList.toggle(
+                        'is-active',
+                        button.dataset.themeChoice === current
+                    );
+                });
+            };
+
+            control.querySelectorAll('button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const nextTheme = button.dataset.themeChoice;
+
+                    document.documentElement.dataset.theme = nextTheme;
+
+                    try {
+                        localStorage.setItem('ircenter-theme', nextTheme);
+                    } catch (error) {
+                        // O tema continua funcionando durante a sessão.
+                    }
+
+                    sync();
+                });
+            });
+
+            sync();
+        })();
+    </script>
 @endsection

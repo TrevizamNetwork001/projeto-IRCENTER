@@ -142,6 +142,22 @@
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
             @break
 
+        @case('camera')
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+            @break
+
+        @case('trash')
+            <path d="M3 6h18"/>
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            @break
+
+        @case('close')
+            <path d="M18 6 6 18"/>
+            <path d="m6 6 12 12"/>
+            @break
+
         @case('calendar')
             <rect x="3" y="4" width="18" height="18" rx="2"/>
             <path d="M16 2v4"/>
