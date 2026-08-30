@@ -43,15 +43,19 @@
 
     @if ($managedUser->exists)
         <div class="field-group">
-            <label for="password">Nova senha (opcional)</label>
+            <label for="new_password">Nova senha (opcional)</label>
 
             <input
-                id="password"
+                id="new_password"
                 class="form-control"
                 name="password"
                 type="password"
                 minlength="10"
-                autocomplete="new-password"
+                autocomplete="off"
+                data-lpignore="true"
+                data-1p-ignore
+                data-bwignore
+                value=""
             >
 
             <small class="field-hint">
