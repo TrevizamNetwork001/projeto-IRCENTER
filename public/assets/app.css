@@ -2991,7 +2991,7 @@ html[data-theme="light"] .button-secondary:hover {
 
 .profile-summary-card {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
     align-self: start;
 }
