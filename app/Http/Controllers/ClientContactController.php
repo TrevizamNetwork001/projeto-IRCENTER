@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ClientContactRequest;
+use App\Http\Requests\SetClientContactPortalAccessRequest;
 use App\Models\Client;
 use App\Models\ClientContact;
 use App\Services\AuditService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -168,6 +170,79 @@ class ClientContactController extends Controller
             $contact->is_primary
                 ? 'Contato marcado como principal.'
                 : 'Contato desmarcado como principal.'
+        );
+    }
+
+    public function editPortalAccess(
+        Client $client,
+        ClientContact $contact
+    ): View {
+        $this->authorizeAdministrator();
+        $this->ensureBelongsToClient($client, $contact);
+
+        return view('client-contacts.portal-access', [
+            'client' => $client,
+            'contact' => $contact,
+        ]);
+    }
+
+    public function setPortalAccess(
+        SetClientContactPortalAccessRequest $request,
+        Client $client,
+        ClientContact $contact
+    ): RedirectResponse {
+        $this->ensureBelongsToClient($client, $contact);
+
+        if (! $contact->email) {
+            return back()->withErrors([
+                'password' => 'Cadastre um e-mail para o contato antes de liberar o acesso ao portal.',
+            ]);
+        }
+
+        $oldState = $this->auditState($contact);
+
+        try {
+            $contact->forceFill([
+                'password' => $request->string('password')->toString(),
+                'must_change_password' => $request->boolean('must_change_password'),
+                'password_changed_at' => now(),
+                'remember_token' => null,
+            ])->save();
+        } catch (UniqueConstraintViolationException) {
+            return back()->withErrors([
+                'password' => 'Já existe outro contato com acesso ao portal usando este e-mail.',
+            ]);
+        }
+
+        $this->audit('client_contact.portal_access_set', $contact, $oldState);
+
+        return back()->with(
+            'success',
+            'Acesso ao portal do cliente liberado com sucesso.'
+        );
+    }
+
+    public function revokePortalAccess(
+        Client $client,
+        ClientContact $contact
+    ): RedirectResponse {
+        $this->authorizeAdministrator();
+        $this->ensureBelongsToClient($client, $contact);
+
+        $oldState = $this->auditState($contact);
+
+        $contact->forceFill([
+            'password' => null,
+            'remember_token' => null,
+            'must_change_password' => true,
+            'password_changed_at' => null,
+        ])->save();
+
+        $this->audit('client_contact.portal_access_revoked', $contact, $oldState);
+
+        return back()->with(
+            'success',
+            'Acesso ao portal do cliente revogado com sucesso.'
         );
     }
 

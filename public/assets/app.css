@@ -1298,7 +1298,7 @@ html[data-theme="light"] .brand-logo {
 
 .alert-success {
     position: fixed;
-    top: 22px;
+    top: 100px;
     right: 22px;
     z-index: 9000;
     max-width: min(360px, calc(100vw - 44px));
@@ -1319,7 +1319,7 @@ html[data-theme="light"] .alert-success {
 
 @media (max-width: 520px) {
     .alert-success {
-        top: 12px;
+        top: 90px;
         right: 12px;
         left: 12px;
         max-width: none;

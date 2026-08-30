@@ -226,6 +226,9 @@
                                     @if ($contact->is_primary)
                                         <span class="contact-primary-pill">Principal</span>
                                     @endif
+                                    @if ($contact->password)
+                                        <span class="role-pill is-admin">Portal ativo</span>
+                                    @endif
                                 </div>
                                 <div class="client-contact-name">{{ $contact->name }}</div>
                                 <a class="inline-link" href="mailto:{{ $contact->email }}">{{ $contact->email }}</a>
@@ -237,6 +240,9 @@
                             @if (auth()->user()->isAdministrator())
                                 <div class="client-contact-actions">
                                     <a class="button button-secondary" href="{{ route('clients.contacts.edit', [$client, $contact]) }}">Editar</a>
+                                    <a class="button button-secondary" href="{{ route('clients.contacts.portal-access.edit', [$client, $contact]) }}">
+                                        {{ $contact->password ? 'Acesso ao portal' : 'Liberar portal' }}
+                                    </a>
                                     <form method="POST" action="{{ route('clients.contacts.toggle-active', [$client, $contact]) }}">
                                         @csrf
                                         @method('PATCH')

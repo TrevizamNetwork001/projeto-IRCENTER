@@ -334,6 +334,21 @@ Route::middleware([
         [ClientContactController::class, 'togglePrimary']
     )->name('clients.contacts.toggle-primary');
 
+    Route::get(
+        '/clients/{client}/contacts/{contact}/portal-access',
+        [ClientContactController::class, 'editPortalAccess']
+    )->name('clients.contacts.portal-access.edit');
+
+    Route::post(
+        '/clients/{client}/contacts/{contact}/portal-access',
+        [ClientContactController::class, 'setPortalAccess']
+    )->name('clients.contacts.portal-access.store');
+
+    Route::delete(
+        '/clients/{client}/contacts/{contact}/portal-access',
+        [ClientContactController::class, 'revokePortalAccess']
+    )->name('clients.contacts.portal-access.destroy');
+
     Route::resource('clients', ClientController::class);
 
     Route::patch(

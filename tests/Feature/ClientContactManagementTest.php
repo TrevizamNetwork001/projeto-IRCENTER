@@ -209,6 +209,65 @@ class ClientContactManagementTest extends TestCase
         $this->assertDatabaseCount('client_contacts', 0);
     }
 
+    public function test_administrator_can_set_portal_access(): void
+    {
+        [$client, $contact] = $this->contact(['email' => 'contato@cliente.test']);
+
+        $this->actingAs($this->admin())
+            ->post(route('clients.contacts.portal-access.store', [$client, $contact]), [
+                'password' => 'senha-forte-123',
+                'password_confirmation' => 'senha-forte-123',
+                'must_change_password' => '1',
+            ])
+            ->assertRedirect();
+
+        $contact->refresh();
+        $this->assertNotNull($contact->password);
+        $this->assertTrue($contact->must_change_password);
+    }
+
+    public function test_cannot_set_portal_access_without_email(): void
+    {
+        [$client, $contact] = $this->contact(['email' => null]);
+
+        $this->actingAs($this->admin())
+            ->post(route('clients.contacts.portal-access.store', [$client, $contact]), [
+                'password' => 'senha-forte-123',
+                'password_confirmation' => 'senha-forte-123',
+                'must_change_password' => '1',
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertNull($contact->refresh()->password);
+    }
+
+    public function test_administrator_can_revoke_portal_access(): void
+    {
+        [$client, $contact] = $this->contact([
+            'email' => 'contato@cliente.test',
+            'password' => 'senha-forte-123',
+        ]);
+
+        $this->actingAs($this->admin())
+            ->delete(route('clients.contacts.portal-access.destroy', [$client, $contact]))
+            ->assertRedirect();
+
+        $this->assertNull($contact->refresh()->password);
+    }
+
+    public function test_viewer_cannot_set_portal_access(): void
+    {
+        [$client, $contact] = $this->contact(['email' => 'contato@cliente.test']);
+
+        $this->actingAs($this->viewer())
+            ->post(route('clients.contacts.portal-access.store', [$client, $contact]), [
+                'password' => 'senha-forte-123',
+                'password_confirmation' => 'senha-forte-123',
+                'must_change_password' => '1',
+            ])
+            ->assertForbidden();
+    }
+
     /** @return array{Client, ClientContact} */
     private function contact(array $attributes = []): array
     {
