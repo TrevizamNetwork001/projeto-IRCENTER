@@ -49,6 +49,24 @@
             @endauth
         </header>
 
+        @auth('client')
+            <nav class="portal-nav">
+                <a
+                    href="{{ route('portal.invoices.index') }}"
+                    class="{{ request()->routeIs('portal.invoices.*') ? 'is-active' : '' }}"
+                >
+                    Faturas
+                </a>
+
+                <a
+                    href="{{ route('portal.appointments.index') }}"
+                    class="{{ request()->routeIs('portal.appointments.*') ? 'is-active' : '' }}"
+                >
+                    Agendamentos
+                </a>
+            </nav>
+        @endauth
+
         @yield('content')
     </main>
 </body>

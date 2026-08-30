@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Portal\AppointmentController;
 use App\Http\Controllers\Portal\InvoiceController;
 use App\Http\Controllers\Portal\LoginController;
 use Illuminate\Support\Facades\Route;
@@ -21,4 +22,7 @@ Route::middleware('auth:client')
 
         Route::get('/faturas', [InvoiceController::class, 'index'])
             ->name('invoices.index');
+
+        Route::get('/agendamentos', [AppointmentController::class, 'index'])
+            ->name('appointments.index');
     });

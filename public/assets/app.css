@@ -659,6 +659,29 @@ html[data-theme="light"] .brand-logo {
     gap: 14px;
 }
 
+.portal-nav {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 22px;
+    padding: 5px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.portal-nav a {
+    padding: 9px 14px;
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.portal-nav a.is-active {
+    background: var(--cyan-soft);
+    color: var(--cyan);
+}
+
 .logout-button {
     display: flex;
     min-height: 36px;

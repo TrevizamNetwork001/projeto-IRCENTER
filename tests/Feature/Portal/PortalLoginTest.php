@@ -5,6 +5,8 @@ namespace Tests\Feature\Portal;
 use App\Models\Client;
 use App\Models\ClientContact;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Scheduling\Models\Appointment;
+use App\Modules\Scheduling\Models\EventType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -125,5 +127,57 @@ class PortalLoginTest extends TestCase
             ->assertOk()
             ->assertSee('100,00')
             ->assertDontSee('200,00');
+    }
+
+    public function test_contact_only_sees_own_client_appointments(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $contactA = $this->contact($clientA, 'a@clientea.com', 'senha-forte-123');
+
+        $eventTypeA = EventType::query()->create([
+            'name' => 'Suporte técnico',
+            'slug' => 'suporte-tecnico',
+            'duration_minutes' => 30,
+        ]);
+
+        $eventTypeB = EventType::query()->create([
+            'name' => 'Instalação de equipamento',
+            'slug' => 'instalacao-equipamento',
+            'duration_minutes' => 60,
+        ]);
+
+        Appointment::query()->create([
+            'event_type_id' => $eventTypeA->id,
+            'client_id' => $clientA->id,
+            'scheduled_start_at' => now()->addDay(),
+            'scheduled_end_at' => now()->addDay()->addMinutes(30),
+            'timezone' => 'America/Sao_Paulo',
+            'status' => 'confirmed',
+            'guest_name' => 'Cliente A',
+            'guest_email' => 'a@clientea.com',
+            'cancellation_token_hash' => hash('sha256', 'a-cancel'),
+            'reschedule_token_hash' => hash('sha256', 'a-reschedule'),
+        ]);
+
+        Appointment::query()->create([
+            'event_type_id' => $eventTypeB->id,
+            'client_id' => $clientB->id,
+            'scheduled_start_at' => now()->addDays(2),
+            'scheduled_end_at' => now()->addDays(2)->addMinutes(30),
+            'timezone' => 'America/Sao_Paulo',
+            'status' => 'confirmed',
+            'guest_name' => 'Cliente B',
+            'guest_email' => 'b@clienteb.com',
+            'cancellation_token_hash' => hash('sha256', 'b-cancel'),
+            'reschedule_token_hash' => hash('sha256', 'b-reschedule'),
+        ]);
+
+        $this->actingAs($contactA, 'client')
+            ->get(route('portal.appointments.index'))
+            ->assertOk()
+            ->assertSee('Suporte técnico')
+            ->assertDontSee('Instalação de equipamento');
     }
 }
