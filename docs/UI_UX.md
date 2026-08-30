@@ -2,10 +2,11 @@
 
 ## Contexto
 
-A tela de **Usuários** (`/users`) foi usada como piloto de um padrão visual
-mais denso e hierarquizado para o IRCENTER. A referência de linguagem visual
-usada nesta fase foi o ConsultaDesk (outro produto da Trevizam Network),
-**apenas** nos seguintes aspectos:
+As telas de **Usuários** (`/users` — listagem, edição e criação) foram
+usadas como piloto de um padrão visual mais denso e hierarquizado para o
+IRCENTER. A referência de linguagem visual usada nesta fase foi o
+ConsultaDesk (outro produto da Trevizam Network), **apenas** nos seguintes
+aspectos:
 
 - densidade (menos espaço vertical desperdiçado);
 - hierarquia clara entre informação primária e secundária;
@@ -90,6 +91,42 @@ Uma `<form class="filter-bar">` com:
 
 `.filter-bar` já colapsa em coluna abaixo de 760px (regra existente em
 `public/assets/app.css`), sem necessidade de CSS adicional para mobile.
+
+## Padrão de formulário com painel de apoio
+
+Nas telas de editar/criar usuário, o formulário principal foi envolvido em
+`.split-layout` (novo, pequeno) — grid de duas colunas (conteúdo principal +
+painel estreito), com a mesma proporção já usada pelo `.dashboard-grid` do
+Dashboard, mas com nome genérico para não acoplar semanticamente a uma tela
+específica. Colapsa para uma coluna abaixo de 1080px (mesma regra do
+`.dashboard-grid`).
+
+```blade
+<div class="split-layout">
+    <div class="split-layout-main">
+        {{-- painéis principais, empilhados --}}
+    </div>
+
+    <aside class="tip-card">
+        <span class="tip-card-icon"><x-icon name="shield" size="17"/></span>
+        <div>
+            <h3>{{-- título curto --}}</h3>
+            <p>{{-- texto de apoio, só leitura --}}</p>
+        </div>
+    </aside>
+</div>
+```
+
+`.tip-card` é puramente informativo — não introduz nenhum campo, permissão
+ou dado novo. Foi inspirado no cartão de dica do ConsultaDesk, mas usa a
+paleta e os tokens do próprio IRCENTER (`--cyan`/`--cyan-soft`), não a
+identidade visual do ConsultaDesk.
+
+**Importante:** o ConsultaDesk usa um sistema de permissões granulares por
+feature (toggles individuais). O IRCENTER **não tem esse conceito** — só os
+três papéis fixos de `User::roles()`. Essa parte do ConsultaDesk foi
+propositalmente **não replicada**, para não inventar um sistema de
+permissões que não existe no backend.
 
 ## Padrão de tabela
 

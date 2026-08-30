@@ -816,6 +816,52 @@ a {
     background: var(--surface);
 }
 
+.split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.85fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.split-layout-main {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tip-card {
+    display: flex;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid rgba(33, 199, 232, 0.22);
+    border-radius: 14px;
+    background: var(--cyan-soft);
+}
+
+.tip-card-icon {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 9px;
+    background: rgba(33, 199, 232, 0.16);
+    color: var(--cyan);
+}
+
+.tip-card h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+}
+
+.tip-card p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.7;
+}
+
 .panel-wide {
     grid-column: 1 / -1;
 }
@@ -1061,7 +1107,8 @@ a {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .dashboard-grid {
+    .dashboard-grid,
+    .split-layout {
         grid-template-columns: 1fr;
     }
 
