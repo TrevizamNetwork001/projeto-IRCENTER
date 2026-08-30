@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class RoutingIncident extends Model
 {
+    use BelongsToClient;
+
     public const TYPE_ROUTE_LEAK = 'route_leak';
     public const TYPE_PREFIX_HIJACK = 'prefix_hijack';
     public const TYPE_UNEXPECTED_ANNOUNCEMENT = 'unexpected_announcement';

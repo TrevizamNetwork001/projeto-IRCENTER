@@ -2,6 +2,7 @@
 
 namespace App\Modules\Fiscal\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use App\Modules\Fiscal\Enums\FiscalDocumentStatus;
 use App\Modules\Fiscal\Enums\FiscalEnvironment;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,13 @@ use LogicException;
 
 final class FiscalDocument extends Model
 {
+    use BelongsToClient;
+
+    public function clientForeignKeyColumn(): string
+    {
+        return 'core_client_id';
+    }
+
     protected $connection = 'finance_fiscal';
     protected $fillable = ['core_client_id', 'fiscal_issuer_profile_id', 'fiscal_customer_profile_id', 'billing_contract_id', 'invoice_id', 'charge_id', 'billing_item_id', 'environment', 'provider', 'status', 'competence_date', 'service_date', 'services_amount', 'discount_amount', 'deduction_amount', 'withholding_amount', 'net_amount', 'currency', 'summary', 'idempotency_key', 'external_reference', 'nfse_number', 'access_key', 'verification_code', 'authorized_at', 'cancelled_at', 'rejection_code', 'rejection_message', 'emission_origin', 'registered_by_user_id', 'manual_authorization_notes'];
 

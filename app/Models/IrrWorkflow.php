@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Database\Factories\IrrWorkflowFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,7 +43,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class IrrWorkflow extends Model
 {
     /** @use HasFactory<IrrWorkflowFactory> */
-    use HasFactory;
+    use HasFactory, BelongsToClient;
 
     public const STATUS_IN_PROGRESS = 'in_progress';
 

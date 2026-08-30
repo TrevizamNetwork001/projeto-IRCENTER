@@ -2,12 +2,20 @@
 
 namespace App\Modules\Finance\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 final class Invoice extends Model
 {
+    use BelongsToClient;
+
+    public function clientForeignKeyColumn(): string
+    {
+        return 'core_client_id';
+    }
+
     public const SOURCE_RECURRING = 'recurring';
     public const SOURCE_ONE_OFF = 'one_off';
 

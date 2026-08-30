@@ -127,6 +127,32 @@
         @enderror
     </div>
 
+    <div class="field-group">
+        <label for="client_id">Cliente vinculado</label>
+
+        <select id="client_id" class="form-control" name="client_id">
+            <option value="">Nenhum (acesso irrestrito)</option>
+
+            @foreach ($clients as $clientOption)
+                <option
+                    value="{{ $clientOption->id }}"
+                    @selected((string) old('client_id', $managedUser->client_id) === (string) $clientOption->id)
+                >
+                    {{ $clientOption->displayName() }}
+                </option>
+            @endforeach
+        </select>
+
+        <small class="field-hint">
+            Quando preenchido, este usuário só verá dados do cliente
+            selecionado (faturas, contratos, incidentes, prefixos, etc.).
+        </small>
+
+        @error('client_id')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+
     <div class="field-group field-checkbox-group">
         <label class="checkbox-label">
             <input type="hidden" name="active" value="0">

@@ -2,12 +2,20 @@
 
 namespace App\Modules\Finance\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 final class BillingContract extends Model
 {
+    use BelongsToClient;
+
+    public function clientForeignKeyColumn(): string
+    {
+        return 'core_client_id';
+    }
+
     public const STATUS_DRAFT = 'draft';
     public const STATUS_ACTIVE = 'active';
     public const STATUS_SUSPENDED = 'suspended';

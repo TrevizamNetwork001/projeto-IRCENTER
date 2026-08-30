@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,6 +31,10 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 Rule::in(User::roles()),
             ],
+            'client_id' => [
+                'nullable',
+                Rule::exists(Client::class, 'id'),
+            ],
             'avatar_key' => [
                 'nullable',
                 'string',
@@ -43,9 +48,11 @@ class UpdateUserRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $avatarKey = trim((string) $this->input('avatar_key'));
+        $clientId = trim((string) $this->input('client_id'));
 
         $this->merge([
             'avatar_key' => $avatarKey === '' ? null : $avatarKey,
+            'client_id' => $clientId === '' ? null : $clientId,
             'email' => strtolower(
                 trim((string) $this->input('email'))
             ),

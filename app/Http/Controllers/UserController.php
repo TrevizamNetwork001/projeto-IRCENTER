@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ResetUserPasswordRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Client;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
@@ -73,6 +74,10 @@ class UserController extends Controller
             ]),
             'roles' => User::roles(),
             'avatars' => User::avatars(),
+            'clients' => Client::query()
+                ->where('active', true)
+                ->orderBy('legal_name')
+                ->get(),
         ]);
     }
 
@@ -106,6 +111,10 @@ class UserController extends Controller
             'managedUser' => $user,
             'roles' => User::roles(),
             'avatars' => User::avatars(),
+            'clients' => Client::query()
+                ->where('active', true)
+                ->orderBy('legal_name')
+                ->get(),
         ]);
     }
 
