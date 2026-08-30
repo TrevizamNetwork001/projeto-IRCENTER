@@ -15,6 +15,8 @@ final class FiscalDashboardController extends Controller
 {
     public function __invoke(Request $request, FiscalIssuerReadinessService $issuerReadiness): View
     {
+        abort_unless($request->user()?->isAdministrator() === true, 403);
+
         $status = (string) $request->query('status', '');
         $competence = (string) $request->query('competence', '');
         $competenceTo = (string) $request->query('competence_to', '');

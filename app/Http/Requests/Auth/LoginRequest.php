@@ -40,6 +40,7 @@ class LoginRequest extends FormRequest
 
         if (! $authenticated) {
             RateLimiter::hit($this->throttleKey(), 60);
+            RateLimiter::hit($this->accountThrottleKey(), 900);
 
             throw ValidationException::withMessages([
                 'email' => 'As credenciais informadas são inválidas ou o usuário está inativo.',
@@ -47,10 +48,24 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+        RateLimiter::clear($this->accountThrottleKey());
     }
 
     private function ensureIsNotRateLimited(): void
     {
+        // Trava por email+IP (força bruta de um único ponto) e por email
+        // isolado (força bruta distribuída por múltiplos IPs contra a
+        // mesma conta), com limites e janelas independentes.
+        if (RateLimiter::tooManyAttempts($this->accountThrottleKey(), 20)) {
+            event(new Lockout($this));
+
+            $seconds = RateLimiter::availableIn($this->accountThrottleKey());
+
+            throw ValidationException::withMessages([
+                'email' => "Muitas tentativas para esta conta. Tente novamente em {$seconds} segundos.",
+            ]);
+        }
+
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
@@ -69,5 +84,10 @@ class LoginRequest extends FormRequest
         return Str::transliterate(
             Str::lower($this->string('email')->toString()).'|'.$this->ip()
         );
+    }
+
+    private function accountThrottleKey(): string
+    {
+        return 'account|'.Str::transliterate(Str::lower($this->string('email')->toString()));
     }
 }

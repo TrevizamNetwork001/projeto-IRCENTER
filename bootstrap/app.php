@@ -4,6 +4,7 @@ use App\Http\Middleware\AuthenticateDocumentationApi;
 use App\Http\Middleware\EnsureFiscalEnabled;
 use App\Http\Middleware\EnsurePasswordWasChanged;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\EnsureUserIsAdministrator;
 use App\Http\Middleware\RequestLogContext;
 use App\Http\Middleware\RequireRecentPassword;
 use App\Http\Middleware\RequireDocumentationApiScope;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'password.changed' => EnsurePasswordWasChanged::class,
             'password.recent' => RequireRecentPassword::class,
             'user.active' => EnsureUserIsActive::class,
+            'user.administrator' => EnsureUserIsAdministrator::class,
             'fiscal.enabled' => EnsureFiscalEnabled::class,
             'efi.webhook.callback' => ValidateEfiWebhookCallback::class,
         ]);

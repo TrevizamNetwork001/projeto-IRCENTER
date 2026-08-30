@@ -67,15 +67,17 @@ Route::middleware([
         ->middleware('throttle:120,1')
         ->name('search.suggestions');
 
-    Route::get(
-        '/system-diagnostic',
-        SystemDiagnosticController::class
-    )->name('system-diagnostic.index');
+    Route::middleware('user.administrator')->group(function (): void {
+        Route::get(
+            '/system-diagnostic',
+            SystemDiagnosticController::class
+        )->name('system-diagnostic.index');
 
-    Route::put(
-        '/system-diagnostic/backup-retention',
-        [SystemDiagnosticController::class, 'updateBackupRetention']
-    )->name('system-diagnostic.backup-retention.update');
+        Route::put(
+            '/system-diagnostic/backup-retention',
+            [SystemDiagnosticController::class, 'updateBackupRetention']
+        )->name('system-diagnostic.backup-retention.update');
+    });
 
     Route::post(
         '/external-integrations/{externalIntegration}/test',
@@ -99,7 +101,7 @@ Route::middleware([
         FinanceDashboardController::class
     )->name('finance.dashboard');
 
-    Route::middleware('fiscal.enabled')->group(function (): void {
+    Route::middleware(['fiscal.enabled', 'user.administrator'])->group(function (): void {
         Route::get('/fiscal', FiscalDashboardController::class)->name('fiscal.dashboard');
         Route::get('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'edit'])->name('fiscal.issuer.edit');
         Route::put('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'update'])->name('fiscal.issuer.update');
