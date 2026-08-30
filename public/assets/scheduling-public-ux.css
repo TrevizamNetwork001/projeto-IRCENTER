@@ -367,6 +367,11 @@ html[data-theme="light"] .eyebrow {
 }
 
 .calendar-date {
+    /* aspect-ratio evita que a celula vire uma elipse: as colunas do grid
+       usam minmax(2.4rem,1fr) e podem esticar mais largas que altas em
+       telas largas; sem isso, border-radius:50% desenha um ovalo. */
+    aspect-ratio: 1;
+    width: 100%;
     border: 1px solid transparent;
     border-radius: 50%;
     background: transparent;
