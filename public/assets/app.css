@@ -1355,8 +1355,49 @@ a {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.table-identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-identity-text {
+    min-width: 0;
+}
+
+.table-identity-text strong {
+    display: block;
+    overflow: hidden;
+    color: var(--text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .table-actions-column {
     text-align: right !important;
+}
+
+.table-icon-button {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--text-soft);
+    transition:
+        color 150ms ease,
+        border-color 150ms ease,
+        background 150ms ease;
+}
+
+.table-icon-button:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
 }
 
 .table-actions {
@@ -1389,6 +1430,34 @@ a {
 .status-pill.is-inactive {
     background: rgba(240, 106, 122, 0.09);
     color: var(--danger);
+}
+
+.role-pill {
+    display: inline-flex;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.role-pill.is-admin {
+    border-color: rgba(33, 199, 232, 0.18);
+    background: var(--cyan-soft);
+    color: var(--cyan);
+}
+
+.role-pill.is-operator {
+    border-color: rgba(156, 124, 255, 0.18);
+    background: rgba(156, 124, 255, 0.1);
+    color: var(--violet);
+}
+
+.role-pill.is-viewer {
+    border-color: var(--border);
+    background: var(--surface-raised);
+    color: var(--text-muted);
 }
 
 .pagination-simple {
