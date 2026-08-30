@@ -731,7 +731,7 @@
             });
 
             document
-                .querySelectorAll('[data-auto-dismiss]')
+                .querySelectorAll('[data-auto-dismiss], .alert-success')
                 .forEach(alert => {
                     const delay = Number(
                         alert.dataset.autoDismiss || 5000
