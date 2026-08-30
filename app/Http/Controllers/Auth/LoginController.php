@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Throwable;
 
 class LoginController extends Controller
 {
@@ -28,7 +29,20 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
-        if ($mfa->isEnabled($user)) {
+
+        try {
+            $mfaEnabled = $mfa->isEnabled($user);
+        } catch (Throwable $e) {
+            // Fail-closed: nunca deixar a sessão autenticada de pé se não
+            // pudermos confirmar o estado de MFA do usuário.
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw $e;
+        }
+
+        if ($mfaEnabled) {
             $request->session()->put([
                 'auth.mfa_pending_user_id' => $user->id,
                 'auth.mfa_remember' => $request->boolean('remember'),

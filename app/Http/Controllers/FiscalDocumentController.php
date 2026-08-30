@@ -57,6 +57,7 @@ final class FiscalDocumentController extends Controller
 
     public function show(FiscalDocument $fiscalDocument, FiscalDocumentReadinessService $readiness): View
     {
+        $this->authorizeOperator();
         $fiscalDocument->load(['issuer', 'customer', 'items.service', 'artifacts']);
         return view('fiscal.documents.show', ['document' => $fiscalDocument, 'readiness' => $readiness->evaluate($fiscalDocument), 'timeline' => DomainAuditEvent::query()->where('module', 'fiscal')->where('entity_type', FiscalDocument::class)->where('entity_id', (string) $fiscalDocument->id)->latest('created_at')->get(), 'portalUrl' => config('finance_fiscal.fiscal.portal_url')]);
     }
@@ -77,6 +78,7 @@ final class FiscalDocumentController extends Controller
 
     public function authorizeManual(AuthorizeFiscalDocumentRequest $request, FiscalDocument $fiscalDocument, AuthorizeFiscalDocumentManually $action): RedirectResponse
     {
+        $this->authorizeOperator();
         $action->execute($fiscalDocument, $request->validated(), $request->user()->id);
         return back()->with('success', 'NFS-e registrada com sucesso.');
     }

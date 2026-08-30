@@ -9,11 +9,17 @@ use App\Services\Identity\MfaManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MfaChallengeController extends Controller
 {
+    private const MAX_ATTEMPTS = 5;
+
+    private const DECAY_SECONDS = 60;
+
     public function create(Request $request): View|RedirectResponse
     {
         if (! $request->session()->has('auth.mfa_pending_user_id')) {
@@ -31,18 +37,33 @@ class MfaChallengeController extends Controller
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:32'],
         ]);
-        $user = User::query()->find($request->session()->get('auth.mfa_pending_user_id'));
+        $pendingUserId = $request->session()->get('auth.mfa_pending_user_id');
+        $throttleKey = $this->throttleKey($request, $pendingUserId);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_ATTEMPTS)) {
+            $request->session()->forget(['auth.mfa_pending_user_id', 'auth.mfa_remember']);
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            throw ValidationException::withMessages([
+                'code' => "Muitas tentativas. Faça login novamente em {$seconds} segundos.",
+            ]);
+        }
+
+        $user = User::query()->find($pendingUserId);
 
         if (! $user || ! $user->active) {
+            RateLimiter::hit($throttleKey, self::DECAY_SECONDS);
             $request->session()->forget(['auth.mfa_pending_user_id', 'auth.mfa_remember']);
             throw ValidationException::withMessages(['code' => 'Desafio inválido ou expirado.']);
         }
 
         $code = trim($validated['code']);
         if (! $manager->verifyTotp($user, $code) && ! $manager->useRecoveryCode($user, $code)) {
+            RateLimiter::hit($throttleKey, self::DECAY_SECONDS);
             throw ValidationException::withMessages(['code' => 'Código de autenticação inválido.']);
         }
 
+        RateLimiter::clear($throttleKey);
         $remember = (bool) $request->session()->pull('auth.mfa_remember', false);
         $request->session()->forget('auth.mfa_pending_user_id');
         Auth::login($user, $remember);
@@ -53,5 +74,10 @@ class MfaChallengeController extends Controller
         return redirect()->intended($user->must_change_password
             ? route('password.change.edit')
             : route('dashboard'));
+    }
+
+    private function throttleKey(Request $request, mixed $pendingUserId): string
+    {
+        return Str::transliterate(($pendingUserId ?? 'anon').'|'.$request->ip());
     }
 }
