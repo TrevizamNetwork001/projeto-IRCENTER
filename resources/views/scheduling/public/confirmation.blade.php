@@ -50,4 +50,5 @@
  </p>
  @endunless
 </article>
+<p class="confirmation-footer">© {{ date('Y') }} IRCENTER · Internet Resource Center</p>
 @endsection

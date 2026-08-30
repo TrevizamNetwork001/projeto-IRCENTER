@@ -122,6 +122,11 @@
             <path d="M12 16v4"/>
             @break
 
+        @case('video')
+            <rect x="2" y="6" width="14" height="12" rx="2"/>
+            <path d="m16 10 5-3v10l-5-3"/>
+            @break
+
         @case('eye')
             <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12"/>
             <circle cx="12" cy="12" r="3"/>

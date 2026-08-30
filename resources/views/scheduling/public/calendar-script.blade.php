@@ -40,7 +40,7 @@
    slots.innerHTML=data.slots.length?'':'<p class="empty-state">Os horários deste dia acabaram de ficar indisponíveis. Escolha outra data.</p>';
    data.slots.forEach(slot=>{
     const row=document.createElement('div');row.className='slot-row';
-    const button=document.createElement('button');button.type='button';button.className='slot-button';button.textContent=slot.label;button.setAttribute('aria-label','Selecionar '+slot.label);button.setAttribute('aria-pressed','false');
+    const button=document.createElement('button');button.type='button';button.className='slot-button';button.innerHTML=timeRange(slot)+'<span class="slot-check" aria-hidden="true">✓</span>';button.setAttribute('aria-label','Selecionar '+slot.label);button.setAttribute('aria-pressed','false');
     button.onclick=()=>chooseSlot(button,slot);
     row.append(button);
     if(!formMode){

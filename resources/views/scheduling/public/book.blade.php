@@ -3,13 +3,31 @@
 @section('content')
 <section class="booking-shell" id="booking-shell" data-booking-stage="{{ $errors->any() ? 'form' : 'calendar' }}">
  <aside class="booking-service">
-  <h1>{{ $eventType->name }}</h1>
-  <p class="booking-service-lead">{{ $eventType->description ?: 'Reunião com nossa equipe' }}</p>
-  <p class="booking-service-duration"><x-icon name="clock" size="16"/> {{ $eventType->duration_minutes }} minutos</p>
-  <dl>
-   <div><dt>Local</dt><dd><x-icon name="monitor" size="16"/> {{ $eventType->location_value ?: 'Online' }}</dd></div>
-   <div id="context-selection" class="booking-service-context" hidden><dt>Data e horário</dt><dd id="context-date"></dd><dd id="context-time"></dd></div>
-  </dl>
+  <div class="booking-service-row booking-service-heading">
+   <span class="booking-service-row-icon"><x-icon name="video" size="18"/></span>
+   <div>
+    <h1>{{ $eventType->name }}</h1>
+    <p class="booking-service-lead">{{ $eventType->description ?: 'Reunião com nossa equipe' }}</p>
+   </div>
+  </div>
+  <div class="booking-service-row">
+   <span class="booking-service-row-icon"><x-icon name="clock" size="16"/></span>
+   <div><span class="booking-service-row-label">Duração</span><strong>{{ $eventType->duration_minutes }} minutos</strong></div>
+  </div>
+  <div class="booking-service-row">
+   <span class="booking-service-row-icon"><x-icon name="monitor" size="16"/></span>
+   <div><span class="booking-service-row-label">Formato</span><strong>{{ $eventType->location_value ?: 'Online' }}</strong></div>
+  </div>
+  <div class="booking-service-row booking-service-context" id="context-selection" hidden>
+   <span class="booking-service-row-icon"><x-icon name="calendar" size="16"/></span>
+   <div>
+    <span class="booking-service-row-label">Data e horário</span>
+    <strong id="context-date"></strong>
+    <strong id="context-time"></strong>
+    <span class="booking-service-context-zone">Horário de Brasília ({{ $timezone }})</span>
+   </div>
+  </div>
+  <p class="booking-service-note">Converse com nossos especialistas e tire suas dúvidas.</p>
   <p class="booking-service-trust"><x-icon name="shield" size="16"/> Seus dados estão seguros<br><span>Este agendamento é protegido e confidencial.</span></p>
  </aside>
 
@@ -73,13 +91,14 @@
      <label for="guest_phone">Telefone <span>(opcional)</span>
       <input id="guest_phone" type="tel" name="guest_phone" maxlength="40" autocomplete="tel" value="{{ old('guest_phone') }}">
      </label>
-     <label for="guest_company">Empresa <span>(opcional)</span>
-      <input id="guest_company" type="text" name="guest_company" maxlength="120" autocomplete="organization" value="{{ old('guest_company') }}">
+     <label for="guest_company">Empresa <span aria-hidden="true">*</span>
+      <input id="guest_company" type="text" name="guest_company" required maxlength="120" autocomplete="organization" value="{{ old('guest_company') }}" @error('guest_company') aria-invalid="true" aria-describedby="guest_company-error" @enderror>
      </label>
     </div>
+    @error('guest_company')<p class="field-error" id="guest_company-error">{{ $message }}</p>@enderror
 
-    <label for="notes">Observações <span>(opcional)</span>
-     <textarea id="notes" name="notes" maxlength="2000">{{ old('notes') }}</textarea>
+    <label for="notes">Assunto da reunião <span>(opcional)</span>
+     <textarea id="notes" name="notes" maxlength="2000" placeholder="O que será discutido na reunião?">{{ old('notes') }}</textarea>
     </label>
 
     @if($errors->hasAny(['start','timezone','guest_phone','guest_company','notes','website','form_started_at']))
@@ -107,7 +126,7 @@
     <div><dt>E-mail</dt><dd id="review-email"></dd></div>
     <div id="review-phone-row" hidden><dt>Telefone</dt><dd id="review-phone"></dd></div>
     <div id="review-company-row" hidden><dt>Empresa</dt><dd id="review-company"></dd></div>
-    <div id="review-notes-row" hidden><dt>Observações</dt><dd id="review-notes"></dd></div>
+    <div id="review-notes-row" hidden><dt>Assunto da reunião</dt><dd id="review-notes"></dd></div>
    </dl>
 
    <div class="booking-step-actions">
@@ -116,6 +135,7 @@
    </div>
   </div>
  </div>
+ <footer class="booking-shell-footer"><x-icon name="lock" size="13"/> Ambiente seguro <span>•</span> IRCENTER</footer>
 </section>
 @endsection
 @include('scheduling.public.calendar-script',['calendarUrl'=>route('scheduling.public.calendar',$eventType),'availabilityUrl'=>route('scheduling.public.availability',$eventType),'token'=>null,'formMode'=>true,'durationMinutes'=>$eventType->duration_minutes])

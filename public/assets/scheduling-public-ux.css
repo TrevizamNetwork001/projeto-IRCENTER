@@ -63,8 +63,13 @@
 }
 
 html[data-theme="light"] .scheduling-public-mark {
-    padding: 5px;
-    border-radius: 9px;
+    /* a placa escura de fundo (necessaria pro contraste da logo, que e
+       clara/transparente) chama mais atencao que a versao sem placa do
+       tema escuro, dando impressao de "maior" mesmo em tamanho igual;
+       compensado com uma altura levemente menor. */
+    height: 2.1rem;
+    padding: 4px;
+    border-radius: 8px;
     background: #0b1220;
 }
 
@@ -87,6 +92,9 @@ html[data-theme="light"] .scheduling-public-mark {
 }
 
 .scheduling-public-locale {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.35rem 0.6rem;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
@@ -95,6 +103,10 @@ html[data-theme="light"] .scheduling-public-mark {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+}
+
+.scheduling-public-locale svg {
+    flex-shrink: 0;
 }
 
 .scheduling-public-theme-toggle {
@@ -110,7 +122,7 @@ html[data-theme="light"] .scheduling-public-mark {
 }
 
 .scheduling-public-main {
-    padding: 0.5rem 2rem 4rem;
+    padding: 0.5rem 2rem 1.5rem;
 }
 
 /* Shell */
@@ -125,34 +137,81 @@ html[data-theme="light"] .scheduling-public-mark {
     overflow: hidden;
 }
 
+.booking-shell-footer {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-soft);
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.booking-shell-footer span {
+    opacity: 0.6;
+}
+
 .booking-service {
     padding: 2.35rem 2rem;
     border-right: 1px solid var(--border-soft);
     background: var(--surface-soft);
 }
 
-.booking-service h1 {
-    margin: 0.75rem 0 1rem;
-    font-size: 1.55rem;
+.booking-service-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.booking-service-row:first-child {
+    margin-top: 0;
+}
+
+.booking-service-row-icon {
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    flex-shrink: 0;
+    border-radius: 0.6rem;
+    background: var(--cyan-soft);
+    color: var(--cyan);
+}
+
+.booking-service-row-label {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.booking-service-row strong {
+    display: block;
+    font-weight: 700;
+}
+
+.booking-service-heading h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.4rem;
     line-height: 1.2;
 }
 
 .booking-service-lead {
     margin: 0;
     color: var(--text-muted);
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
-.booking-service-duration {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 1rem 0 0;
-    font-weight: 700;
-}
-
-.booking-service-duration svg {
+.booking-service-note {
+    margin: 1.5rem 0 0;
     color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
 }
 
 .eyebrow {
@@ -170,38 +229,20 @@ html[data-theme="light"] .eyebrow {
     color: #056a82;
 }
 
-.booking-service dl {
-    display: grid;
-    gap: 1.1rem;
-    margin-top: 1.75rem;
-}
-
-.booking-service dl div {
-    display: grid;
-    gap: 0.25rem;
-}
-
-.booking-service dt {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-}
-
-.booking-service dd {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-    font-weight: 700;
-}
-
-.booking-service dd svg {
-    flex-shrink: 0;
-    color: var(--text-muted);
-}
-
 .booking-service-context {
-    padding-top: 1rem;
-    border-top: 1px dashed var(--border);
+    margin-top: 1.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    background: var(--surface-raised);
+}
+
+.booking-service-context-zone {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 400;
 }
 
 .booking-service-trust {
@@ -478,8 +519,9 @@ html[data-theme="light"] .eyebrow {
     border: 1px solid var(--border);
     border-radius: 0.6rem;
     background: var(--surface-soft);
-    color: var(--text-soft);
+    color: var(--text);
     font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .booking-timezone-code {
@@ -523,6 +565,15 @@ html[data-theme="light"] .eyebrow {
     color: var(--text);
     font-weight: 700;
     cursor: pointer;
+}
+
+.slot-check {
+    margin-left: 0.4rem;
+    visibility: hidden;
+}
+
+.slot-button[aria-pressed="true"] .slot-check {
+    visibility: visible;
 }
 
 .slot-button:hover,
@@ -779,6 +830,15 @@ html[data-theme="light"] .confirmation-secondary-action a {
 
 .confirmation-secondary-action a:hover {
     text-decoration: underline;
+}
+
+.confirmation-footer {
+    position: relative;
+    z-index: 1;
+    margin: 1.5rem auto 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    text-align: center;
 }
 
 /* Responsive */

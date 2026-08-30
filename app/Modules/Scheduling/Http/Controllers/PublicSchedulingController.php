@@ -67,7 +67,7 @@ final class PublicSchedulingController extends Controller
         $data = $request->validate([
             'start' => ['required', 'date'], 'timezone' => ['required', 'timezone'],
             'guest_name' => ['required', 'string', 'max:120'], 'guest_email' => ['required', 'email:rfc', 'max:255'],
-            'guest_phone' => ['nullable', 'string', 'max:40'], 'guest_company' => ['nullable', 'string', 'max:120'],
+            'guest_phone' => ['nullable', 'string', 'max:40'], 'guest_company' => ['required', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:2000'], 'website' => ['nullable', 'size:0'], 'form_started_at' => ['required', 'integer'],
         ]);
         if (time() - (int) $data['form_started_at'] < 2) return back()->withErrors(['guest_name' => 'Envio rápido demais. Tente novamente.'])->withInput();
