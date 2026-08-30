@@ -50,7 +50,7 @@
         </header>
 
         @auth('client')
-            <nav class="portal-nav">
+            <nav class="tab-nav">
                 <a
                     href="{{ route('portal.invoices.index') }}"
                     class="{{ request()->routeIs('portal.invoices.*') ? 'is-active' : '' }}"
