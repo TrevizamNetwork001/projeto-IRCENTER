@@ -9,6 +9,7 @@ use App\Modules\Finance\Models\BillingContractItem;
 use App\Modules\Finance\Models\Charge;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\InvoiceItem;
+use App\Modules\Scheduling\Models\{Appointment, AvailabilityRule, EventType};
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -30,6 +31,25 @@ class E2eSeeder extends Seeder
                 'active' => true,
                 'must_change_password' => false,
                 'password_changed_at' => now(),
+            ]);
+        }
+
+        $eventType = EventType::query()->updateOrCreate(['slug' => 'consultoria-e2e'], [
+            'name' => 'Consultoria E2E', 'description' => 'Serviço sintético para validação em navegador.',
+            'duration_minutes' => 60, 'slot_interval_minutes' => 60, 'location_type' => 'online',
+            'location_value' => 'Sala virtual E2E', 'buffer_before_minutes' => 0, 'buffer_after_minutes' => 0,
+            'minimum_notice_minutes' => 0, 'maximum_days_ahead' => 90, 'active' => true,
+        ]);
+        foreach ([1, 2, 3, 4, 5] as $day) {
+            AvailabilityRule::query()->updateOrCreate(['event_type_id' => $eventType->id, 'day_of_week' => $day, 'start_time' => '09:00'], ['end_time' => '18:00', 'timezone' => 'America/Sao_Paulo', 'active' => true]);
+        }
+        foreach ([['01K3CANCEA0000000000000000', 'cancel'], ['01K3RESCHEDA00000000000000', 'reschedule']] as [$publicId, $kind]) {
+            Appointment::query()->updateOrCreate(['public_id' => $publicId], [
+                'event_type_id' => $eventType->id, 'scheduled_start_at' => now()->next('Monday')->setTime(17, 0)->utc(),
+                'scheduled_end_at' => now()->next('Monday')->setTime(18, 0)->utc(), 'timezone' => 'America/Sao_Paulo',
+                'status' => 'confirmed', 'guest_name' => ucfirst($kind).' E2E', 'guest_email' => $kind.'@example.test',
+                'cancellation_token_hash' => hash('sha256', str_repeat('a', 64)),
+                'reschedule_token_hash' => hash('sha256', str_repeat('b', 64)),
             ]);
         }
 
