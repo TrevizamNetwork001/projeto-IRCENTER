@@ -60,13 +60,6 @@
                     </div>
 
                     <div>
-                        <dt>E-mail de acesso</dt>
-                        <dd class="profile-account-value">
-                            {{ $user->email }}
-                        </dd>
-                    </div>
-
-                    <div>
                         <dt>Perfil</dt>
                         <dd>{{ $user->roleLabel() }}</dd>
                     </div>

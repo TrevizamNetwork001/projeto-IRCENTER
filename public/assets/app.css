@@ -3166,11 +3166,13 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     min-width: 0;
 }
 
-.profile-account-value {
-    overflow: hidden;
-    max-width: 100%;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.profile-account-card .details-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+}
+
+.profile-account-card .details-list dd {
+    text-align: left;
 }
 
 .profile-password-panel {
