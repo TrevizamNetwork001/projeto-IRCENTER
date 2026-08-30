@@ -12,7 +12,7 @@ use InvalidArgumentException;
 final class SlotGenerator
 {
     /** @return array<int,array{start:string,end:string,label:string}> */
-    public function generate(EventType $eventType, string $date, string $displayTimezone, ?CarbonImmutable $now = null): array
+    public function generate(EventType $eventType, string $date, string $displayTimezone, ?CarbonImmutable $now = null, ?int $ignoreAppointmentId = null): array
     {
         $this->assertTimezone($displayTimezone);
         $localDate = CarbonImmutable::createFromFormat('!Y-m-d', $date, $displayTimezone);
@@ -28,14 +28,16 @@ final class SlotGenerator
         $windows = $override->isNotEmpty() ? $override : $eventType->rules()->where('active', true)->where('day_of_week', $localDate->dayOfWeekIso)->get();
         $rangeStart = $localDate->startOfDay()->utc(); $rangeEnd = $localDate->endOfDay()->utc();
         $appointments = Appointment::query()->where('event_type_id', $eventType->id)->whereIn('status',['scheduled','confirmed'])
+            ->when($ignoreAppointmentId, fn ($query) => $query->whereKeyNot($ignoreAppointmentId))
             ->where('scheduled_start_at','<',$rangeEnd)->where('scheduled_end_at','>',$rangeStart)->get();
         $slots=[]; $interval=max(5,(int)$eventType->slot_interval_minutes); $duration=(int)$eventType->duration_minutes;
         foreach ($windows as $window) {
             $zone = $override->isNotEmpty() ? $displayTimezone : $window->timezone;
-            $start=CarbonImmutable::parse($date.' '.substr($window->start_time,0,5),$zone); $end=CarbonImmutable::parse($date.' '.substr($window->end_time,0,5),$zone);
+            $start=$this->wallTime($date, substr($window->start_time,0,5), $zone); $end=$this->wallTime($date, substr($window->end_time,0,5), $zone);
+            if (! $start || ! $end) continue;
             for ($slot=$start; $slot->addMinutes($duration)->lte($end); $slot=$slot->addMinutes($interval)) {
                 $slotEnd=$slot->addMinutes($duration); $blockedStart=$slot->subMinutes((int)$eventType->buffer_before_minutes)->utc(); $blockedEnd=$slotEnd->addMinutes((int)$eventType->buffer_after_minutes)->utc();
-                if ($blockedStart->lt($now->addMinutes((int)$eventType->minimum_notice_minutes))) continue;
+                if ($slot->utc()->lt($now->addMinutes((int)$eventType->minimum_notice_minutes))) continue;
                 if ($this->blockedByException($exceptions,$slot,$slotEnd,$displayTimezone)) continue;
                 if ($appointments->contains(fn($a) => $a->scheduled_start_at->subMinutes((int)$eventType->buffer_before_minutes)->lt($blockedEnd) && $a->scheduled_end_at->addMinutes((int)$eventType->buffer_after_minutes)->gt($blockedStart))) continue;
                 $shown=$slot->setTimezone($displayTimezone); $shownEnd=$slotEnd->setTimezone($displayTimezone);
@@ -55,4 +57,11 @@ final class SlotGenerator
         });
     }
     public function assertTimezone(string $timezone): void { if (!in_array($timezone,DateTimeZone::listIdentifiers(),true)) throw new InvalidArgumentException('Timezone inválido.'); }
+
+    private function wallTime(string $date, string $time, string $timezone): ?CarbonImmutable
+    {
+        $value = CarbonImmutable::createFromFormat('!Y-m-d H:i', $date.' '.$time, $timezone);
+
+        return $value ?: null;
+    }
 }
