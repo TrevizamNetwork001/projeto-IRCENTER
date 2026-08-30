@@ -123,6 +123,8 @@ class IrrWorkflowController extends Controller
         IrrWorkflowStep $step,
         IrrWorkflowService $service
     ): RedirectResponse {
+        abort_unless($step->irr_workflow_id === $irrWorkflow->id, 404);
+
         $service->markSent(
             $irrWorkflow,
             $step,
@@ -141,6 +143,8 @@ class IrrWorkflowController extends Controller
         IrrWorkflowStep $step,
         IrrWorkflowService $service
     ): RedirectResponse {
+        abort_unless($step->irr_workflow_id === $irrWorkflow->id, 404);
+
         $service->confirm(
             $irrWorkflow,
             $step,

@@ -101,24 +101,6 @@ Route::middleware([
         FinanceDashboardController::class
     )->name('finance.dashboard');
 
-    Route::middleware(['fiscal.enabled', 'user.administrator'])->group(function (): void {
-        Route::get('/fiscal', FiscalDashboardController::class)->name('fiscal.dashboard');
-        Route::get('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'edit'])->name('fiscal.issuer.edit');
-        Route::put('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'update'])->name('fiscal.issuer.update');
-        Route::get('/fiscal/documents/create', [FiscalDocumentController::class, 'create'])->name('fiscal.documents.create');
-        Route::post('/fiscal/documents', [FiscalDocumentController::class, 'store'])->name('fiscal.documents.store');
-        Route::get('/fiscal/documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->whereNumber('fiscalDocument')->name('fiscal.documents.show');
-        Route::post('/fiscal/documents/{fiscalDocument}/ready', [FiscalDocumentController::class, 'ready'])->whereNumber('fiscalDocument')->name('fiscal.documents.ready');
-        Route::post('/fiscal/documents/{fiscalDocument}/draft', [FiscalDocumentController::class, 'draft'])->whereNumber('fiscalDocument')->name('fiscal.documents.draft');
-        Route::post('/fiscal/documents/{fiscalDocument}/authorize-manual', [FiscalDocumentController::class, 'authorizeManual'])->whereNumber('fiscalDocument')->name('fiscal.documents.authorize-manual');
-        Route::post('/fiscal/documents/{fiscalDocument}/cancel', [FiscalDocumentController::class, 'cancel'])->whereNumber('fiscalDocument')->name('fiscal.documents.cancel');
-        Route::post('/fiscal/documents/{fiscalDocument}/artifacts', [FiscalDocumentController::class, 'upload'])->whereNumber('fiscalDocument')->name('fiscal.documents.artifacts.store');
-        Route::get('/fiscal/documents/{fiscalDocument}/artifacts/{artifact}', [FiscalDocumentController::class, 'download'])->whereNumber(['fiscalDocument', 'artifact'])->name('fiscal.documents.artifacts.download');
-        Route::delete('/fiscal/documents/{fiscalDocument}/artifacts/{artifact}', [FiscalDocumentController::class, 'destroyArtifact'])->whereNumber(['fiscalDocument', 'artifact'])->name('fiscal.documents.artifacts.destroy');
-        Route::get('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'edit'])->whereNumber('client')->name('clients.fiscal.edit');
-        Route::put('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'update'])->whereNumber('client')->name('clients.fiscal.update');
-    });
-
     Route::get('/finance/clients', [FinanceClientController::class, 'index'])
         ->name('finance.clients.index');
     Route::get('/finance/clients/{client}', [FinanceClientController::class, 'show'])
@@ -137,8 +119,6 @@ Route::middleware([
         ->name('finance.invoices.create');
     Route::post('/finance/invoices', [InvoiceController::class, 'store'])
         ->name('finance.invoices.store');
-
-
 
     Route::post(
         '/finance/invoices/{invoice}/charges',
@@ -213,6 +193,24 @@ Route::middleware([
     )
         ->whereNumber('billingContract')
         ->name('finance.contracts.suspend');
+
+    Route::middleware(['fiscal.enabled', 'user.administrator'])->group(function (): void {
+        Route::get('/fiscal', FiscalDashboardController::class)->name('fiscal.dashboard');
+        Route::get('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'edit'])->name('fiscal.issuer.edit');
+        Route::put('/fiscal/settings/issuer', [FiscalIssuerProfileController::class, 'update'])->name('fiscal.issuer.update');
+        Route::get('/fiscal/documents/create', [FiscalDocumentController::class, 'create'])->name('fiscal.documents.create');
+        Route::post('/fiscal/documents', [FiscalDocumentController::class, 'store'])->name('fiscal.documents.store');
+        Route::get('/fiscal/documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->whereNumber('fiscalDocument')->name('fiscal.documents.show');
+        Route::post('/fiscal/documents/{fiscalDocument}/ready', [FiscalDocumentController::class, 'ready'])->whereNumber('fiscalDocument')->name('fiscal.documents.ready');
+        Route::post('/fiscal/documents/{fiscalDocument}/draft', [FiscalDocumentController::class, 'draft'])->whereNumber('fiscalDocument')->name('fiscal.documents.draft');
+        Route::post('/fiscal/documents/{fiscalDocument}/authorize-manual', [FiscalDocumentController::class, 'authorizeManual'])->whereNumber('fiscalDocument')->name('fiscal.documents.authorize-manual');
+        Route::post('/fiscal/documents/{fiscalDocument}/cancel', [FiscalDocumentController::class, 'cancel'])->whereNumber('fiscalDocument')->name('fiscal.documents.cancel');
+        Route::post('/fiscal/documents/{fiscalDocument}/artifacts', [FiscalDocumentController::class, 'upload'])->whereNumber('fiscalDocument')->name('fiscal.documents.artifacts.store');
+        Route::get('/fiscal/documents/{fiscalDocument}/artifacts/{artifact}', [FiscalDocumentController::class, 'download'])->whereNumber(['fiscalDocument', 'artifact'])->name('fiscal.documents.artifacts.download');
+        Route::delete('/fiscal/documents/{fiscalDocument}/artifacts/{artifact}', [FiscalDocumentController::class, 'destroyArtifact'])->whereNumber(['fiscalDocument', 'artifact'])->name('fiscal.documents.artifacts.destroy');
+        Route::get('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'edit'])->whereNumber('client')->name('clients.fiscal.edit');
+        Route::put('/clients/{client}/fiscal', [FiscalCustomerProfileController::class, 'update'])->whereNumber('client')->name('clients.fiscal.update');
+    });
 
     Route::get(
         '/reports',
