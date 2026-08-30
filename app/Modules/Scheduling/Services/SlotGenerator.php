@@ -17,6 +17,7 @@ final class SlotGenerator
         $this->assertTimezone($displayTimezone);
         $localDate = CarbonImmutable::createFromFormat('!Y-m-d', $date, $displayTimezone);
         if (! $localDate || $localDate->format('Y-m-d') !== $date) throw new InvalidArgumentException('Data inválida.');
+        if ($localDate->isWeekend()) return [];
         $now = ($now ?: CarbonImmutable::now('UTC'))->utc();
         $lastDate = $now->setTimezone($displayTimezone)->addDays(min($eventType->maximum_days_ahead, (int) config('scheduling.max_booking_horizon')))->endOfDay();
         if ($localDate->endOfDay()->isBefore($now->setTimezone($displayTimezone)) || $localDate->startOfDay()->isAfter($lastDate)) return [];

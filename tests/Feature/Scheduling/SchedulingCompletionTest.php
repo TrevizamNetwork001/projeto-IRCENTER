@@ -53,6 +53,17 @@ class SchedulingCompletionTest extends TestCase
         $this->assertSame([], app(SlotGenerator::class)->generate($type, '2026-09-09', 'America/Sao_Paulo'));
     }
 
+    public function test_weekends_are_never_available_even_with_override(): void
+    {
+        $type = $this->type([], false);
+        AvailabilityException::create(['event_type_id' => $type->id, 'date' => '2026-09-12', 'start_time' => '09:00', 'end_time' => '12:00', 'type' => 'available_override']);
+
+        $this->assertSame([], app(SlotGenerator::class)->generate($type, '2026-09-12', 'America/Sao_Paulo'));
+        $this->getJson(route('scheduling.public.calendar', [$type, 'month' => '2026-09', 'timezone' => 'America/Sao_Paulo']))
+            ->assertOk()
+            ->assertJsonPath('days.2026-09-12', 'unavailable');
+    }
+
     public function test_exceptions_block_full_and_partial_days_and_override_rules(): void
     {
         $type = $this->type();
@@ -66,21 +77,18 @@ class SchedulingCompletionTest extends TestCase
         $this->assertSame(['14:00'], array_column(app(SlotGenerator::class)->generate($type, '2026-09-08', 'America/Sao_Paulo'), 'label'));
     }
 
-    public function test_dst_nonexistent_wall_time_is_not_generated_and_utc_conversion_changes_day(): void
+    public function test_weekend_dst_dates_are_closed_and_utc_conversion_changes_day(): void
     {
         $type = $this->type([], false);
         AvailabilityRule::create(['event_type_id' => $type->id, 'day_of_week' => 7, 'start_time' => '02:00', 'end_time' => '04:00', 'timezone' => 'America/New_York', 'active' => true]);
         CarbonImmutable::setTestNow('2027-03-01 00:00:00 UTC');
         $labels = array_column(app(SlotGenerator::class)->generate($type, '2027-03-14', 'America/New_York'), 'label');
-        $this->assertNotContains('02:00', $labels);
-        $this->assertContains('03:00', $labels);
+        $this->assertSame([], $labels);
 
         $fall = $this->type(['slug' => 'fall-back', 'duration_minutes' => 30, 'slot_interval_minutes' => 30], false);
         AvailabilityRule::create(['event_type_id' => $fall->id, 'day_of_week' => 7, 'start_time' => '01:00', 'end_time' => '03:00', 'timezone' => 'America/New_York', 'active' => true]);
         CarbonImmutable::setTestNow('2027-11-01 00:00:00 UTC');
-        $fallSlots = app(SlotGenerator::class)->generate($fall, '2027-11-07', 'America/New_York');
-        $this->assertSame(count($fallSlots), count(array_unique(array_column($fallSlots, 'start'))));
-        $this->assertContains('01:00', array_column($fallSlots, 'label'));
+        $this->assertSame([], app(SlotGenerator::class)->generate($fall, '2027-11-07', 'America/New_York'));
 
         $type2 = $this->type(['slug' => 'utc-day', 'duration_minutes' => 15], false);
         AvailabilityRule::create(['event_type_id' => $type2->id, 'day_of_week' => 1, 'start_time' => '23:30', 'end_time' => '23:59', 'timezone' => 'America/Sao_Paulo', 'active' => true]);

@@ -72,12 +72,19 @@ final class PublicSchedulingController extends Controller
         ]);
         if (time() - (int) $data['form_started_at'] < 2) return back()->withErrors(['guest_name' => 'Envio rápido demais. Tente novamente.'])->withInput();
         $result = $create->execute($eventType, $data);
-        return redirect()->route('scheduling.public.confirmation', $result['appointment']);
+        return redirect()->route('scheduling.public.confirmation', $result['appointment'])
+            ->with('booking_tokens', ['cancel' => $result['cancel'], 'reschedule' => $result['reschedule']]);
     }
 
     public function confirmation(Appointment $appointment): View
     {
-        $this->enabled(); return view('scheduling.public.confirmation', ['appointment' => $appointment->load('eventType')]);
+        $this->enabled();
+        $tokens = session('booking_tokens');
+        return view('scheduling.public.confirmation', [
+            'appointment' => $appointment->load('eventType'),
+            'cancelUrl' => isset($tokens['cancel']) ? route('scheduling.public.cancel.show', [$appointment, 'token' => $tokens['cancel']]) : null,
+            'rescheduleUrl' => isset($tokens['reschedule']) ? route('scheduling.public.reschedule.show', [$appointment, 'token' => $tokens['reschedule']]) : null,
+        ]);
     }
 
     public function cancelShow(Appointment $appointment, Request $request): View
@@ -113,7 +120,9 @@ final class PublicSchedulingController extends Controller
     {
         $this->enabled(); $data = $request->validate(['token' => ['required', 'string', 'size:64'], 'start' => ['required', 'date'], 'timezone' => ['required', 'timezone']]);
         $result = $action->execute($appointment, $data['token'], $data['start'], $data['timezone']);
-        return redirect()->route('scheduling.public.confirmation', $result['appointment'])->with('status', 'Agendamento reagendado.');
+        return redirect()->route('scheduling.public.confirmation', $result['appointment'])
+            ->with('status', 'Agendamento reagendado.')
+            ->with('booking_tokens', ['cancel' => $result['cancel'], 'reschedule' => $result['reschedule']]);
     }
 
     public function ics(Appointment $appointment, IcsGenerator $ics): Response
