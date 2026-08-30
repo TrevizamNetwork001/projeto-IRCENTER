@@ -5,9 +5,9 @@
  <aside class="booking-service">
   <h1>{{ $eventType->name }}</h1>
   <p class="booking-service-lead">{{ $eventType->description ?: 'Reunião com nossa equipe' }}</p>
-  <p class="booking-service-duration">{{ $eventType->duration_minutes }} minutos</p>
+  <p class="booking-service-duration"><x-icon name="clock" size="16"/> {{ $eventType->duration_minutes }} minutos</p>
   <dl>
-   <div><dt>Local</dt><dd>{{ $eventType->location_value ?: 'Online' }}</dd></div>
+   <div><dt>Local</dt><dd><x-icon name="monitor" size="16"/> {{ $eventType->location_value ?: 'Online' }}</dd></div>
    <div id="context-selection" class="booking-service-context" hidden><dt>Data e horário</dt><dd id="context-date"></dd><dd id="context-time"></dd></div>
   </dl>
   <p class="booking-service-trust"><x-icon name="shield" size="16"/> Seus dados estão seguros<br><span>Este agendamento é protegido e confidencial.</span></p>

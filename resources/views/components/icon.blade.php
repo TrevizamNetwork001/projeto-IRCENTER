@@ -116,6 +116,12 @@
             <path d="m3 7 9 6 9-6"/>
             @break
 
+        @case('monitor')
+            <rect x="3" y="4" width="18" height="12" rx="2"/>
+            <path d="M8 20h8"/>
+            <path d="M12 16v4"/>
+            @break
+
         @case('eye')
             <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12"/>
             <circle cx="12" cy="12" r="3"/>
@@ -222,6 +228,11 @@
 
         @case('moon')
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79"/>
+            @break
+
+        @case('clock')
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3.5 2"/>
             @break
 
         @case('globe')

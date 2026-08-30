@@ -7,7 +7,7 @@
 @endphp
 <article class="confirmation-card">
  <span class="confirmation-icon {{ $cancelled ? 'is-cancelled' : '' }}" aria-hidden="true"><x-icon :name="$cancelled ? 'close' : 'check'" size="26"/></span>
- <h1>{{ $cancelled ? 'Agendamento cancelado' : 'Agendamento confirmado' }}</h1>
+ <h1>{{ $cancelled ? 'Agendamento cancelado' : 'Agendamento confirmado!' }}</h1>
  <p>{{ $cancelled ? 'Este agendamento foi cancelado.' : 'Sua reunião foi agendada com sucesso.' }}</p>
 
  @unless($cancelled)
@@ -21,7 +21,7 @@
    <div><span class="confirmation-summary-label">Data e horário</span><strong>{{ $local->translatedFormat('d \d\e F \d\e Y') }} · {{ $local->format('H:i') }} – {{ $local->copy()->addMinutes($appointment->eventType->duration_minutes)->format('H:i') }}</strong></div>
   </div>
   <div class="confirmation-summary-row">
-   <span class="confirmation-summary-icon" aria-hidden="true"><x-icon name="workflow" size="18"/></span>
+   <span class="confirmation-summary-icon" aria-hidden="true"><x-icon name="monitor" size="18"/></span>
    <div><span class="confirmation-summary-label">Local</span><strong>{{ $appointment->eventType->location_value ?: 'Online' }}</strong></div>
   </div>
   <div class="confirmation-summary-row">
@@ -46,7 +46,7 @@
   @if($cancelUrl)<a class="button" href="{{ $cancelUrl }}">Cancelar</a>@endif
  </div>
  <p class="confirmation-secondary-action">
-  <a href="{{ route('scheduling.public.show',$appointment->eventType) }}">Agendar uma nova reunião →</a>
+  <a href="{{ route('scheduling.public.show',$appointment->eventType) }}">Voltar para o início</a>
  </p>
  @endunless
 </article>

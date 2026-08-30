@@ -28,14 +28,14 @@
     <div class="scheduling-public-topology" aria-hidden="true"></div>
     <header class="scheduling-public-brand" aria-label="IRCENTER">
         <div class="scheduling-public-brand-identity">
-            <span class="scheduling-public-mark">IR</span>
+            <img class="scheduling-public-mark" src="{{ asset('assets/logo-trevizam-icon.png') }}" alt="Trevizam Networks">
             <div>
                 <strong>IRCENTER</strong>
                 <small>Internet Resource Center</small>
             </div>
         </div>
         <div class="scheduling-public-header-actions">
-            <span class="scheduling-public-locale" aria-label="Idioma: Português do Brasil">PT-BR</span>
+            <span class="scheduling-public-locale" aria-label="Idioma: Português do Brasil"><x-icon name="globe" size="14"/> PT-BR</span>
             <button
                 id="theme-toggle"
                 class="topbar-icon-button theme-toggle scheduling-public-theme-toggle"

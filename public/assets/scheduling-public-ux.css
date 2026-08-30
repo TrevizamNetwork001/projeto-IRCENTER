@@ -56,14 +56,16 @@
 }
 
 .scheduling-public-mark {
-    display: grid;
-    place-items: center;
-    width: 2.4rem;
+    display: block;
+    width: auto;
     height: 2.4rem;
-    border-radius: 0.65rem;
-    background: var(--cyan);
-    color: #061018;
-    font-weight: 800;
+    object-fit: contain;
+}
+
+html[data-theme="light"] .scheduling-public-mark {
+    padding: 5px;
+    border-radius: 9px;
+    background: #0b1220;
 }
 
 .scheduling-public-brand-identity strong {
@@ -142,8 +144,15 @@
 }
 
 .booking-service-duration {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin: 1rem 0 0;
     font-weight: 700;
+}
+
+.booking-service-duration svg {
+    color: var(--text-muted);
 }
 
 .eyebrow {
@@ -178,8 +187,16 @@ html[data-theme="light"] .eyebrow {
 }
 
 .booking-service dd {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin: 0;
     font-weight: 700;
+}
+
+.booking-service dd svg {
+    flex-shrink: 0;
+    color: var(--text-muted);
 }
 
 .booking-service-context {
@@ -348,7 +365,11 @@ html[data-theme="light"] .eyebrow {
 .calendar-weekdays,
 .public-calendar {
     display: grid;
-    grid-template-columns: repeat(7, minmax(2.4rem, 1fr));
+    /* tamanho fixo (nao 1fr) para as celulas nao esticarem alem do
+       necessario em telas largas - foi o que deixava o calendario
+       gigante e empurrava o resto do conteudo para fora da tela. */
+    grid-template-columns: repeat(7, 2.5rem);
+    justify-content: space-between;
     gap: 0.35rem;
 }
 
@@ -438,8 +459,8 @@ html[data-theme="light"] .eyebrow {
 }
 
 .calendar-status-legend .legend-available::before {
-    border-color: var(--cyan);
-    background: var(--cyan-soft);
+    border-color: var(--green);
+    background: var(--green);
 }
 
 .calendar-status-legend .legend-unavailable::before {
