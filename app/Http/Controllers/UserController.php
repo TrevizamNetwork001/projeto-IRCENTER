@@ -147,7 +147,15 @@ class UserController extends Controller
 
         $oldValues = $user->getOriginal();
 
-        $user->update($request->validated());
+        $data = $request->validated();
+
+        if ($data['password'] === null) {
+            unset($data['password']);
+        } else {
+            $data['password_changed_at'] = now();
+        }
+
+        $user->update($data);
 
         $audit->record(
             'updated',

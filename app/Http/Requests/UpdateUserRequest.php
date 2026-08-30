@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -35,6 +36,12 @@ class UpdateUserRequest extends FormRequest
                 'nullable',
                 Rule::exists(Client::class, 'id'),
             ],
+            'password' => [
+                'nullable',
+                Password::min(10)
+                    ->letters()
+                    ->numbers(),
+            ],
             'avatar_key' => [
                 'nullable',
                 'string',
@@ -49,10 +56,12 @@ class UpdateUserRequest extends FormRequest
     {
         $avatarKey = trim((string) $this->input('avatar_key'));
         $clientId = trim((string) $this->input('client_id'));
+        $password = (string) $this->input('password');
 
         $this->merge([
             'avatar_key' => $avatarKey === '' ? null : $avatarKey,
             'client_id' => $clientId === '' ? null : $clientId,
+            'password' => $password === '' ? null : $password,
             'email' => strtolower(
                 trim((string) $this->input('email'))
             ),

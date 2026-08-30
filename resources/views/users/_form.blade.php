@@ -41,6 +41,29 @@
         @enderror
     </div>
 
+    @if ($managedUser->exists)
+        <div class="field-group">
+            <label for="password">Nova senha (opcional)</label>
+
+            <input
+                id="password"
+                class="form-control"
+                name="password"
+                type="password"
+                minlength="10"
+                autocomplete="new-password"
+            >
+
+            <small class="field-hint">
+                Deixe em branco para manter a senha atual.
+            </small>
+
+            @error('password')
+                <div class="field-error">{{ $message }}</div>
+            @enderror
+        </div>
+    @endif
+
     <div class="field-group field-span-2">
         <label>Avatar</label>
 

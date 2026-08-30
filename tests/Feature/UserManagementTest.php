@@ -243,6 +243,62 @@ class UserManagementTest extends TestCase
         $this->assertTrue($admin->fresh()->active);
     }
 
+    public function test_administrator_can_change_password_from_edit_form(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('users.update', $user), [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => User::ROLE_VIEWER,
+                'password' => 'NovaSenha123',
+                'active' => '1',
+                'must_change_password' => '0',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue(
+            Hash::check('NovaSenha123', $user->fresh()->password)
+        );
+    }
+
+    public function test_leaving_password_blank_keeps_current_password(): void
+    {
+        $admin = User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'role' => User::ROLE_VIEWER,
+            'active' => true,
+        ]);
+
+        $originalPassword = $user->password;
+
+        $this->actingAs($admin)
+            ->put(route('users.update', $user), [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => User::ROLE_VIEWER,
+                'password' => '',
+                'active' => '1',
+                'must_change_password' => '0',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame($originalPassword, $user->fresh()->password);
+    }
+
     public function test_administrator_can_reset_password(): void
     {
         $admin = User::factory()->create([
