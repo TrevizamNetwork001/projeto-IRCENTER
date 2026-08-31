@@ -135,7 +135,6 @@
    </div>
   </div>
  </div>
- <footer class="booking-shell-footer"><x-icon name="lock" size="13"/> Ambiente seguro <span>•</span> IRCENTER</footer>
 </section>
 @endsection
 @include('scheduling.public.calendar-script',['calendarUrl'=>route('scheduling.public.calendar',$eventType),'availabilityUrl'=>route('scheduling.public.availability',$eventType),'token'=>null,'formMode'=>true,'durationMinutes'=>$eventType->duration_minutes])
