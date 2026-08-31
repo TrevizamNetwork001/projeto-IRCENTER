@@ -558,7 +558,13 @@ html[data-theme="light"] .eyebrow {
 }
 
 .slot-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
     min-height: 3rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.6rem;
     background: var(--surface-raised);
@@ -567,8 +573,11 @@ html[data-theme="light"] .eyebrow {
     cursor: pointer;
 }
 
+.slot-time {
+    white-space: nowrap;
+}
+
 .slot-check {
-    margin-left: 0.4rem;
     visibility: hidden;
 }
 
@@ -717,17 +726,65 @@ html[data-theme="light"] .eyebrow {
 
 /* Confirmation */
 
-.confirmation-card {
+.confirmation-shell {
     position: relative;
     z-index: 1;
-    max-width: 42rem;
+    display: grid;
+    grid-template-columns: minmax(240px, 0.85fr) minmax(300px, 1fr);
+    gap: 3rem;
+    align-items: center;
+    max-width: 68rem;
     margin: 3rem auto;
+}
+
+.confirmation-intro h1 {
+    margin: 0 0 0.75rem;
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.confirmation-intro > p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.confirmation-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.confirmation-badges li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.confirmation-badges svg {
+    color: var(--cyan);
+}
+
+.confirmation-card {
     padding: 2.5rem;
     border: 1px solid var(--border);
     border-radius: 1.1rem;
     background: var(--surface);
     text-align: center;
     box-shadow: 0 18px 55px rgba(10, 20, 30, 0.08);
+}
+
+.confirmation-card-standalone {
+    position: relative;
+    z-index: 1;
+    max-width: 42rem;
+    margin: 3rem auto;
 }
 
 .confirmation-icon {
@@ -746,62 +803,67 @@ html[data-theme="light"] .eyebrow {
     background: var(--danger);
 }
 
+.confirmation-card h2 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
 .confirmation-card > p {
     color: var(--text-muted);
-}
-
-.confirmation-summary {
-    display: grid;
-    margin: 1.75rem 0;
-    border: 1px solid var(--border);
-    border-radius: 0.9rem;
-    background: var(--surface-soft);
-    text-align: left;
-    overflow: hidden;
-}
-
-.confirmation-summary-row {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 1rem 1.25rem;
-}
-
-.confirmation-summary-row:not(:last-child) {
-    border-bottom: 1px solid var(--border-soft);
-}
-
-.confirmation-summary-row div {
-    display: grid;
-    gap: 0.15rem;
-}
-
-.confirmation-summary-icon {
-    display: grid;
-    place-items: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    flex-shrink: 0;
-    border-radius: 0.6rem;
-    background: var(--cyan-soft);
-    color: var(--cyan);
-}
-
-.confirmation-summary-label {
-    color: var(--text-muted);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-}
-
-.confirmation-summary-row strong {
-    font-weight: 700;
 }
 
 .confirmation-participant {
     display: grid;
     justify-content: center;
     margin: 0.5rem 0 0;
+}
+
+.confirmation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 1.75rem 0;
+    text-align: left;
+}
+
+.confirmation-grid > div {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.8rem;
+    background: var(--surface-soft);
+}
+
+.confirmation-grid-icon {
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    margin-bottom: 0.6rem;
+    border-radius: 0.5rem;
+    background: var(--cyan-soft);
+    color: var(--cyan);
+}
+
+.confirmation-grid-label {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.confirmation-grid strong {
+    display: block;
+    font-weight: 700;
+}
+
+.confirmation-grid-sub {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 400;
 }
 
 .confirmation-actions {
@@ -812,24 +874,36 @@ html[data-theme="light"] .eyebrow {
     margin-top: 1.75rem;
 }
 
-.confirmation-secondary-action {
-    margin-top: 1.25rem;
+.confirmation-secondary-links {
+    margin: 1.1rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
 }
 
-.confirmation-secondary-action a {
+.confirmation-secondary-links a {
     color: var(--cyan);
     font-weight: 700;
     text-decoration: none;
 }
 
-html[data-theme="light"] .confirmation-secondary-action a {
+html[data-theme="light"] .confirmation-secondary-links a {
     /* mesmo ajuste do .eyebrow: --cyan sozinho fica em 4.24:1 sobre --surface
        (branco) neste peso/tamanho, abaixo do mínimo AA de 4.5:1. */
     color: #056a82;
 }
 
-.confirmation-secondary-action a:hover {
+.confirmation-secondary-links a:hover {
     text-decoration: underline;
+}
+
+.confirmation-secondary-links span {
+    margin: 0 0.5rem;
+}
+
+.confirmation-participant-note {
+    margin: 1.25rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
 }
 
 .confirmation-footer {
@@ -881,8 +955,19 @@ html[data-theme="light"] .confirmation-secondary-action a {
         grid-column: 1 / -1;
     }
 
-    .confirmation-summary {
-        grid-template-columns: 1fr 1fr;
+    .confirmation-shell {
+        grid-template-columns: 1fr;
+        max-width: 42rem;
+        gap: 2rem;
+        text-align: center;
+    }
+
+    .confirmation-intro {
+        text-align: center;
+    }
+
+    .confirmation-badges {
+        justify-content: center;
     }
 }
 
@@ -929,12 +1014,19 @@ html[data-theme="light"] .confirmation-secondary-action a {
         display: none;
     }
 
-    .confirmation-summary {
+    .confirmation-grid {
         grid-template-columns: 1fr;
     }
 
     .confirmation-card {
-        margin: 1.5rem auto;
         padding: 1.75rem 1.25rem;
+    }
+
+    .confirmation-card-standalone {
+        margin: 1.5rem auto;
+    }
+
+    .confirmation-intro h1 {
+        font-size: 1.6rem;
     }
 }
