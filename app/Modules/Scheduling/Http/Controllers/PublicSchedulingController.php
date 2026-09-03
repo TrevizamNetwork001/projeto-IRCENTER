@@ -72,16 +72,19 @@ final class PublicSchedulingController extends Controller
         ]);
         if (time() - (int) $data['form_started_at'] < 2) return back()->withErrors(['guest_name' => 'Envio rápido demais. Tente novamente.'])->withInput();
         $result = $create->execute($eventType, $data);
-        return redirect()->route('scheduling.public.confirmation', $result['appointment'])
+        return redirect()->route('scheduling.public.confirmation', ['appointment' => $result['appointment'], 'token' => $result['cancel']])
             ->with('booking_tokens', ['cancel' => $result['cancel'], 'reschedule' => $result['reschedule']]);
     }
 
-    public function confirmation(Appointment $appointment): View
+    public function confirmation(Appointment $appointment, Request $request): View
     {
         $this->enabled();
+        $token = (string) $request->query('token');
+        abort_unless($this->ownsAppointment($appointment, $token), 404);
         $tokens = session('booking_tokens');
         return view('scheduling.public.confirmation', [
             'appointment' => $appointment->load('eventType'),
+            'token' => $token,
             'cancelUrl' => isset($tokens['cancel']) ? route('scheduling.public.cancel.show', [$appointment, 'token' => $tokens['cancel']]) : null,
             'rescheduleUrl' => isset($tokens['reschedule']) ? route('scheduling.public.reschedule.show', [$appointment, 'token' => $tokens['reschedule']]) : null,
         ]);
@@ -97,7 +100,7 @@ final class PublicSchedulingController extends Controller
     {
         $this->enabled(); $data = $request->validate(['token' => ['required', 'string', 'size:64']]);
         $cancel->execute($appointment, $data['token']);
-        return redirect()->route('scheduling.public.confirmation', $appointment)->with('status', 'Agendamento cancelado.');
+        return redirect()->route('scheduling.public.confirmation', ['appointment' => $appointment, 'token' => $data['token']])->with('status', 'Agendamento cancelado.');
     }
 
     public function rescheduleShow(Appointment $appointment, Request $request): View
@@ -120,18 +123,34 @@ final class PublicSchedulingController extends Controller
     {
         $this->enabled(); $data = $request->validate(['token' => ['required', 'string', 'size:64'], 'start' => ['required', 'date'], 'timezone' => ['required', 'timezone']]);
         $result = $action->execute($appointment, $data['token'], $data['start'], $data['timezone']);
-        return redirect()->route('scheduling.public.confirmation', $result['appointment'])
+        return redirect()->route('scheduling.public.confirmation', ['appointment' => $result['appointment'], 'token' => $result['cancel']])
             ->with('status', 'Agendamento reagendado.')
             ->with('booking_tokens', ['cancel' => $result['cancel'], 'reschedule' => $result['reschedule']]);
     }
 
-    public function ics(Appointment $appointment, IcsGenerator $ics): Response
+    public function ics(Appointment $appointment, Request $request, IcsGenerator $ics): Response
     {
-        $this->enabled(); return response($ics->generate($appointment), 200, ['Content-Type' => 'text/calendar; charset=utf-8', 'Content-Disposition' => 'attachment; filename="agendamento.ics"']);
+        $this->enabled();
+        abort_unless($this->ownsAppointment($appointment, (string) $request->query('token')), 404);
+        return response($ics->generate($appointment), 200, ['Content-Type' => 'text/calendar; charset=utf-8', 'Content-Disposition' => 'attachment; filename="agendamento.ics"']);
     }
 
     private function validToken(Appointment $appointment, string $token, string $hashField): void
     {
         if (strlen($token) !== 64 || ! hash_equals($appointment->{$hashField}, hash('sha256', $token))) throw ValidationException::withMessages(['token' => 'Link inválido ou expirado.']);
+    }
+
+    /**
+     * Confirmação e .ics não têm uma ação sensível própria (cancelar/reagendar já
+     * exigem o hash correspondente): aceitar qualquer um dos dois tokens emitidos
+     * no momento da criação é suficiente para provar posse do agendamento e evita
+     * uma migration só para uma terceira coluna de hash dedicada a "visualização".
+     */
+    private function ownsAppointment(Appointment $appointment, string $token): bool
+    {
+        if (strlen($token) !== 64) return false;
+        $hashed = hash('sha256', $token);
+        return hash_equals($appointment->cancellation_token_hash, $hashed)
+            || hash_equals($appointment->reschedule_token_hash, $hashed);
     }
 }

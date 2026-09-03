@@ -59,7 +59,7 @@
   </div>
 
   <div class="confirmation-actions">
-   <a class="button button-primary" href="{{ route('scheduling.public.ics',$appointment) }}"><x-icon name="calendar" size="16"/> Adicionar ao calendário (.ics)</a>
+   <a class="button button-primary" href="{{ route('scheduling.public.ics',['appointment'=>$appointment,'token'=>$token]) }}"><x-icon name="calendar" size="16"/> Adicionar ao calendário (.ics)</a>
    <a class="button" href="{{ route('scheduling.public.show',$appointment->eventType) }}">Agendar uma nova reunião →</a>
   </div>
 
