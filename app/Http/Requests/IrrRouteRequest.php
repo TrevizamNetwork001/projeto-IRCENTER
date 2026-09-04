@@ -25,6 +25,16 @@ abstract class IrrRouteRequest extends FormRequest
                 'version' => $normalized['version'],
             ]);
         }
+
+        // É natural digitar "AS64500" no campo de ASN — aceita e
+        // normaliza antes da regra "integer" validar.
+        if ($this->filled('origin_asn')) {
+            $digits = preg_replace('/^AS/i', '', trim((string) $this->input('origin_asn')));
+
+            if ($digits !== null && $digits !== '' && ctype_digit($digits)) {
+                $this->merge(['origin_asn' => (int) $digits]);
+            }
+        }
     }
 
     /**
