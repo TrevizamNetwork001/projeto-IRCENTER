@@ -23,6 +23,8 @@ class IrrMaintainer extends Model
 {
     use BelongsToClient;
 
+    protected $hidden = ['password'];
+
     protected $attributes = [
         'source' => 'TC',
     ];
