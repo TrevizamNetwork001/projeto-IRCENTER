@@ -11,6 +11,7 @@ use App\Services\Irr\RpslBuilder;
 use App\Services\Irr\TcIrrClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class IrrAsSetController extends Controller
 {
@@ -43,11 +44,17 @@ class IrrAsSetController extends Controller
             ->with('success', 'AS-set cadastrado. Publique-o para enviar ao TC.');
     }
 
-    public function show(IrrAsSet $irrAsSet): View
+    public function show(IrrAsSet $irrAsSet, RpslBuilder $builder): View
     {
         $irrAsSet->load(['maintainer', 'submissions' => fn ($query) => $query->latest('id')]);
 
-        return view('irr-as-sets.show', ['asSet' => $irrAsSet]);
+        [$rpslPreview, $rpslError] = $this->preview($irrAsSet, $builder);
+
+        return view('irr-as-sets.show', [
+            'asSet' => $irrAsSet,
+            'rpslPreview' => $rpslPreview,
+            'rpslError' => $rpslError,
+        ]);
     }
 
     public function edit(IrrAsSet $irrAsSet): View
@@ -86,11 +93,17 @@ class IrrAsSetController extends Controller
 
         $irrAsSet->loadMissing('maintainer');
 
+        [$rpsl, $error] = $this->preview($irrAsSet, $builder);
+
+        if ($error !== null) {
+            return back()->with('error', 'Não foi possível gerar o RPSL: '.$error);
+        }
+
         $operation = $irrAsSet->last_published_at === null
             ? IrrSubmission::OPERATION_CREATE
             : IrrSubmission::OPERATION_MODIFY;
 
-        $client->publish($irrAsSet->maintainer, $irrAsSet, $builder->asSet($irrAsSet), $operation);
+        $client->publish($irrAsSet->maintainer, $irrAsSet, $rpsl, $operation);
 
         return $this->publicationRedirect($irrAsSet->fresh());
     }
@@ -101,9 +114,28 @@ class IrrAsSetController extends Controller
 
         $irrAsSet->loadMissing('maintainer');
 
-        $client->delete($irrAsSet->maintainer, $irrAsSet, $builder->asSet($irrAsSet), 'Removido pelo IRCENTER');
+        [$rpsl, $error] = $this->preview($irrAsSet, $builder);
+
+        if ($error !== null) {
+            return back()->with('error', 'Não foi possível gerar o RPSL: '.$error);
+        }
+
+        $client->delete($irrAsSet->maintainer, $irrAsSet, $rpsl, 'Removido pelo IRCENTER');
 
         return back()->with('success', 'Solicitação de remoção enviada ao TC — acompanhe o resultado no histórico de submissões.');
+    }
+
+    /**
+     * @return array{0: string|null, 1: string|null} RPSL gerado, ou erro se
+     *     RpslBuilder recusar o objeto (campo obrigatório ausente, injeção).
+     */
+    private function preview(IrrAsSet $irrAsSet, RpslBuilder $builder): array
+    {
+        try {
+            return [$builder->asSet($irrAsSet), null];
+        } catch (InvalidArgumentException $exception) {
+            return [null, $exception->getMessage()];
+        }
     }
 
     private function publicationRedirect(IrrAsSet $irrAsSet): RedirectResponse

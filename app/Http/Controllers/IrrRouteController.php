@@ -12,6 +12,7 @@ use App\Services\Irr\RpslBuilder;
 use App\Services\Irr\TcIrrClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class IrrRouteController extends Controller
 {
@@ -46,11 +47,17 @@ class IrrRouteController extends Controller
         return $this->withConflictWarning($redirect, $route->prefix);
     }
 
-    public function show(IrrRoute $irrRoute): View
+    public function show(IrrRoute $irrRoute, RpslBuilder $builder): View
     {
         $irrRoute->load(['maintainer', 'submissions' => fn ($query) => $query->latest('id')]);
 
-        return view('irr-routes.show', ['route' => $irrRoute]);
+        [$rpslPreview, $rpslError] = $this->preview($irrRoute, $builder);
+
+        return view('irr-routes.show', [
+            'route' => $irrRoute,
+            'rpslPreview' => $rpslPreview,
+            'rpslError' => $rpslError,
+        ]);
     }
 
     public function edit(IrrRoute $irrRoute): View
@@ -91,11 +98,17 @@ class IrrRouteController extends Controller
 
         $irrRoute->loadMissing('maintainer');
 
+        [$rpsl, $error] = $this->preview($irrRoute, $builder);
+
+        if ($error !== null) {
+            return back()->with('error', 'Não foi possível gerar o RPSL: '.$error);
+        }
+
         $operation = $irrRoute->last_published_at === null
             ? IrrSubmission::OPERATION_CREATE
             : IrrSubmission::OPERATION_MODIFY;
 
-        $client->publish($irrRoute->maintainer, $irrRoute, $builder->route($irrRoute), $operation);
+        $client->publish($irrRoute->maintainer, $irrRoute, $rpsl, $operation);
 
         return $this->publicationRedirect($irrRoute->fresh());
     }
@@ -106,9 +119,28 @@ class IrrRouteController extends Controller
 
         $irrRoute->loadMissing('maintainer');
 
-        $client->delete($irrRoute->maintainer, $irrRoute, $builder->route($irrRoute), 'Removido pelo IRCENTER');
+        [$rpsl, $error] = $this->preview($irrRoute, $builder);
+
+        if ($error !== null) {
+            return back()->with('error', 'Não foi possível gerar o RPSL: '.$error);
+        }
+
+        $client->delete($irrRoute->maintainer, $irrRoute, $rpsl, 'Removido pelo IRCENTER');
 
         return back()->with('success', 'Solicitação de remoção enviada ao TC — acompanhe o resultado no histórico de submissões.');
+    }
+
+    /**
+     * @return array{0: string|null, 1: string|null} RPSL gerado, ou erro se
+     *     RpslBuilder recusar o objeto (campo obrigatório ausente, injeção).
+     */
+    private function preview(IrrRoute $irrRoute, RpslBuilder $builder): array
+    {
+        try {
+            return [$builder->route($irrRoute), null];
+        } catch (InvalidArgumentException $exception) {
+            return [null, $exception->getMessage()];
+        }
     }
 
     /**

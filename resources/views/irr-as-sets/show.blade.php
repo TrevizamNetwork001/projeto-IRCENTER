@@ -14,12 +14,15 @@
             <div class="page-actions">
                 <a class="button button-secondary" href="{{ route('irr-as-sets.edit', $asSet) }}">Editar</a>
 
-                <form method="POST" action="{{ route('irr-as-sets.publish', $asSet) }}">
-                    @csrf
-                    <button class="button button-primary" type="submit">
-                        Publicar no TC
-                    </button>
-                </form>
+                <button
+                    class="button button-primary"
+                    type="button"
+                    data-rpsl-dialog-open
+                    @disabled($rpslError !== null)
+                    @if ($rpslError !== null) title="Corrija o RPSL abaixo antes de publicar" @endif
+                >
+                    Publicar no TC
+                </button>
             </div>
         @endif
     </section>
@@ -80,6 +83,18 @@
     </section>
 
     <section class="panel">
+        <h2>RPSL gerado</h2>
+
+        @if ($rpslError !== null)
+            <div class="alert-error">
+                Não foi possível gerar o RPSL: {{ $rpslError }}
+            </div>
+        @else
+            <pre class="irr-raw-object">{{ $rpslPreview }}</pre>
+        @endif
+    </section>
+
+    <section class="panel">
         <h2>Histórico de submissões</h2>
 
         @if ($asSet->submissions->isEmpty())
@@ -130,5 +145,58 @@
                 </button>
             </form>
         </section>
+    @endif
+
+    @if (auth()->user()->isAdministrator() && $rpslError === null)
+        <dialog id="rpsl-publish-dialog" class="rpsl-dialog">
+            <div class="rpsl-dialog-inner">
+                <div class="avatar-dialog-header">
+                    <h2>Confirmar publicação no TC</h2>
+
+                    <button class="avatar-dialog-close" type="button" data-rpsl-dialog-close aria-label="Fechar">
+                        <x-icon name="close" size="16"/>
+                    </button>
+                </div>
+
+                <pre class="irr-raw-object">{{ $rpslPreview }}</pre>
+
+                <p>
+                    Este texto substituirá integralmente o objeto no TC.
+                    Atributos existentes que não aparecem aqui serão
+                    removidos. Confirmar?
+                </p>
+
+                <div class="rpsl-dialog-actions">
+                    <button class="button button-secondary" type="button" data-rpsl-dialog-close>
+                        Cancelar
+                    </button>
+
+                    <form method="POST" action="{{ route('irr-as-sets.publish', $asSet) }}">
+                        @csrf
+                        <button class="button button-primary" type="submit">
+                            Confirmar publicação
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </dialog>
+
+        <script nonce="{{ request()->attributes->get('csp_nonce') }}">
+            (() => {
+                const dialog = document.getElementById('rpsl-publish-dialog');
+
+                if (! dialog) {
+                    return;
+                }
+
+                document.querySelectorAll('[data-rpsl-dialog-open]').forEach((button) => {
+                    button.addEventListener('click', () => dialog.showModal());
+                });
+
+                document.querySelectorAll('[data-rpsl-dialog-close]').forEach((button) => {
+                    button.addEventListener('click', () => dialog.close());
+                });
+            })();
+        </script>
     @endif
 @endsection
