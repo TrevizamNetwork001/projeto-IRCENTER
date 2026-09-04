@@ -184,6 +184,36 @@
                 </a>
 
                 <a
+                    href="{{ route('irr-maintainers.index') }}"
+                    class="sidebar-link {{ request()->routeIs('irr-maintainers.*') ? 'is-active' : '' }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="shield"/>
+                    </span>
+                    <span>Maintainers IRR</span>
+                </a>
+
+                <a
+                    href="{{ route('irr-routes.index') }}"
+                    class="sidebar-link {{ request()->routeIs('irr-routes.*') ? 'is-active' : '' }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="database"/>
+                    </span>
+                    <span>Objetos route</span>
+                </a>
+
+                <a
+                    href="{{ route('irr-as-sets.index') }}"
+                    class="sidebar-link {{ request()->routeIs('irr-as-sets.*') ? 'is-active' : '' }}"
+                >
+                    <span class="sidebar-link-icon">
+                        <x-icon name="asn"/>
+                    </span>
+                    <span>AS-sets</span>
+                </a>
+
+                <a
                     href="{{ route('rpki.index') }}"
                     class="sidebar-link {{ request()->routeIs('rpki.*') ? 'is-active' : '' }}"
                 >
