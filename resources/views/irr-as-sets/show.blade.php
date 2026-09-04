@@ -1,0 +1,122 @@
+@extends('layouts.app')
+
+@section('title', $asSet->name.' — IRCENTER')
+
+@section('content')
+    <section class="page-heading">
+        <div>
+            <div class="page-eyebrow">Internet Routing Registry — TC</div>
+            <h1 class="table-mono">{{ $asSet->name }}</h1>
+            <p>{{ $asSet->maintainer->mntner }}</p>
+        </div>
+
+        @if (auth()->user()->isAdministrator())
+            <div class="page-actions">
+                <a class="button button-secondary" href="{{ route('irr-as-sets.edit', $asSet) }}">Editar</a>
+
+                <form method="POST" action="{{ route('irr-as-sets.publish', $asSet) }}">
+                    @csrf
+                    <button class="button button-primary" type="submit">
+                        Publicar no TC
+                    </button>
+                </form>
+            </div>
+        @endif
+    </section>
+
+    @if (session('success'))
+        <div class="alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert-error">{{ session('error') }}</div>
+    @endif
+
+    <section class="panel">
+        <dl class="detail-grid">
+            <div>
+                <dt>Status</dt>
+                <dd>
+                    <span class="status-pill {{ $asSet->status === 'published' ? 'is-active' : 'is-inactive' }}">
+                        {{ $asSet->status }}
+                    </span>
+                </dd>
+            </div>
+
+            <div>
+                <dt>Última publicação</dt>
+                <dd>{{ $asSet->last_published_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+            </div>
+
+            <div>
+                <dt>Descrição</dt>
+                <dd>{{ $asSet->descr ?? '—' }}</dd>
+            </div>
+
+            <div>
+                <dt>Membros</dt>
+                <dd class="table-mono">{{ implode(', ', $asSet->members ?? []) }}</dd>
+            </div>
+
+            @if ($asSet->last_error)
+                <div>
+                    <dt>Último erro</dt>
+                    <dd>{{ $asSet->last_error }}</dd>
+                </div>
+            @endif
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h2>Histórico de submissões</h2>
+
+        @if ($asSet->submissions->isEmpty())
+            <p class="table-secondary-text">Este AS-set ainda não foi enviado ao TC.</p>
+        @else
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Operação</th>
+                            <th>Resultado</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach ($asSet->submissions as $submission)
+                            <tr>
+                                <td>{{ $submission->created_at?->format('d/m/Y H:i:s') }}</td>
+                                <td>{{ $submission->operation }}</td>
+                                <td>
+                                    <span class="status-pill {{ $submission->successful ? 'is-active' : 'is-inactive' }}">
+                                        {{ $submission->successful ? 'Sucesso' : 'Falha' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    @if (auth()->user()->isAdministrator())
+        <section class="panel">
+            <h2>Remover do TC</h2>
+            <p class="table-secondary-text">
+                Envia uma solicitação de remoção do objeto na base do TC. O
+                registro no IRCENTER só é removido separadamente, em
+                "Editar" → excluir.
+            </p>
+
+            <form method="POST" action="{{ route('irr-as-sets.destroy-remote', $asSet) }}">
+                @csrf
+                @method('DELETE')
+                <button class="button button-secondary" type="submit">
+                    Remover objeto no TC
+                </button>
+            </form>
+        </section>
+    @endif
+@endsection
