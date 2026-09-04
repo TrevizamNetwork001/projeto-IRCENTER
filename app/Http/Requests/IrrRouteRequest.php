@@ -57,7 +57,11 @@ abstract class IrrRouteRequest extends FormRequest
             'version' => ['required', 'integer', Rule::in([4, 6])],
             'origin_asn' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'descr' => ['nullable', 'string', 'max:255'],
+            'member_of' => ['nullable', 'array'],
+            'member_of.*' => ['required', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:2000'],
+            'notify' => ['nullable', 'array'],
+            'notify.*' => ['required', 'email', 'max:255'],
         ];
     }
 

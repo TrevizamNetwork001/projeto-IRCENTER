@@ -16,6 +16,8 @@ abstract class IrrAsSetRequest extends FormRequest
     {
         $this->merge([
             'name' => strtoupper(trim((string) $this->input('name'))),
+            'admin_c' => strtoupper(trim((string) $this->input('admin_c'))),
+            'tech_c' => strtoupper(trim((string) $this->input('tech_c'))),
         ]);
     }
 
@@ -39,6 +41,10 @@ abstract class IrrAsSetRequest extends FormRequest
             'descr' => ['nullable', 'string', 'max:255'],
             'members' => ['required', 'array', 'min:1'],
             'members.*' => ['required', 'string', 'max:100'],
+            'admin_c' => ['required', 'string', 'max:100'],
+            'tech_c' => ['required', 'string', 'max:100'],
+            'notify' => ['nullable', 'array'],
+            'notify.*' => ['required', 'email', 'max:255'],
         ];
     }
 }

@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'source',
     'descr',
     'members',
+    'admin_c',
+    'tech_c',
+    'notify',
     'status',
 ])]
 class IrrAsSet extends Model
@@ -59,6 +62,7 @@ class IrrAsSet extends Model
     {
         return [
             'members' => 'array',
+            'notify' => 'array',
             'last_published_at' => 'datetime',
         ];
     }

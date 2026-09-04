@@ -12,10 +12,12 @@ use InvalidArgumentException;
  *
  * Regras obrigatórias em todos os métodos:
  * - todo objeto termina com "source: TC";
- * - changed/last-modified/rpki-ov-state nunca são emitidos (gerenciados
- *   pelo servidor do TC — enviá-los é rejeitado ou ignorado pela API);
- * - atributos multivalorados (mnt-by, members, remarks, import, export)
- *   repetem a linha em vez de concatenar valores numa só;
+ * - changed/last-modified/rpki-ov-state/geoidx nunca são emitidos
+ *   (gerenciados pelo servidor do TC — enviá-los é rejeitado ou
+ *   ignorado pela API);
+ * - atributos multivalorados (mnt-by, members, remarks, notify,
+ *   member-of, import, export) repetem a linha em vez de concatenar
+ *   valores numa só;
  * - nenhuma linha em branco dentro do objeto;
  * - nenhum valor pode conter \r ou \n — permitir isso injetaria
  *   atributos RPSL arbitrários (ver build());
@@ -28,6 +30,7 @@ final class RpslBuilder
         'changed',
         'last-modified',
         'rpki-ov-state',
+        'geoidx',
     ];
 
     public function route(IrrRoute $route): string
@@ -58,8 +61,16 @@ final class RpslBuilder
 
         $lines[] = ['origin', $this->normalizeAsn($route->origin_asn)];
 
+        foreach ($this->listValues($route->member_of) as $memberOf) {
+            $lines[] = ['member-of', $memberOf];
+        }
+
         foreach ($this->remarkLines($route->remarks) as $remark) {
             $lines[] = ['remarks', $remark];
+        }
+
+        foreach ($this->listValues($route->notify) as $notify) {
+            $lines[] = ['notify', $notify];
         }
 
         foreach ($this->mntBy($maintainer) as $mntBy) {
@@ -83,6 +94,18 @@ final class RpslBuilder
             throw new InvalidArgumentException('Objeto as-set sem maintainer — mnt-by é obrigatório em RPSL.');
         }
 
+        $adminC = trim((string) $asSet->admin_c);
+
+        if ($adminC === '') {
+            throw new InvalidArgumentException('Objeto as-set sem admin-c — atributo obrigatório ausente.');
+        }
+
+        $techC = trim((string) $asSet->tech_c);
+
+        if ($techC === '') {
+            throw new InvalidArgumentException('Objeto as-set sem tech-c — atributo obrigatório ausente.');
+        }
+
         $lines = [
             ['as-set', $name],
         ];
@@ -91,8 +114,15 @@ final class RpslBuilder
             $lines[] = ['descr', $asSet->descr];
         }
 
-        foreach ((array) ($asSet->members ?? []) as $member) {
-            $lines[] = ['members', (string) $member];
+        foreach ($this->listValues($asSet->members) as $member) {
+            $lines[] = ['members', $member];
+        }
+
+        $lines[] = ['admin-c', $adminC];
+        $lines[] = ['tech-c', $techC];
+
+        foreach ($this->listValues($asSet->notify) as $notify) {
+            $lines[] = ['notify', $notify];
         }
 
         foreach ($this->mntBy($maintainer) as $mntBy) {
@@ -189,6 +219,18 @@ final class RpslBuilder
     private function mntBy(IrrMaintainer $maintainer): array
     {
         return [$maintainer->mntner];
+    }
+
+    /**
+     * @param array<int, mixed>|null $values
+     * @return list<string>
+     */
+    private function listValues(?array $values): array
+    {
+        return array_values(array_filter(
+            array_map(static fn (mixed $value): string => trim((string) $value), $values ?? []),
+            static fn (string $value): bool => $value !== ''
+        ));
     }
 
     /**

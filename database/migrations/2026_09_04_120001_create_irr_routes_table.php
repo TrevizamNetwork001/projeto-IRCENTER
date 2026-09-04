@@ -21,7 +21,9 @@ return new class extends Migration
             $table->unsignedInteger('origin_asn');
             $table->string('source', 50)->default('TC');
             $table->string('descr')->nullable();
+            $table->json('member_of')->nullable();
             $table->text('remarks')->nullable();
+            $table->json('notify')->nullable();
             $table->string('status', 20)->default('pending');
             $table->timestampTz('last_published_at')->nullable();
             $table->text('last_error')->nullable();

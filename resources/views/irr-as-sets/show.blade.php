@@ -58,6 +58,18 @@
                 <dd class="table-mono">{{ implode(', ', $asSet->members ?? []) }}</dd>
             </div>
 
+            <div>
+                <dt>admin-c / tech-c</dt>
+                <dd class="table-mono">{{ $asSet->admin_c }} / {{ $asSet->tech_c }}</dd>
+            </div>
+
+            @if (! empty($asSet->notify))
+                <div>
+                    <dt>Notify</dt>
+                    <dd class="table-mono">{{ implode(', ', $asSet->notify) }}</dd>
+                </div>
+            @endif
+
             @if ($asSet->last_error)
                 <div>
                     <dt>Último erro</dt>

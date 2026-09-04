@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'origin_asn',
     'source',
     'descr',
+    'member_of',
     'remarks',
+    'notify',
     'status',
 ])]
 class IrrRoute extends Model
@@ -67,6 +69,8 @@ class IrrRoute extends Model
         return [
             'version' => 'integer',
             'origin_asn' => 'integer',
+            'member_of' => 'array',
+            'notify' => 'array',
             'last_published_at' => 'datetime',
         ];
     }

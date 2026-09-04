@@ -96,6 +96,27 @@
     </div>
 
     <div class="field-group field-span-2">
+        <label for="member_of_text">Member-of</label>
+
+        <textarea
+            id="member_of_text"
+            class="form-control code-textarea"
+            data-multiline-field
+            data-name="member_of"
+            rows="3"
+            placeholder="Um route-set/as-set por linha, ex.: AS268359:RS-ROUTES"
+        >{{ implode("\n", (array) old('member_of', $route->member_of ?? [])) }}</textarea>
+
+        @error('member_of')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+
+        @error('member_of.*')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+
+    <div class="field-group field-span-2">
         <label for="remarks">Remarks</label>
 
         <textarea
@@ -108,6 +129,27 @@
         >{{ old('remarks', $route->remarks) }}</textarea>
 
         @error('remarks')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+
+    <div class="field-group field-span-2">
+        <label for="notify_text">Notify</label>
+
+        <textarea
+            id="notify_text"
+            class="form-control code-textarea"
+            data-multiline-field
+            data-name="notify"
+            rows="3"
+            placeholder="Um e-mail por linha"
+        >{{ implode("\n", (array) old('notify', $route->notify ?? [])) }}</textarea>
+
+        @error('notify')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+
+        @error('notify.*')
             <div class="field-error">{{ $message }}</div>
         @enderror
     </div>
@@ -139,6 +181,30 @@
             if (asn) {
                 originField.value = asn;
             }
+        });
+    })();
+
+    (() => {
+        const form = document.querySelector('[data-multiline-field]')?.closest('form');
+
+        if (! form) {
+            return;
+        }
+
+        form.addEventListener('submit', () => {
+            form.querySelectorAll('[data-multiline-field]').forEach((textarea) => {
+                textarea.value
+                    .split('\n')
+                    .map((value) => value.trim())
+                    .filter((value) => value !== '')
+                    .forEach((value) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = `${textarea.dataset.name}[]`;
+                        input.value = value;
+                        form.appendChild(input);
+                    });
+            });
         });
     })();
 </script>

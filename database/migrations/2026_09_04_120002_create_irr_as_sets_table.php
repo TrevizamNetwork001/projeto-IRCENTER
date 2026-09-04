@@ -20,6 +20,9 @@ return new class extends Migration
             $table->string('source', 50)->default('TC');
             $table->string('descr')->nullable();
             $table->json('members');
+            $table->string('admin_c', 100);
+            $table->string('tech_c', 100);
+            $table->json('notify')->nullable();
             $table->string('status', 20)->default('pending');
             $table->timestampTz('last_published_at')->nullable();
             $table->text('last_error')->nullable();

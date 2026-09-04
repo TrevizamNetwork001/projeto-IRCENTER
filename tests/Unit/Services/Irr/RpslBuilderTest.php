@@ -17,6 +17,21 @@ class RpslBuilderTest extends TestCase
     }
 
     /**
+     * @param array<string, mixed> $attributes
+     */
+    private function asSet(array $attributes = []): IrrAsSet
+    {
+        $asSet = new IrrAsSet(array_merge([
+            'name' => 'AS64500:AS-CLIENTES',
+            'admin_c' => 'JD1-TC',
+            'tech_c' => 'JD1-TC',
+        ], $attributes));
+        $asSet->setRelation('maintainer', $this->maintainer());
+
+        return $asSet;
+    }
+
+    /**
      * @return list<string>
      */
     private function lines(string $rpsl): array
@@ -79,7 +94,7 @@ class RpslBuilderTest extends TestCase
 
         $rpsl = (new RpslBuilder)->route($route);
 
-        foreach (['changed:', 'last-modified:', 'rpki-ov-state:'] as $forbidden) {
+        foreach (['changed:', 'last-modified:', 'rpki-ov-state:', 'geoidx:'] as $forbidden) {
             $this->assertStringNotContainsString($forbidden, $rpsl);
         }
     }
@@ -103,11 +118,7 @@ class RpslBuilderTest extends TestCase
 
     public function test_as_set_repeats_members_line_per_member(): void
     {
-        $asSet = new IrrAsSet([
-            'name' => 'AS64500:AS-CLIENTES',
-            'members' => ['AS64501', 'AS64502', 'AS64500:AS-EDGE'],
-        ]);
-        $asSet->setRelation('maintainer', $this->maintainer());
+        $asSet = $this->asSet(['members' => ['AS64501', 'AS64502', 'AS64500:AS-EDGE']]);
 
         $rpsl = (new RpslBuilder)->asSet($asSet);
         $lines = $this->lines($rpsl);
@@ -116,7 +127,31 @@ class RpslBuilderTest extends TestCase
         $this->assertContains('members: AS64501', $lines);
         $this->assertContains('members: AS64502', $lines);
         $this->assertContains('members: AS64500:AS-EDGE', $lines);
+        $this->assertContains('admin-c: JD1-TC', $lines);
+        $this->assertContains('tech-c: JD1-TC', $lines);
         $this->assertSame('source: TC', $lines[count($lines) - 1]);
+    }
+
+    public function test_as_set_attributes_follow_the_real_object_order(): void
+    {
+        $asSet = $this->asSet([
+            'descr' => 'Cone de clientes',
+            'members' => ['AS64501'],
+            'notify' => ['noc@example.test'],
+        ]);
+
+        $lines = $this->lines((new RpslBuilder)->asSet($asSet));
+
+        $this->assertSame([
+            'as-set: AS64500:AS-CLIENTES',
+            'descr: Cone de clientes',
+            'members: AS64501',
+            'admin-c: JD1-TC',
+            'tech-c: JD1-TC',
+            'notify: noc@example.test',
+            'mnt-by: MAINT-AS64500',
+            'source: TC',
+        ], $lines);
     }
 
     public function test_aut_num_repeats_import_export_and_mnt_by_lines(): void
@@ -179,11 +214,46 @@ class RpslBuilderTest extends TestCase
 
     public function test_members_with_embedded_newline_throws(): void
     {
-        $asSet = new IrrAsSet([
-            'name' => 'AS64500:AS-CLIENTES',
-            'members' => ["AS64501\nmnt-by: MAINT-AS99999"],
+        $asSet = $this->asSet(['members' => ["AS64501\nmnt-by: MAINT-AS99999"]]);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new RpslBuilder)->asSet($asSet);
+    }
+
+    public function test_member_of_with_embedded_newline_throws(): void
+    {
+        $route = new IrrRoute([
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 64500,
+            'member_of' => ["AS268359:RS-ROUTES\nmnt-by: MAINT-AS99999"],
         ]);
-        $asSet->setRelation('maintainer', $this->maintainer());
+        $route->setRelation('maintainer', $this->maintainer());
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new RpslBuilder)->route($route);
+    }
+
+    public function test_route_notify_with_embedded_newline_throws(): void
+    {
+        $route = new IrrRoute([
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 64500,
+            'notify' => ["noc@example.test\nmnt-by: MAINT-AS99999"],
+        ]);
+        $route->setRelation('maintainer', $this->maintainer());
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new RpslBuilder)->route($route);
+    }
+
+    public function test_as_set_notify_with_embedded_newline_throws(): void
+    {
+        $asSet = $this->asSet(['notify' => ["noc@example.test\nmnt-by: MAINT-AS99999"]]);
 
         $this->expectException(InvalidArgumentException::class);
 
@@ -244,6 +314,24 @@ class RpslBuilderTest extends TestCase
     {
         $asSet = new IrrAsSet(['name' => '']);
         $asSet->setRelation('maintainer', $this->maintainer());
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new RpslBuilder)->asSet($asSet);
+    }
+
+    public function test_as_set_without_admin_c_throws(): void
+    {
+        $asSet = $this->asSet(['admin_c' => '']);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new RpslBuilder)->asSet($asSet);
+    }
+
+    public function test_as_set_without_tech_c_throws(): void
+    {
+        $asSet = $this->asSet(['tech_c' => '']);
 
         $this->expectException(InvalidArgumentException::class);
 
@@ -318,5 +406,74 @@ class RpslBuilderTest extends TestCase
 
         $this->assertStringContainsString('origin: AS64500', $rpsl);
         $this->assertStringNotContainsString('ASAS', $rpsl);
+    }
+
+    // --- member-of / notify (route) -------------------------------------
+
+    public function test_route_with_member_of_and_notify_present(): void
+    {
+        $route = new IrrRoute([
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 268359,
+            'member_of' => ['AS268359:RS-ROUTES', 'AS268359:RS-CLIENTES'],
+            'notify' => ['noc@example.test', 'peering@example.test'],
+        ]);
+        $route->setRelation('maintainer', $this->maintainer());
+
+        $lines = $this->lines((new RpslBuilder)->route($route));
+
+        $this->assertContains('member-of: AS268359:RS-ROUTES', $lines);
+        $this->assertContains('member-of: AS268359:RS-CLIENTES', $lines);
+        $this->assertContains('notify: noc@example.test', $lines);
+        $this->assertContains('notify: peering@example.test', $lines);
+    }
+
+    public function test_route_without_member_of_and_notify_omits_them_without_gaps(): void
+    {
+        $route = new IrrRoute([
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 64500,
+            'member_of' => null,
+            'notify' => null,
+        ]);
+        $route->setRelation('maintainer', $this->maintainer());
+
+        $rpsl = (new RpslBuilder)->route($route);
+
+        $this->assertStringNotContainsString('member-of', $rpsl);
+        $this->assertStringNotContainsString('notify', $rpsl);
+        $this->assertSame(
+            "route: 192.0.2.0/24\norigin: AS64500\nmnt-by: MAINT-AS64500\nsource: TC\n",
+            $rpsl
+        );
+    }
+
+    public function test_route_attributes_follow_the_real_object_order(): void
+    {
+        $route = new IrrRoute([
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 268359,
+            'descr' => 'Rede de teste',
+            'member_of' => ['AS268359:RS-ROUTES'],
+            'remarks' => 'Observação única',
+            'notify' => ['noc@example.test'],
+        ]);
+        $route->setRelation('maintainer', $this->maintainer());
+
+        $lines = $this->lines((new RpslBuilder)->route($route));
+
+        $this->assertSame([
+            'route: 192.0.2.0/24',
+            'descr: Rede de teste',
+            'origin: AS268359',
+            'member-of: AS268359:RS-ROUTES',
+            'remarks: Observação única',
+            'notify: noc@example.test',
+            'mnt-by: MAINT-AS64500',
+            'source: TC',
+        ], $lines);
     }
 }

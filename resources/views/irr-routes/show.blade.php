@@ -57,6 +57,20 @@
                 <dd>{{ $route->descr ?? '—' }}</dd>
             </div>
 
+            @if (! empty($route->member_of))
+                <div>
+                    <dt>Member-of</dt>
+                    <dd class="table-mono">{{ implode(', ', $route->member_of) }}</dd>
+                </div>
+            @endif
+
+            @if (! empty($route->notify))
+                <div>
+                    <dt>Notify</dt>
+                    <dd class="table-mono">{{ implode(', ', $route->notify) }}</dd>
+                </div>
+            @endif
+
             @if ($route->last_error)
                 <div>
                     <dt>Último erro</dt>

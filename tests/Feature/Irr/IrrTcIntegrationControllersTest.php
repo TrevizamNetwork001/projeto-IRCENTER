@@ -220,12 +220,18 @@ class IrrTcIntegrationControllersTest extends TestCase
                 'irr_maintainer_id' => $maintainer->id,
                 'name' => 'as64500:as-clientes',
                 'members' => ['AS64501', 'AS64502'],
+                'admin_c' => 'jd1-tc',
+                'tech_c' => 'jd1-tc',
+                'notify' => ['noc@example.test'],
             ])
             ->assertRedirect();
 
         $asSet = IrrAsSet::query()->first();
         $this->assertSame('AS64500:AS-CLIENTES', $asSet->name);
         $this->assertSame(['AS64501', 'AS64502'], $asSet->members);
+        $this->assertSame('JD1-TC', $asSet->admin_c);
+        $this->assertSame('JD1-TC', $asSet->tech_c);
+        $this->assertSame(['noc@example.test'], $asSet->notify);
     }
 
     public function test_viewer_cannot_create_maintainer_route_or_as_set(): void
