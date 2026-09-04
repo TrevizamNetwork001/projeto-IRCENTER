@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'client_id',
     'asn',
     'mntner',
+    'source',
     'password',
     'admin_c',
     'tech_c',
@@ -21,6 +22,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class IrrMaintainer extends Model
 {
     use BelongsToClient;
+
+    protected $attributes = [
+        'source' => 'TC',
+    ];
 
     public function client(): BelongsTo
     {

@@ -4,6 +4,7 @@ namespace Tests\Feature\Irr;
 
 use App\Models\IrrAsSet;
 use App\Models\IrrMaintainer;
+use App\Models\IrrObject;
 use App\Models\IrrRoute;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,6 +87,49 @@ class IrrTcIntegrationControllersTest extends TestCase
         $route = IrrRoute::query()->first();
         $this->assertSame('192.0.2.0/24', $route->prefix);
         $this->assertSame(IrrRoute::STATUS_PENDING, $route->status);
+    }
+
+    public function test_route_store_warns_but_does_not_block_when_prefix_already_exists_as_irr_object(): void
+    {
+        $maintainer = $this->maintainer(64500);
+
+        IrrObject::query()->create([
+            'object_type' => 'route',
+            'object_key' => '192.0.2.0/24',
+            'source' => 'LOCAL',
+            'status' => 'active',
+            'active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin())
+            ->post(route('irr-routes.store'), [
+                'irr_maintainer_id' => $maintainer->id,
+                'prefix' => '192.0.2.0/24',
+                'version' => 4,
+                'origin_asn' => 64500,
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('warning');
+        $response->assertSessionHas('success');
+
+        $this->assertSame(1, IrrRoute::query()->count(), 'o aviso não deve bloquear o cadastro');
+    }
+
+    public function test_route_store_does_not_warn_when_no_conflicting_irr_object_exists(): void
+    {
+        $maintainer = $this->maintainer(64500);
+
+        $response = $this->actingAs($this->admin())
+            ->post(route('irr-routes.store'), [
+                'irr_maintainer_id' => $maintainer->id,
+                'prefix' => '192.0.2.0/24',
+                'version' => 4,
+                'origin_asn' => 64500,
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionMissing('warning');
     }
 
     public function test_route_store_rejects_invalid_prefix(): void

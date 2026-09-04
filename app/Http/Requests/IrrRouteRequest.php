@@ -33,7 +33,9 @@ abstract class IrrRouteRequest extends FormRequest
     protected function routeRules(?int $ignoreRouteId = null): array
     {
         $uniqueRule = Rule::unique('irr_routes')
-            ->where(fn ($query) => $query->where('origin_asn', $this->input('origin_asn')));
+            ->where(fn ($query) => $query
+                ->where('origin_asn', $this->input('origin_asn'))
+                ->where('source', 'TC'));
 
         if ($ignoreRouteId !== null) {
             $uniqueRule->ignore($ignoreRouteId);

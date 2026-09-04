@@ -4,6 +4,7 @@ namespace App\Services\Irr;
 
 use App\Models\IrrAsSet;
 use App\Models\IrrMaintainer;
+use App\Models\IrrObject;
 use App\Models\IrrRoute;
 use App\Models\IrrSubmission;
 use Illuminate\Http\Client\ConnectionException;
@@ -24,7 +25,9 @@ use Throwable;
  *   atualizados a partir do resultado real, nunca do status HTTP;
  * - timeout de 30s, com 1 retry só em erro de conexão — nunca em erro de
  *   objeto (não chamamos ->throw(), então um objects[].successful=false
- *   nunca dispara retry).
+ *   nunca dispara retry);
+ * - toda publicação bem-sucedida (não delete) espelha o objeto no
+ *   catálogo manual (irr_objects, source=TC) — ver syncIrrObjectCatalog().
  */
 final class TcIrrClient
 {
@@ -82,14 +85,20 @@ final class TcIrrClient
             return $this->recordFailure($object, $operation, $maskedRequest, null, $exception->getMessage());
         }
 
-        return $this->recordResponse($object, $operation, $maskedRequest, $response);
+        return $this->recordResponse($maintainer, $object, $operation, $maskedRequest, $response, $rpslText);
     }
 
     /**
      * @param array<string, mixed> $maskedRequest
      */
-    private function recordResponse(IrrRoute|IrrAsSet $object, string $operation, array $maskedRequest, Response $response): array
-    {
+    private function recordResponse(
+        IrrMaintainer $maintainer,
+        IrrRoute|IrrAsSet $object,
+        string $operation,
+        array $maskedRequest,
+        Response $response,
+        string $rpslText,
+    ): array {
         $contentType = (string) $response->header('Content-Type');
         $decoded = $response->json();
 
@@ -114,12 +123,60 @@ final class TcIrrClient
 
         if ($successful) {
             $object->markPublished();
+
+            // Só sincroniza o catálogo manual (irr_objects) numa
+            // publicação — um delete bem-sucedido não deveria criar
+            // nem reativar uma entrada ali.
+            if ($operation !== IrrSubmission::OPERATION_DELETE) {
+                $this->syncIrrObjectCatalog($maintainer, $object, is_array($result) ? $result : null, $rpslText);
+            }
         } else {
             $errorMessages = is_array($result) ? (array) ($result['error_messages'] ?? []) : ['Objeto não retornado pela API do TC.'];
             $object->markFailed(implode('; ', $errorMessages) ?: 'Falha desconhecida ao publicar no TC.');
         }
 
         return $decoded;
+    }
+
+    /**
+     * Espelha o objeto recém-publicado no catálogo manual (irr_objects),
+     * usado hoje só como inventário de leitura — mantém os dois em sincronia
+     * sem duplicar o cadastro que o operador faz aqui (irr_routes/irr_as_sets).
+     *
+     * @param array<string, mixed>|null $apiObjectResult
+     */
+    private function syncIrrObjectCatalog(
+        IrrMaintainer $maintainer,
+        IrrRoute|IrrAsSet $object,
+        ?array $apiObjectResult,
+        string $rpslText,
+    ): void {
+        [$type, $key] = $object instanceof IrrRoute
+            ? [$object->attributeName(), $object->prefix]
+            : ['as-set', $object->name];
+
+        $acceptedText = $this->acceptedObjectText($apiObjectResult) ?? $rpslText;
+
+        IrrObject::query()->updateOrCreate(
+            ['object_type' => $type, 'object_key' => $key, 'source' => 'TC'],
+            [
+                'maintainer' => $maintainer->mntner,
+                'status' => 'active',
+                'raw_text' => $acceptedText,
+                'last_synced_at' => now(),
+                'active' => true,
+            ]
+        );
+    }
+
+    /**
+     * @param array<string, mixed>|null $apiObjectResult
+     */
+    private function acceptedObjectText(?array $apiObjectResult): ?string
+    {
+        $text = $apiObjectResult['new_object_text'] ?? $apiObjectResult['submitted_object_text'] ?? null;
+
+        return is_string($text) && trim($text) !== '' ? $text : null;
     }
 
     /**

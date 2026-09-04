@@ -13,6 +13,7 @@ return new class extends Migration
 
             $table->morphs('submittable');
             $table->string('operation', 20);
+            $table->string('source', 50)->default('TC');
             $table->json('request_payload');
             $table->json('response_payload')->nullable();
             $table->boolean('successful');

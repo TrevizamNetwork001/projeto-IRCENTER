@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('prefix', 64);
             $table->unsignedTinyInteger('version');
             $table->unsignedInteger('origin_asn');
+            $table->string('source', 50)->default('TC');
             $table->string('descr')->nullable();
             $table->text('remarks')->nullable();
             $table->string('status', 20)->default('pending');
@@ -27,7 +28,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['prefix', 'origin_asn']);
+            $table->unique(['prefix', 'origin_asn', 'source']);
             $table->index('status');
             $table->index('version');
         });

@@ -28,6 +28,10 @@
         <div class="alert-success">{{ session('success') }}</div>
     @endif
 
+    @if (session('warning'))
+        <div class="alert-error">⚠ {{ session('warning') }}</div>
+    @endif
+
     @if (session('error'))
         <div class="alert-error">{{ session('error') }}</div>
     @endif

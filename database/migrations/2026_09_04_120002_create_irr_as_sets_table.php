@@ -17,6 +17,7 @@ return new class extends Migration
                 ->restrictOnDelete();
 
             $table->string('name', 100);
+            $table->string('source', 50)->default('TC');
             $table->string('descr')->nullable();
             $table->json('members');
             $table->string('status', 20)->default('pending');

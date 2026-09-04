@@ -19,6 +19,7 @@ return new class extends Migration
 
             $table->unsignedInteger('asn');
             $table->string('mntner', 100);
+            $table->string('source', 50)->default('TC');
             $table->text('password');
             $table->string('admin_c', 100);
             $table->string('tech_c', 100);

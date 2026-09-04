@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'prefix',
     'version',
     'origin_asn',
+    'source',
     'descr',
     'remarks',
     'status',
@@ -25,6 +26,7 @@ class IrrRoute extends Model
     public const STATUS_FAILED = 'failed';
 
     protected $attributes = [
+        'source' => 'TC',
         'status' => self::STATUS_PENDING,
     ];
 

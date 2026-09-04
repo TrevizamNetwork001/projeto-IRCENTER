@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreIrrRouteRequest;
 use App\Http\Requests\UpdateIrrRouteRequest;
 use App\Models\IrrMaintainer;
+use App\Models\IrrObject;
 use App\Models\IrrRoute;
 use App\Models\IrrSubmission;
 use App\Services\Irr\RpslBuilder;
@@ -38,9 +39,11 @@ class IrrRouteController extends Controller
     {
         $route = IrrRoute::query()->create($request->validated());
 
-        return redirect()
+        $redirect = redirect()
             ->route('irr-routes.show', $route)
             ->with('success', 'Objeto route cadastrado. Publique-o para enviar ao TC.');
+
+        return $this->withConflictWarning($redirect, $route->prefix);
     }
 
     public function show(IrrRoute $irrRoute): View
@@ -64,9 +67,11 @@ class IrrRouteController extends Controller
     {
         $irrRoute->update($request->validated());
 
-        return redirect()
+        $redirect = redirect()
             ->route('irr-routes.show', $irrRoute)
             ->with('success', 'Objeto route atualizado. Publique novamente para refletir a alteração no TC.');
+
+        return $this->withConflictWarning($redirect, $irrRoute->prefix);
     }
 
     public function destroy(IrrRoute $irrRoute): RedirectResponse
@@ -104,6 +109,29 @@ class IrrRouteController extends Controller
         $client->delete($irrRoute->maintainer, $irrRoute, $builder->route($irrRoute), 'Removido pelo IRCENTER');
 
         return back()->with('success', 'Solicitação de remoção enviada ao TC — acompanhe o resultado no histórico de submissões.');
+    }
+
+    /**
+     * Apenas avisa — o catálogo manual (irr_objects) e a publicação
+     * automática (irr_routes) são cadastros independentes; um mesmo
+     * prefixo existir nos dois não impede o cadastro, mas costuma
+     * indicar duplicidade que vale a pena revisar.
+     */
+    private function withConflictWarning(RedirectResponse $redirect, string $prefix): RedirectResponse
+    {
+        $exists = IrrObject::query()
+            ->where('object_key', $prefix)
+            ->where('active', true)
+            ->exists();
+
+        if (! $exists) {
+            return $redirect;
+        }
+
+        return $redirect->with(
+            'warning',
+            "Atenção: já existe um objeto IRR ativo no catálogo manual com a chave {$prefix}. Confira se não há duplicidade entre os dois cadastros."
+        );
     }
 
     private function publicationRedirect(IrrRoute $irrRoute): RedirectResponse

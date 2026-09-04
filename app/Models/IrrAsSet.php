@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 #[Fillable([
     'irr_maintainer_id',
     'name',
+    'source',
     'descr',
     'members',
     'status',
@@ -23,6 +24,7 @@ class IrrAsSet extends Model
     public const STATUS_FAILED = 'failed';
 
     protected $attributes = [
+        'source' => 'TC',
         'status' => self::STATUS_PENDING,
     ];
 

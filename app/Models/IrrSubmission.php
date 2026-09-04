@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     'submittable_type',
     'submittable_id',
     'operation',
+    'source',
     'request_payload',
     'response_payload',
     'successful',
@@ -23,6 +24,10 @@ class IrrSubmission extends Model
     public const OPERATION_MODIFY = 'modify';
 
     public const OPERATION_DELETE = 'delete';
+
+    protected $attributes = [
+        'source' => 'TC',
+    ];
 
     public function submittable(): MorphTo
     {

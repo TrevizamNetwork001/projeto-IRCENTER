@@ -3,6 +3,7 @@
 namespace Tests\Feature\Irr;
 
 use App\Models\IrrMaintainer;
+use App\Models\IrrObject;
 use App\Models\IrrRoute;
 use App\Models\IrrSubmission;
 use App\Services\Irr\RpslBuilder;
@@ -175,6 +176,51 @@ class TcIrrClientTest extends TestCase
 
         $submission = IrrSubmission::query()->first();
         $this->assertSame(IrrSubmission::OPERATION_DELETE, $submission->operation);
+    }
+
+    public function test_successful_publish_syncs_the_manual_irr_object_catalog(): void
+    {
+        Http::fake([
+            'bgp.net.br/*' => Http::response([
+                'objects' => [[
+                    'successful' => true,
+                    'new_object_text' => "route: 192.0.2.0/24\norigin: AS64500\nmnt-by: MAINT-AS64500\nsource: TC",
+                ]],
+            ], 200),
+        ]);
+
+        $maintainer = $this->maintainer();
+        $route = $this->route($maintainer);
+
+        (new TcIrrClient)->publish($maintainer, $route, 'route: 192.0.2.0/24', 'create');
+
+        $catalogEntry = IrrObject::query()
+            ->where('object_type', 'route')
+            ->where('object_key', '192.0.2.0/24')
+            ->where('source', 'TC')
+            ->first();
+
+        $this->assertNotNull($catalogEntry, 'deveria criar/atualizar a entrada correspondente em irr_objects');
+        $this->assertSame('MAINT-AS64500', $catalogEntry->maintainer);
+        $this->assertTrue($catalogEntry->active);
+        $this->assertStringContainsString('source: TC', $catalogEntry->raw_text);
+        $this->assertNotNull($catalogEntry->last_synced_at);
+    }
+
+    public function test_delete_does_not_sync_the_manual_irr_object_catalog(): void
+    {
+        Http::fake([
+            'bgp.net.br/*' => Http::response([
+                'objects' => [['successful' => true]],
+            ], 200),
+        ]);
+
+        $maintainer = $this->maintainer();
+        $route = $this->route($maintainer);
+
+        (new TcIrrClient)->delete($maintainer, $route, 'route: 192.0.2.0/24', 'Removido pelo IRCENTER');
+
+        $this->assertSame(0, IrrObject::query()->count());
     }
 
     public function test_never_calls_object_level_failure_more_than_once(): void
