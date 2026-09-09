@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable([
     'irr_maintainer_id',
+    'client_id',
     'name',
     'source',
     'descr',
@@ -20,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 ])]
 class IrrAsSet extends Model
 {
+    use BelongsToClient;
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_PUBLISHED = 'published';
@@ -34,6 +38,11 @@ class IrrAsSet extends Model
     public function maintainer(): BelongsTo
     {
         return $this->belongsTo(IrrMaintainer::class, 'irr_maintainer_id');
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function submissions(): MorphMany

@@ -37,7 +37,7 @@ class IrrAsSetController extends Controller
 
     public function store(StoreIrrAsSetRequest $request): RedirectResponse
     {
-        $asSet = IrrAsSet::query()->create($request->validated());
+        $asSet = IrrAsSet::query()->create($this->withDerivedClientId($request->validated()));
 
         return redirect()
             ->route('irr-as-sets.show', $asSet)
@@ -69,7 +69,7 @@ class IrrAsSetController extends Controller
 
     public function update(UpdateIrrAsSetRequest $request, IrrAsSet $irrAsSet): RedirectResponse
     {
-        $irrAsSet->update($request->validated());
+        $irrAsSet->update($this->withDerivedClientId($request->validated()));
 
         return redirect()
             ->route('irr-as-sets.show', $irrAsSet)
@@ -123,6 +123,27 @@ class IrrAsSetController extends Controller
         $client->delete($irrAsSet->maintainer, $irrAsSet, $rpsl, 'Removido pelo IRCENTER');
 
         return back()->with('success', 'Solicitação de remoção enviada ao TC — acompanhe o resultado no histórico de submissões.');
+    }
+
+    /**
+     * client_id nunca vem do formulário — é derivado do maintainer
+     * escolhido. Ver o mesmo helper em IrrRouteController para o motivo
+     * de usar IrrMaintainer::query() em vez de uma checagem direta na
+     * tabela (fecha uma lacuna de Rule::exists não respeitar o escopo
+     * por cliente do model).
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function withDerivedClientId(array $data): array
+    {
+        $maintainer = IrrMaintainer::query()->find($data['irr_maintainer_id'] ?? null);
+
+        abort_unless($maintainer !== null, 404);
+
+        $data['client_id'] = $maintainer->client_id;
+
+        return $data;
     }
 
     /**

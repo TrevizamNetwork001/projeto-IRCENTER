@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Irr;
 
+use App\Models\Client;
 use App\Models\IrrAsSet;
 use App\Models\IrrMaintainer;
 use App\Models\IrrObject;
@@ -25,9 +26,20 @@ class IrrTcIntegrationControllersTest extends TestCase
         ]);
     }
 
-    private function maintainer(int $asn = 64500): IrrMaintainer
+    private function adminRestrictedTo(Client $client): User
+    {
+        return User::factory()->create([
+            'role' => User::ROLE_ADMIN,
+            'active' => true,
+            'must_change_password' => false,
+            'client_id' => $client->id,
+        ]);
+    }
+
+    private function maintainer(int $asn = 64500, ?Client $client = null): IrrMaintainer
     {
         return IrrMaintainer::query()->create([
+            'client_id' => $client?->id,
             'asn' => $asn,
             'mntner' => 'MAINT-AS'.$asn,
             'password' => 'segredo-do-mntner',
@@ -362,5 +374,177 @@ class IrrTcIntegrationControllersTest extends TestCase
         $this->actingAs($viewer)->get(route('irr-maintainers.create'))->assertForbidden();
         $this->actingAs($viewer)->get(route('irr-routes.create'))->assertForbidden();
         $this->actingAs($viewer)->get(route('irr-as-sets.create'))->assertForbidden();
+    }
+
+    // --- Isolamento por cliente (client_id derivado do maintainer) -----
+
+    public function test_route_store_derives_client_id_from_the_selected_maintainer(): void
+    {
+        $client = Client::factory()->create();
+        $maintainer = $this->maintainer(64500, $client);
+
+        $this->actingAs($this->admin())
+            ->post(route('irr-routes.store'), [
+                'irr_maintainer_id' => $maintainer->id,
+                'prefix' => '192.0.2.0/24',
+                'version' => 4,
+                'origin_asn' => 64500,
+            ])
+            ->assertRedirect();
+
+        $route = IrrRoute::query()->first();
+        $this->assertSame($client->id, $route->client_id);
+    }
+
+    public function test_as_set_store_derives_client_id_from_the_selected_maintainer(): void
+    {
+        $client = Client::factory()->create();
+        $maintainer = $this->maintainer(64500, $client);
+
+        $this->actingAs($this->admin())
+            ->post(route('irr-as-sets.store'), [
+                'irr_maintainer_id' => $maintainer->id,
+                'name' => 'AS64500:AS-CLIENTES',
+                'members' => ['AS64501'],
+                'admin_c' => 'JD1-TC',
+                'tech_c' => 'JD1-TC',
+            ])
+            ->assertRedirect();
+
+        $asSet = IrrAsSet::query()->first();
+        $this->assertSame($client->id, $asSet->client_id);
+    }
+
+    public function test_client_restricted_staff_cannot_see_route_of_another_client_in_index(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $maintainerA = $this->maintainer(64500, $clientA);
+        $maintainerB = $this->maintainer(64600, $clientB);
+
+        $routeA = IrrRoute::query()->create([
+            'irr_maintainer_id' => $maintainerA->id,
+            'client_id' => $clientA->id,
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 64500,
+        ]);
+
+        $routeB = IrrRoute::query()->create([
+            'irr_maintainer_id' => $maintainerB->id,
+            'client_id' => $clientB->id,
+            'prefix' => '198.51.100.0/24',
+            'version' => 4,
+            'origin_asn' => 64600,
+        ]);
+
+        $staffA = $this->adminRestrictedTo($clientA);
+
+        $response = $this->actingAs($staffA)->get(route('irr-routes.index'));
+
+        $response->assertOk();
+        $response->assertSee($routeA->prefix);
+        $response->assertDontSee($routeB->prefix);
+    }
+
+    public function test_client_restricted_staff_gets_404_on_another_clients_route(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $maintainerB = $this->maintainer(64600, $clientB);
+
+        $routeB = IrrRoute::query()->create([
+            'irr_maintainer_id' => $maintainerB->id,
+            'client_id' => $clientB->id,
+            'prefix' => '198.51.100.0/24',
+            'version' => 4,
+            'origin_asn' => 64600,
+        ]);
+
+        $staffA = $this->adminRestrictedTo($clientA);
+
+        $this->actingAs($staffA)
+            ->get(route('irr-routes.show', $routeB))
+            ->assertNotFound();
+    }
+
+    public function test_client_restricted_staff_cannot_create_route_under_another_clients_maintainer(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $maintainerB = $this->maintainer(64600, $clientB);
+        $staffA = $this->adminRestrictedTo($clientA);
+
+        // O maintainer de B nem aparece na lista de A, mas isso confirma
+        // que forjar o id diretamente também não funciona (defesa em
+        // profundidade — Rule::exists do FormRequest não respeitaria o
+        // escopo sozinho).
+        $this->actingAs($staffA)
+            ->post(route('irr-routes.store'), [
+                'irr_maintainer_id' => $maintainerB->id,
+                'prefix' => '192.0.2.0/24',
+                'version' => 4,
+                'origin_asn' => 64600,
+            ])
+            ->assertNotFound();
+
+        $this->assertSame(0, IrrRoute::query()->count());
+    }
+
+    public function test_unrestricted_staff_still_sees_routes_from_every_client(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $maintainerA = $this->maintainer(64500, $clientA);
+        $maintainerB = $this->maintainer(64600, $clientB);
+
+        $routeA = IrrRoute::query()->create([
+            'irr_maintainer_id' => $maintainerA->id,
+            'client_id' => $clientA->id,
+            'prefix' => '192.0.2.0/24',
+            'version' => 4,
+            'origin_asn' => 64500,
+        ]);
+
+        $routeB = IrrRoute::query()->create([
+            'irr_maintainer_id' => $maintainerB->id,
+            'client_id' => $clientB->id,
+            'prefix' => '198.51.100.0/24',
+            'version' => 4,
+            'origin_asn' => 64600,
+        ]);
+
+        $response = $this->actingAs($this->admin())->get(route('irr-routes.index'));
+
+        $response->assertOk();
+        $response->assertSee($routeA->prefix);
+        $response->assertSee($routeB->prefix);
+    }
+
+    public function test_client_restricted_staff_gets_404_on_another_clients_as_set(): void
+    {
+        $clientA = Client::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $maintainerB = $this->maintainer(64600, $clientB);
+
+        $asSetB = IrrAsSet::query()->create([
+            'irr_maintainer_id' => $maintainerB->id,
+            'client_id' => $clientB->id,
+            'name' => 'AS64600:AS-CLIENTES',
+            'members' => ['AS64601'],
+            'admin_c' => 'JD1-TC',
+            'tech_c' => 'JD1-TC',
+        ]);
+
+        $staffA = $this->adminRestrictedTo($clientA);
+
+        $this->actingAs($staffA)
+            ->get(route('irr-as-sets.show', $asSetB))
+            ->assertNotFound();
     }
 }

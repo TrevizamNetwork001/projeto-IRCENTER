@@ -38,7 +38,7 @@ class IrrRouteController extends Controller
 
     public function store(StoreIrrRouteRequest $request): RedirectResponse
     {
-        $route = IrrRoute::query()->create($request->validated());
+        $route = IrrRoute::query()->create($this->withDerivedClientId($request->validated()));
 
         $redirect = redirect()
             ->route('irr-routes.show', $route)
@@ -72,7 +72,7 @@ class IrrRouteController extends Controller
 
     public function update(UpdateIrrRouteRequest $request, IrrRoute $irrRoute): RedirectResponse
     {
-        $irrRoute->update($request->validated());
+        $irrRoute->update($this->withDerivedClientId($request->validated()));
 
         $redirect = redirect()
             ->route('irr-routes.show', $irrRoute)
@@ -128,6 +128,31 @@ class IrrRouteController extends Controller
         $client->delete($irrRoute->maintainer, $irrRoute, $rpsl, 'Removido pelo IRCENTER');
 
         return back()->with('success', 'Solicitação de remoção enviada ao TC — acompanhe o resultado no histórico de submissões.');
+    }
+
+    /**
+     * client_id nunca vem do formulário — é derivado do maintainer
+     * escolhido, para o isolamento por cliente (BelongsToClient) ficar
+     * consistente com quem é dono de fato do objeto. Usar
+     * IrrMaintainer::query() (em vez de DB::table) também fecha, de
+     * quebra, uma lacuna do Rule::exists do FormRequest: ele confirma que
+     * a linha existe na tabela, mas não respeita o escopo por cliente do
+     * model — aqui sim, então um funcionário restrito que tentar forjar
+     * o id de um maintainer de outro cliente recebe 404 em vez de
+     * conseguir vincular o objeto a esse maintainer.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function withDerivedClientId(array $data): array
+    {
+        $maintainer = IrrMaintainer::query()->find($data['irr_maintainer_id'] ?? null);
+
+        abort_unless($maintainer !== null, 404);
+
+        $data['client_id'] = $maintainer->client_id;
+
+        return $data;
     }
 
     /**
