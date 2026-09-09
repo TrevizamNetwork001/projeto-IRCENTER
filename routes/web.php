@@ -19,7 +19,10 @@ use App\Http\Controllers\FiscalDashboardController;
 use App\Http\Controllers\FiscalCustomerProfileController;
 use App\Http\Controllers\FiscalDocumentController;
 use App\Http\Controllers\FiscalIssuerProfileController;
+use App\Http\Controllers\IrrAsSetController;
+use App\Http\Controllers\IrrMaintainerController;
 use App\Http\Controllers\IrrObjectController;
+use App\Http\Controllers\IrrRouteController;
 use App\Http\Controllers\IrrWorkflowController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrefixController;
@@ -425,6 +428,33 @@ Route::middleware([
         '/irr-assistant/{irrWorkflow}/steps/{step}/confirm',
         [IrrWorkflowController::class, 'confirm']
     )->name('irr-workflows.steps.confirm');
+
+    Route::resource('irr-maintainers', IrrMaintainerController::class)
+        ->except(['destroy']);
+
+    Route::post(
+        '/irr-routes/{irr_route}/publish',
+        [IrrRouteController::class, 'publish']
+    )->name('irr-routes.publish');
+
+    Route::delete(
+        '/irr-routes/{irr_route}/remote',
+        [IrrRouteController::class, 'destroyRemote']
+    )->name('irr-routes.destroy-remote');
+
+    Route::resource('irr-routes', IrrRouteController::class);
+
+    Route::post(
+        '/irr-as-sets/{irr_as_set}/publish',
+        [IrrAsSetController::class, 'publish']
+    )->name('irr-as-sets.publish');
+
+    Route::delete(
+        '/irr-as-sets/{irr_as_set}/remote',
+        [IrrAsSetController::class, 'destroyRemote']
+    )->name('irr-as-sets.destroy-remote');
+
+    Route::resource('irr-as-sets', IrrAsSetController::class);
 
     Route::get(
         '/rpki',
